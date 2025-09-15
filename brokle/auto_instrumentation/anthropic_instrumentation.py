@@ -60,6 +60,10 @@ class AnthropicInstrumentation:
         """Check if Anthropic library is available."""
         return ANTHROPIC_AVAILABLE
 
+    def _is_client_available(self) -> bool:
+        """Check if Brokle client is available and ready."""
+        return self.client is not None and hasattr(self.client, 'observability')
+
     def instrument(self) -> bool:
         """Instrument Anthropic library for automatic observability."""
         if not self.is_available():
@@ -161,6 +165,22 @@ class AnthropicInstrumentation:
 
         @functools.wraps(original_method)
         def wrapper(*args, **kwargs):
+            # Initialize tracking variables for graceful handling
+            observation_id = None
+            start_time = time.perf_counter()
+
+            # Check if client is available and healthy (graceful degradation)
+            try:
+                from .error_handlers import get_error_handler
+                error_handler = get_error_handler()
+                observability_healthy = error_handler.is_operation_healthy("anthropic", f"observe_{method_name}")
+            except Exception:
+                observability_healthy = False
+
+            # Only proceed with observability if client is available and healthy
+            if not (self.client and observability_healthy):
+                return original_method(*args, **kwargs)
+
             # Extract request data
             request_data = self._extract_request_data(args, kwargs, method_name)
 
@@ -247,6 +267,22 @@ class AnthropicInstrumentation:
 
         @functools.wraps(original_method)
         async def async_wrapper(*args, **kwargs):
+            # Initialize tracking variables for graceful handling
+            observation_id = None
+            start_time = time.perf_counter()
+
+            # Check if client is available and healthy (graceful degradation)
+            try:
+                from .error_handlers import get_error_handler
+                error_handler = get_error_handler()
+                observability_healthy = error_handler.is_operation_healthy("anthropic", f"async_observe_{method_name}")
+            except Exception:
+                observability_healthy = False
+
+            # Only proceed with observability if client is available and healthy
+            if not (self.client and observability_healthy):
+                return await original_method(*args, **kwargs)
+
             # Extract request data
             request_data = self._extract_request_data(args, kwargs, method_name)
 

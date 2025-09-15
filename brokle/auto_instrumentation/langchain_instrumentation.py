@@ -18,6 +18,10 @@ try:
     LANGCHAIN_AVAILABLE = True
 except ImportError:
     LANGCHAIN_AVAILABLE = False
+    BaseCallbackHandler = object  # Fallback for when LangChain is not available
+    BaseCallbackManager = object
+    LLMResult = object
+    Generation = object
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +60,25 @@ class BrokleCallbackHandler(BaseCallbackHandler):
                 self._client = None
         return self._client
 
+    def _is_client_available(self) -> bool:
+        """Check if Brokle client is available and ready."""
+        try:
+            if not self.client or not hasattr(self.client, 'observability'):
+                return False
+
+            # Also check if error handler allows observability operations
+            from .error_handlers import get_error_handler
+            error_handler = get_error_handler()
+            return error_handler.is_operation_healthy("langchain", "observe")
+        except Exception as e:
+            logger.debug(f"Client availability check failed: {e}")
+            return False
+
     def on_llm_start(self, serialized: Dict[str, Any], prompts: List[str], **kwargs) -> None:
         """Called when LLM starts running."""
+        if not self._is_client_available():
+            return
+
         try:
             run_id = kwargs.get("run_id")
             parent_run_id = kwargs.get("parent_run_id")
@@ -106,6 +127,9 @@ class BrokleCallbackHandler(BaseCallbackHandler):
 
     def on_llm_end(self, response: LLMResult, **kwargs) -> None:
         """Called when LLM ends running."""
+        if not self._is_client_available():
+            return
+
         try:
             run_id = kwargs.get("run_id")
             observation_id = self._observations.get(run_id)
@@ -137,6 +161,9 @@ class BrokleCallbackHandler(BaseCallbackHandler):
 
     def on_llm_error(self, error: Union[Exception, KeyboardInterrupt], **kwargs) -> None:
         """Called when LLM errors."""
+        if not self._is_client_available():
+            return
+
         try:
             run_id = kwargs.get("run_id")
             observation_id = self._observations.get(run_id)
@@ -156,6 +183,9 @@ class BrokleCallbackHandler(BaseCallbackHandler):
 
     def on_chain_start(self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs) -> None:
         """Called when chain starts running."""
+        if not self._is_client_available():
+            return
+
         try:
             run_id = kwargs.get("run_id")
             parent_run_id = kwargs.get("parent_run_id")
@@ -202,6 +232,9 @@ class BrokleCallbackHandler(BaseCallbackHandler):
 
     def on_chain_end(self, outputs: Dict[str, Any], **kwargs) -> None:
         """Called when chain ends running."""
+        if not self._is_client_available():
+            return
+
         try:
             run_id = kwargs.get("run_id")
             observation_id = self._observations.get(run_id)
@@ -226,6 +259,9 @@ class BrokleCallbackHandler(BaseCallbackHandler):
 
     def on_chain_error(self, error: Union[Exception, KeyboardInterrupt], **kwargs) -> None:
         """Called when chain errors."""
+        if not self._is_client_available():
+            return
+
         try:
             run_id = kwargs.get("run_id")
             observation_id = self._observations.get(run_id)
@@ -245,6 +281,9 @@ class BrokleCallbackHandler(BaseCallbackHandler):
 
     def on_tool_start(self, serialized: Dict[str, Any], input_str: str, **kwargs) -> None:
         """Called when tool starts running."""
+        if not self._is_client_available():
+            return
+
         try:
             run_id = kwargs.get("run_id")
             parent_run_id = kwargs.get("parent_run_id")
@@ -278,6 +317,9 @@ class BrokleCallbackHandler(BaseCallbackHandler):
 
     def on_tool_end(self, output: str, **kwargs) -> None:
         """Called when tool ends running."""
+        if not self._is_client_available():
+            return
+
         try:
             run_id = kwargs.get("run_id")
             observation_id = self._observations.get(run_id)
@@ -302,6 +344,9 @@ class BrokleCallbackHandler(BaseCallbackHandler):
 
     def on_tool_error(self, error: Union[Exception, KeyboardInterrupt], **kwargs) -> None:
         """Called when tool errors."""
+        if not self._is_client_available():
+            return
+
         try:
             run_id = kwargs.get("run_id")
             observation_id = self._observations.get(run_id)
@@ -321,6 +366,9 @@ class BrokleCallbackHandler(BaseCallbackHandler):
 
     def on_agent_action(self, action, **kwargs) -> None:
         """Called when agent takes an action."""
+        if not self._is_client_available():
+            return
+
         try:
             run_id = kwargs.get("run_id")
             parent_run_id = kwargs.get("parent_run_id")
@@ -355,6 +403,9 @@ class BrokleCallbackHandler(BaseCallbackHandler):
 
     def on_agent_finish(self, finish, **kwargs) -> None:
         """Called when agent finishes."""
+        if not self._is_client_available():
+            return
+
         try:
             run_id = kwargs.get("run_id")
             parent_run_id = kwargs.get("parent_run_id")
@@ -505,16 +556,33 @@ class LangChainInstrumentation:
     """Auto-instrumentation for LangChain library."""
 
     def __init__(self):
-        self.config = get_config()
+        self._config = None
         self._client = None
         self._callback_handler = None
         self._instrumented = False
 
     @property
+    def config(self):
+        """Get or create Brokle config with lazy loading."""
+        if self._config is None:
+            try:
+                from ..config import get_config
+                self._config = get_config()
+            except Exception as e:
+                logger.warning(f"Failed to load Brokle config: {e}")
+                self._config = None
+        return self._config
+
+    @property
     def client(self):
         """Get or create Brokle client for observability."""
         if self._client is None:
-            self._client = get_client()
+            try:
+                from ..client import get_client
+                self._client = get_client()
+            except Exception as e:
+                logger.warning(f"Failed to initialize Brokle client: {e}")
+                self._client = None
         return self._client
 
     def is_available(self) -> bool:

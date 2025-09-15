@@ -22,8 +22,15 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.propagate import set_global_textmap
 from opentelemetry.propagators.composite import CompositePropagator
 from opentelemetry.propagators.b3 import B3MultiFormat
-from opentelemetry.propagators.baggage import BaggagePropagator
-from opentelemetry.propagators.tracecontext import TraceContextTextMapPropagator
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+# Optional baggage propagator - may not be available in all OpenTelemetry versions
+try:
+    from opentelemetry.propagators.baggage import BaggagePropagator
+    BAGGAGE_PROPAGATOR_AVAILABLE = True
+except ImportError:
+    BaggagePropagator = None
+    BAGGAGE_PROPAGATOR_AVAILABLE = False
 
 from ..config import Config
 from ..types.attributes import (
@@ -97,18 +104,19 @@ class TelemetryManager:
                 trace.set_tracer_provider(self._tracer_provider)
                 
                 # Set up propagators
-                set_global_textmap(CompositePropagator([
+                propagators = [
                     TraceContextTextMapPropagator(),
                     B3MultiFormat(),
-                    BaggagePropagator(),
-                ]))
+                ]
+
+                # Add BaggagePropagator if available
+                if BAGGAGE_PROPAGATOR_AVAILABLE:
+                    propagators.append(BaggagePropagator())
+
+                set_global_textmap(CompositePropagator(propagators))
                 
                 # Create tracer
-                self._tracer = trace.get_tracer(
-                    "brokle",
-                    version="0.1.0",
-                    schema_url="https://opentelemetry.io/schemas/1.21.0",
-                )
+                self._tracer = trace.get_tracer("brokle")
                 
                 self._initialized = True
                 logger.info("OpenTelemetry telemetry initialized successfully")

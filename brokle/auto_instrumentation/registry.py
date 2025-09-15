@@ -9,6 +9,15 @@ import logging
 from typing import Dict, List, Optional, Set, Callable
 from enum import Enum
 
+from .error_handlers import (
+    InstrumentationError,
+    LibraryNotAvailableError,
+    ErrorSeverity,
+    get_error_handler,
+    safe_operation,
+    instrumentation_context
+)
+
 from .openai_instrumentation import (
     OpenAIInstrumentation,
     instrument_openai,
@@ -70,47 +79,67 @@ class LibraryInstrumentation:
 
         return InstrumentationStatus.AVAILABLE
 
+    @safe_operation("registry", "instrument_library", ErrorSeverity.MEDIUM)
     def instrument(self) -> bool:
         """Instrument this library."""
-        try:
+        error_handler = get_error_handler()
+
+        with instrumentation_context("registry", f"instrument_{self.name}", ErrorSeverity.MEDIUM):
             if not self.is_available_func():
-                logger.warning(f"{self.name} library not available for instrumentation")
-                return False
+                raise LibraryNotAvailableError(
+                    f"{self.name} library not available for instrumentation",
+                    severity=ErrorSeverity.MEDIUM,
+                    library=self.name,
+                    operation="instrument"
+                )
 
             if self.is_instrumented_func():
                 logger.info(f"{self.name} already instrumented")
                 return True
 
+            # Check if this library has been failing recently
+            if not error_handler.is_operation_healthy("registry", f"instrument_{self.name}"):
+                logger.warning(f"Skipping {self.name} instrumentation - circuit breaker open")
+                return False
+
             result = self.instrument_func()
             if result:
                 logger.info(f"Successfully instrumented {self.name}")
+                # Reset error tracking on success
+                error_handler.reset_errors("registry", f"instrument_{self.name}")
             else:
-                logger.error(f"Failed to instrument {self.name}")
+                raise InstrumentationError(
+                    f"Instrumentation function returned False for {self.name}",
+                    severity=ErrorSeverity.MEDIUM,
+                    library=self.name,
+                    operation="instrument"
+                )
 
             return result
 
-        except Exception as e:
-            logger.error(f"Error instrumenting {self.name}: {e}")
-            return False
-
+    @safe_operation("registry", "uninstrument_library", ErrorSeverity.LOW)
     def uninstrument(self) -> bool:
         """Remove instrumentation for this library."""
-        try:
+        with instrumentation_context("registry", f"uninstrument_{self.name}", ErrorSeverity.LOW):
             if not self.is_instrumented_func():
-                logger.info(f"{self.name} not currently instrumented")
+                logger.debug(f"{self.name} not currently instrumented")
                 return True
 
             result = self.uninstrument_func()
             if result:
                 logger.info(f"Successfully uninstrumented {self.name}")
+                # Reset error tracking on successful uninstrumentation
+                error_handler = get_error_handler()
+                error_handler.reset_errors("registry", f"uninstrument_{self.name}")
             else:
-                logger.error(f"Failed to uninstrument {self.name}")
+                raise InstrumentationError(
+                    f"Uninstrumentation function returned False for {self.name}",
+                    severity=ErrorSeverity.LOW,
+                    library=self.name,
+                    operation="uninstrument"
+                )
 
             return result
-
-        except Exception as e:
-            logger.error(f"Error uninstrumenting {self.name}: {e}")
-            return False
 
 
 class InstrumentationRegistry:
@@ -300,43 +329,142 @@ class InstrumentationRegistry:
     def get_instrumentation_summary(self) -> Dict[str, Dict[str, any]]:
         """Get comprehensive instrumentation summary."""
         summary = {}
+        error_handler = get_error_handler()
 
         for name, library in self._libraries.items():
-            status = library.get_status()
-            summary[name] = {
-                "status": status.value,
-                "description": library.description,
-                "auto_instrument": library.auto_instrument,
-                "available": library.is_available_func(),
-                "instrumented": library.is_instrumented_func()
-            }
+            try:
+                status = library.get_status()
+                is_healthy = error_handler.is_operation_healthy("registry", f"instrument_{name}")
+
+                summary[name] = {
+                    "status": status.value,
+                    "description": library.description,
+                    "auto_instrument": library.auto_instrument,
+                    "available": library.is_available_func(),
+                    "instrumented": library.is_instrumented_func(),
+                    "healthy": is_healthy,
+                    "error_summary": error_handler.get_error_summary(name) if not is_healthy else {}
+                }
+            except Exception as e:
+                logger.warning(f"Failed to get status for {name}: {e}")
+                summary[name] = {
+                    "status": "error",
+                    "description": library.description,
+                    "auto_instrument": library.auto_instrument,
+                    "available": False,
+                    "instrumented": False,
+                    "healthy": False,
+                    "error_summary": {"status_error": str(e)}
+                }
 
         return summary
+
+    def get_health_report(self) -> Dict[str, any]:
+        """Get detailed health report for all instrumentation operations."""
+        error_handler = get_error_handler()
+        summary = self.get_instrumentation_summary()
+
+        # Calculate overall health metrics
+        total_libraries = len(self._libraries)
+        healthy_libraries = sum(1 for lib in summary.values() if lib["healthy"])
+        instrumented_libraries = sum(1 for lib in summary.values() if lib["instrumented"])
+        available_libraries = sum(1 for lib in summary.values() if lib["available"])
+
+        health_score = (healthy_libraries / total_libraries) * 100 if total_libraries > 0 else 0
+
+        return {
+            "overall_health": {
+                "score": round(health_score, 2),
+                "total_libraries": total_libraries,
+                "healthy_libraries": healthy_libraries,
+                "instrumented_libraries": instrumented_libraries,
+                "available_libraries": available_libraries
+            },
+            "library_details": summary,
+            "error_summary": error_handler.get_error_summary(),
+            "circuit_breaker_states": {
+                name: error_handler.get_circuit_breaker(f"registry.instrument_{name}").state
+                for name in self._libraries.keys()
+            }
+        }
+
+    def reset_all_errors(self) -> None:
+        """Reset all error tracking and circuit breakers."""
+        error_handler = get_error_handler()
+
+        for name in self._libraries.keys():
+            error_handler.reset_errors("registry", f"instrument_{name}")
+            error_handler.reset_errors("registry", f"uninstrument_{name}")
+            error_handler.reset_errors(name)  # Reset library-specific errors too
+
+        logger.info("Reset all instrumentation error tracking")
 
     def print_status(self) -> None:
         """Print instrumentation status in a readable format."""
         print("\n=== Brokle Auto-Instrumentation Status ===")
 
         summary = self.get_instrumentation_summary()
+        health_report = self.get_health_report()
 
         for name, info in summary.items():
             status_symbol = {
                 "instrumented": "✅",
                 "available": "⚪",
                 "not_available": "❌",
-                "failed": "🔴"
+                "failed": "🔴",
+                "error": "💥"
             }.get(info["status"], "❓")
 
+            health_symbol = "🔴" if not info["healthy"] else ""
             auto_marker = " (auto)" if info["auto_instrument"] else ""
 
-            print(f"{status_symbol} {name}{auto_marker}: {info['status']}")
+            print(f"{status_symbol}{health_symbol} {name}{auto_marker}: {info['status']}")
             if info["description"]:
-                print(f"    {info['description']}")
+                print(f"    📝 {info['description']}")
 
-        print(f"\n📊 Summary:")
-        print(f"   Available: {len([i for i in summary.values() if i['available']])}")
-        print(f"   Instrumented: {len([i for i in summary.values() if i['instrumented']])}")
-        print("=" * 40)
+            # Show error information if unhealthy
+            if not info["healthy"] and info["error_summary"]:
+                print(f"    ⚠️  Issues detected - check logs for details")
+
+        # Overall health summary
+        overall = health_report["overall_health"]
+        print(f"\n📊 Health Summary:")
+        print(f"   Overall Health: {overall['score']}%")
+        print(f"   Libraries: {overall['instrumented_libraries']}/{overall['available_libraries']} instrumented, {overall['healthy_libraries']}/{overall['total_libraries']} healthy")
+
+        # Circuit breaker status
+        open_breakers = [name for name, state in health_report["circuit_breaker_states"].items() if state == "open"]
+        if open_breakers:
+            print(f"   🚨 Circuit Breakers Open: {', '.join(open_breakers)}")
+
+        print("=" * 50)
+
+    def print_health_report(self) -> None:
+        """Print detailed health report."""
+        print("\n=== Brokle Auto-Instrumentation Health Report ===")
+
+        health_report = self.get_health_report()
+
+        # Overall health
+        overall = health_report["overall_health"]
+        print(f"\n🏥 Overall Health Score: {overall['score']}%")
+        print(f"   📊 Libraries: {overall['total_libraries']} total, {overall['available_libraries']} available")
+        print(f"   ✅ Status: {overall['instrumented_libraries']} instrumented, {overall['healthy_libraries']} healthy")
+
+        # Circuit breaker details
+        print(f"\n⚡ Circuit Breaker Status:")
+        for name, state in health_report["circuit_breaker_states"].items():
+            state_symbol = {"closed": "🟢", "open": "🔴", "half-open": "🟡"}.get(state, "❓")
+            print(f"   {state_symbol} {name}: {state}")
+
+        # Error summary
+        error_summary = health_report["error_summary"]
+        if error_summary.get("error_counts"):
+            print(f"\n❗ Recent Errors:")
+            for operation, count in error_summary["error_counts"].items():
+                print(f"   {operation}: {count} errors")
+
+        print("=" * 60)
 
 
 # Global registry instance
@@ -388,6 +516,21 @@ def get_status() -> Dict[str, InstrumentationStatus]:
 def print_status() -> None:
     """Print instrumentation status in a readable format."""
     _registry.print_status()
+
+
+def print_health_report() -> None:
+    """Print detailed health report for instrumentation."""
+    _registry.print_health_report()
+
+
+def get_health_report() -> Dict[str, any]:
+    """Get detailed health report for all instrumentation operations."""
+    return _registry.get_health_report()
+
+
+def reset_all_errors() -> None:
+    """Reset all error tracking and circuit breakers."""
+    _registry.reset_all_errors()
 
 
 def instrument(library: str) -> bool:
