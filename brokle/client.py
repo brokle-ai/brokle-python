@@ -213,11 +213,13 @@ class Brokle:
         
         # Initialize backend integration (internal - for automatic platform features)
         from .clients.telemetry import TelemetryClient
+        from .clients.observability import ObservabilityClient
         from .clients.cost import CostClient
         from .clients.cache import CacheClient
         from .clients.ml import MLClient
-        
+
         self._telemetry_client = TelemetryClient(self)
+        self.observability = ObservabilityClient(self)  # New observability API
         self._cost_client = CostClient(self)
         self._cache_client = CacheClient(self)
         self._ml_client = MLClient(self)

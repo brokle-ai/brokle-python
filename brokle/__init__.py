@@ -14,7 +14,10 @@ from .client import Brokle, get_client
 from .config import Config, configure, get_config, reset_config
 from .auth import AuthManager
 from .decorators import observe
+from .observability_decorators import observe_enhanced
 from .types.attributes import BrokleOtelSpanAttributes
+from .clients.observability import ObservabilityClient
+from .auto_instrumentation import auto_instrument, print_status, get_status, get_registry
 from ._version import __version__
 
 # Core client and configuration
@@ -22,19 +25,29 @@ __all__ = [
     # Main client
     "Brokle",
     "get_client",
-    
+
     # Configuration
-    "Config", 
+    "Config",
     "configure",
     "get_config",
     "reset_config",
-    
+
     # Authentication
     "AuthManager",
-    
+
     # Decorators
     "observe",
-    
+    "observe_enhanced",
+
+    # Observability
+    "ObservabilityClient",
+
+    # Auto-instrumentation
+    "auto_instrument",
+    "print_status",
+    "get_status",
+    "get_registry",
+
     # OpenTelemetry attributes
     "BrokleOtelSpanAttributes",
 ]

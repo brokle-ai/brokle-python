@@ -390,6 +390,70 @@ class SMSNotificationRequest(NotificationRequest):
 
 class PushNotificationRequest(NotificationRequest):
     """Push notification request."""
-    
+
     device_tokens: Optional[List[str]] = Field(default=None, description="Device tokens")
     payload: Optional[Dict[str, Any]] = Field(default=None, description="Push payload")
+
+
+# Observability Service Requests
+class ObservabilityTraceRequest(BaseModel):
+    """Create trace request for observability service."""
+
+    project_id: str = Field(description="Project ID")
+    external_trace_id: str = Field(description="External trace ID")
+    name: str = Field(description="Trace name")
+    user_id: Optional[str] = Field(default=None, description="User ID")
+    session_id: Optional[str] = Field(default=None, description="Session ID")
+    parent_trace_id: Optional[str] = Field(default=None, description="Parent trace ID")
+    tags: Optional[Dict[str, Any]] = Field(default=None, description="Trace tags")
+    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Trace metadata")
+
+
+class ObservabilityObservationRequest(BaseModel):
+    """Create observation request for observability service."""
+
+    trace_id: str = Field(description="Trace ID")
+    external_observation_id: str = Field(description="External observation ID")
+    parent_observation_id: Optional[str] = Field(default=None, description="Parent observation ID")
+    type: str = Field(description="Observation type (llm, span, event, etc.)")
+    name: str = Field(description="Observation name")
+    start_time: str = Field(description="Start time in ISO format")
+    end_time: Optional[str] = Field(default=None, description="End time in ISO format")
+    level: Optional[str] = Field(default="DEFAULT", description="Observation level")
+    status_message: Optional[str] = Field(default=None, description="Status message")
+    version: Optional[str] = Field(default=None, description="Version")
+    model: Optional[str] = Field(default=None, description="Model name")
+    provider: Optional[str] = Field(default=None, description="Provider name")
+    input: Optional[Dict[str, Any]] = Field(default=None, description="Input data")
+    output: Optional[Dict[str, Any]] = Field(default=None, description="Output data")
+    model_parameters: Optional[Dict[str, Any]] = Field(default=None, description="Model parameters")
+    prompt_tokens: Optional[int] = Field(default=None, description="Prompt tokens")
+    completion_tokens: Optional[int] = Field(default=None, description="Completion tokens")
+    total_tokens: Optional[int] = Field(default=None, description="Total tokens")
+    input_cost: Optional[float] = Field(default=None, description="Input cost")
+    output_cost: Optional[float] = Field(default=None, description="Output cost")
+    total_cost: Optional[float] = Field(default=None, description="Total cost")
+
+
+class ObservabilityQualityScoreRequest(BaseModel):
+    """Create quality score request for observability service."""
+
+    trace_id: str = Field(description="Trace ID")
+    observation_id: Optional[str] = Field(default=None, description="Observation ID")
+    score_name: str = Field(description="Score name")
+    score_value: Optional[float] = Field(default=None, description="Numeric score value")
+    string_value: Optional[str] = Field(default=None, description="String score value")
+    data_type: str = Field(description="Data type (NUMERIC, CATEGORICAL, BOOLEAN)")
+    source: str = Field(description="Score source (API, AUTO, HUMAN, EVAL)")
+    evaluator_name: Optional[str] = Field(default=None, description="Evaluator name")
+    evaluator_version: Optional[str] = Field(default=None, description="Evaluator version")
+    comment: Optional[str] = Field(default=None, description="Score comment")
+    author_user_id: Optional[str] = Field(default=None, description="Author user ID")
+
+
+class ObservabilityBatchRequest(BaseModel):
+    """Batch request for observability service."""
+
+    traces: Optional[List[Dict[str, Any]]] = Field(default=None, description="Batch traces")
+    observations: Optional[List[Dict[str, Any]]] = Field(default=None, description="Batch observations")
+    quality_scores: Optional[List[Dict[str, Any]]] = Field(default=None, description="Batch quality scores")

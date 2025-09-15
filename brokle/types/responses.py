@@ -497,9 +497,114 @@ class NotificationStatusResponse(BaseModel):
 
 class NotificationHistoryResponse(BaseModel):
     """Notification history response."""
-    
+
     notifications: List[NotificationResponse] = Field(description="Notification list")
     total_count: int = Field(description="Total notification count")
     page: int = Field(description="Current page")
     page_size: int = Field(description="Page size")
     filters: Optional[Dict[str, Any]] = Field(default=None, description="Applied filters")
+
+
+# Observability Service Responses
+class ObservabilityTraceResponse(BaseModel):
+    """Trace response from observability service."""
+
+    id: str = Field(description="Trace ID")
+    project_id: str = Field(description="Project ID")
+    external_trace_id: str = Field(description="External trace ID")
+    name: str = Field(description="Trace name")
+    user_id: Optional[str] = Field(default=None, description="User ID")
+    session_id: Optional[str] = Field(default=None, description="Session ID")
+    parent_trace_id: Optional[str] = Field(default=None, description="Parent trace ID")
+    tags: Optional[Dict[str, Any]] = Field(default=None, description="Trace tags")
+    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Trace metadata")
+    observations: Optional[List['ObservabilityObservationResponse']] = Field(default=None, description="Trace observations")
+    created_at: datetime = Field(description="Creation timestamp")
+    updated_at: datetime = Field(description="Update timestamp")
+
+
+class ObservabilityObservationResponse(BaseModel):
+    """Observation response from observability service."""
+
+    id: str = Field(description="Observation ID")
+    trace_id: str = Field(description="Trace ID")
+    external_observation_id: str = Field(description="External observation ID")
+    parent_observation_id: Optional[str] = Field(default=None, description="Parent observation ID")
+    type: str = Field(description="Observation type")
+    name: str = Field(description="Observation name")
+    start_time: datetime = Field(description="Start timestamp")
+    end_time: Optional[datetime] = Field(default=None, description="End timestamp")
+    level: str = Field(description="Observation level")
+    status_message: Optional[str] = Field(default=None, description="Status message")
+    version: Optional[str] = Field(default=None, description="Version")
+    model: Optional[str] = Field(default=None, description="Model name")
+    provider: Optional[str] = Field(default=None, description="Provider name")
+    input: Optional[Dict[str, Any]] = Field(default=None, description="Input data")
+    output: Optional[Dict[str, Any]] = Field(default=None, description="Output data")
+    model_parameters: Optional[Dict[str, Any]] = Field(default=None, description="Model parameters")
+    prompt_tokens: int = Field(description="Prompt tokens")
+    completion_tokens: int = Field(description="Completion tokens")
+    total_tokens: int = Field(description="Total tokens")
+    input_cost: Optional[float] = Field(default=None, description="Input cost")
+    output_cost: Optional[float] = Field(default=None, description="Output cost")
+    total_cost: Optional[float] = Field(default=None, description="Total cost")
+    latency_ms: Optional[int] = Field(default=None, description="Latency in milliseconds")
+    quality_score: Optional[float] = Field(default=None, description="Quality score")
+    created_at: datetime = Field(description="Creation timestamp")
+    updated_at: datetime = Field(description="Update timestamp")
+
+
+class ObservabilityQualityScoreResponse(BaseModel):
+    """Quality score response from observability service."""
+
+    id: str = Field(description="Score ID")
+    trace_id: str = Field(description="Trace ID")
+    observation_id: Optional[str] = Field(default=None, description="Observation ID")
+    score_name: str = Field(description="Score name")
+    score_value: Optional[float] = Field(default=None, description="Numeric score value")
+    string_value: Optional[str] = Field(default=None, description="String score value")
+    data_type: str = Field(description="Data type")
+    source: str = Field(description="Score source")
+    evaluator_name: Optional[str] = Field(default=None, description="Evaluator name")
+    evaluator_version: Optional[str] = Field(default=None, description="Evaluator version")
+    comment: Optional[str] = Field(default=None, description="Score comment")
+    author_user_id: Optional[str] = Field(default=None, description="Author user ID")
+    created_at: datetime = Field(description="Creation timestamp")
+    updated_at: datetime = Field(description="Update timestamp")
+
+
+class ObservabilityStatsResponse(BaseModel):
+    """Statistics response from observability service."""
+
+    trace_id: str = Field(description="Trace ID")
+    total_observations: int = Field(description="Total observations")
+    total_latency_ms: int = Field(description="Total latency in milliseconds")
+    total_tokens: int = Field(description="Total tokens")
+    total_cost: float = Field(description="Total cost")
+    average_quality_score: Optional[float] = Field(default=None, description="Average quality score")
+    error_count: int = Field(description="Error count")
+    llm_observation_count: int = Field(description="LLM observation count")
+    provider_distribution: Dict[str, int] = Field(description="Provider usage distribution")
+    model_distribution: Dict[str, int] = Field(description="Model usage distribution")
+
+
+class ObservabilityListResponse(BaseModel):
+    """List response from observability service."""
+
+    traces: Optional[List[ObservabilityTraceResponse]] = Field(default=None, description="Traces list")
+    observations: Optional[List[ObservabilityObservationResponse]] = Field(default=None, description="Observations list")
+    quality_scores: Optional[List[ObservabilityQualityScoreResponse]] = Field(default=None, description="Quality scores list")
+    total: int = Field(description="Total count")
+    limit: int = Field(description="Page limit")
+    offset: int = Field(description="Page offset")
+
+
+class ObservabilityBatchResponse(BaseModel):
+    """Batch response from observability service."""
+
+    traces: Optional[List[ObservabilityTraceResponse]] = Field(default=None, description="Created traces")
+    observations: Optional[List[ObservabilityObservationResponse]] = Field(default=None, description="Created observations")
+    quality_scores: Optional[List[ObservabilityQualityScoreResponse]] = Field(default=None, description="Created quality scores")
+    processed_count: int = Field(description="Total processed items")
+    error_count: Optional[int] = Field(default=0, description="Error count")
+    errors: Optional[List[Dict[str, Any]]] = Field(default=None, description="Processing errors")
