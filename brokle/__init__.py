@@ -23,6 +23,32 @@ from .evaluation import (
     QualityEvaluator,
 )
 
+# AI Platform exports
+from .ai_platform import (
+    # Core AI client
+    AIClient, get_ai_client, configure_ai_platform, generate, generate_stream,
+
+    # Routing
+    RoutingStrategy, RoutingConfig, ProviderConfig, ProviderTier,
+    create_cost_optimized_routing, create_quality_optimized_routing,
+
+    # Caching
+    CacheStrategy, CacheConfig, SemanticCacheConfig,
+    create_semantic_cache_config, get_cache_stats,
+
+    # Quality
+    QualityMetric, QualityConfig, QualityScore,
+    create_comprehensive_quality, evaluate_quality,
+
+    # Optimization
+    OptimizationStrategy, CostOptimizationConfig, BudgetConfig,
+    create_balanced_optimization, get_cost_breakdown,
+
+    # Providers
+    ProviderStatus, ProviderHealth, get_provider_health,
+    get_healthy_providers, get_provider_rankings,
+)
+
 # Main exports - clean and minimal like LangFuse
 __all__ = [
     # Core client and observability
@@ -51,6 +77,43 @@ __all__ = [
     "CostEfficiencyEvaluator",
     "LatencyEvaluator",
     "QualityEvaluator",
+    # AI Platform - Core
+    "AIClient",
+    "get_ai_client",
+    "configure_ai_platform",
+    "generate",
+    "generate_stream",
+    # AI Platform - Routing
+    "RoutingStrategy",
+    "RoutingConfig",
+    "ProviderConfig",
+    "ProviderTier",
+    "create_cost_optimized_routing",
+    "create_quality_optimized_routing",
+    # AI Platform - Caching
+    "CacheStrategy",
+    "CacheConfig",
+    "SemanticCacheConfig",
+    "create_semantic_cache_config",
+    "get_cache_stats",
+    # AI Platform - Quality
+    "QualityMetric",
+    "QualityConfig",
+    "QualityScore",
+    "create_comprehensive_quality",
+    "evaluate_quality",
+    # AI Platform - Optimization
+    "OptimizationStrategy",
+    "CostOptimizationConfig",
+    "BudgetConfig",
+    "create_balanced_optimization",
+    "get_cost_breakdown",
+    # AI Platform - Providers
+    "ProviderStatus",
+    "ProviderHealth",
+    "get_provider_health",
+    "get_healthy_providers",
+    "get_provider_rankings",
     # Version
     "__version__",
 ]
