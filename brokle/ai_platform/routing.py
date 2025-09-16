@@ -54,7 +54,7 @@ class ProviderConfig:
 
     # Metadata
     region: Optional[str] = None
-    api_key_env: Optional[str] = None
+    public_key_env: Optional[str] = None
     custom_config: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -70,7 +70,7 @@ class ProviderConfig:
             "enabled": self.enabled,
             "weight": self.weight,
             "region": self.region,
-            "api_key_env": self.api_key_env,
+            "public_key_env": self.public_key_env,
             "custom_config": self.custom_config
         }
 

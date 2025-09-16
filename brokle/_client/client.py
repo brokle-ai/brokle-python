@@ -94,8 +94,8 @@ class Brokle:
                 # Create custom Brokle span exporter
                 self._span_exporter = BrokleSpanExporter(
                     endpoint=self.config.host,
-                    api_key=self.config.secret_key,
-                    public_key=self.config.public_key
+                    public_key=self.config.public_key,
+                    secret_key=self.config.secret_key
                 )
 
                 # Add span processor

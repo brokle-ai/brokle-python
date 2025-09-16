@@ -78,10 +78,10 @@ error_handler = brokle_ai.get_error_handler()
 2. Install if missing: `pip install openai`
 3. Restart Python session
 
-### API Key Issues
-1. Set environment variable: `export BROKLE_API_KEY="your-key"`
-2. Verify in code: `print(os.getenv('BROKLE_API_KEY'))`
-3. Check configuration: `from brokle.config import get_config; print(get_config().api_key)`
+### Public Key Issues
+1. Set environment variable: `export BROKLE_PUBLIC_KEY="your-key"`
+2. Verify in code: `print(os.getenv('BROKLE_PUBLIC_KEY'))`
+3. Check configuration: `from brokle.config import get_config; print(get_config().public_key)`
 
 ### Circuit Breaker Open
 1. Check health: `brokle_ai.print_health_report()`
@@ -97,9 +97,9 @@ error_handler = brokle_ai.get_error_handler()
 
 ```bash
 # Essential
-export BROKLE_API_KEY="your-api-key"
+export BROKLE_PUBLIC_KEY="your-public-key"
 export BROKLE_ORGANIZATION_ID="org_xxx"
-export BROKLE_PROJECT_ID="proj_xxx"
+export BROKLE_SECRET_KEY="your-secret-key"
 
 # Optional
 export BROKLE_BASE_URL="https://api.brokle.ai"

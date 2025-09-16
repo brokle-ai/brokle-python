@@ -31,14 +31,14 @@ class BrokleSpanExporter(SpanExporter):
     def __init__(
         self,
         endpoint: str,
-        api_key: str,
         public_key: str,
+        secret_key: str,
         timeout: float = 30.0,
         session: Optional[httpx.AsyncClient] = None
     ):
         self.endpoint = endpoint.rstrip('/')
-        self.api_key = api_key
         self.public_key = public_key
+        self.secret_key = secret_key
         self.timeout = timeout
         self._session = session or httpx.AsyncClient(
             timeout=httpx.Timeout(timeout),
@@ -113,8 +113,8 @@ class BrokleSpanExporter(SpanExporter):
         if "session.id" in attributes:
             trace["session_id"] = attributes["session.id"]
 
-        if BrokleOtelSpanAttributes.TRACE_PROJECT_ID in attributes:
-            trace["project_id"] = attributes[BrokleOtelSpanAttributes.TRACE_PROJECT_ID]
+        if BrokleOtelSpanAttributes.TRACE_SECRET_KEY in attributes:
+            trace["secret_key"] = attributes[BrokleOtelSpanAttributes.TRACE_SECRET_KEY]
 
         return trace
 
@@ -212,7 +212,7 @@ class BrokleSpanExporter(SpanExporter):
     async def _send_to_brokle(self, traces: List[Dict[str, Any]], observations: List[Dict[str, Any]]) -> None:
         """Send traces and observations to Brokle API."""
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {self.public_key}",
             "X-Public-Key": self.public_key,
             "Content-Type": "application/json",
             "User-Agent": "brokle-python-sdk/0.1.0",

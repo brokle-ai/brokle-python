@@ -38,9 +38,9 @@ pip install brokle[all]
 Set up your environment variables:
 
 ```bash
-export BROKLE_API_KEY="ak_your_api_key_here"
+export BROKLE_PUBLIC_KEY="pk_your_public_key_here"
 export BROKLE_HOST="http://localhost:8000"
-export BROKLE_PROJECT_ID="proj_your_project_id"
+export BROKLE_SECRET_KEY="sk_your_secret_key_here"
 export BROKLE_ENVIRONMENT="production"
 ```
 
@@ -50,9 +50,9 @@ Or configure programmatically:
 import brokle
 
 brokle.configure(
-    api_key="ak_your_api_key_here",
+    public_key="pk_your_public_key_here",
     host="http://localhost:8000",
-    project_id="proj_your_project_id"
+    secret_key="sk_your_secret_key_here"
 )
 ```
 
@@ -373,9 +373,9 @@ The SDK includes comprehensive tests:
 
 ```bash
 # Core configuration
-BROKLE_API_KEY="ak_your_api_key"
+BROKLE_PUBLIC_KEY="pk_your_public_key"
 BROKLE_HOST="http://localhost:8000"
-BROKLE_PROJECT_ID="proj_your_project_id"
+BROKLE_SECRET_KEY="sk_your_secret_key"
 BROKLE_ENVIRONMENT="production"
 
 # OpenTelemetry
@@ -401,9 +401,9 @@ BROKLE_TELEMETRY_BATCH_SIZE=100
 import brokle
 
 brokle.configure(
-    api_key="ak_your_api_key",
+    public_key="pk_your_public_key",
     host="http://localhost:8000",
-    project_id="proj_your_project_id",
+    secret_key="sk_your_secret_key",
     environment="production",
     otel_enabled=True,
     telemetry_enabled=True,

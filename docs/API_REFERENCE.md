@@ -415,10 +415,10 @@ with instrumentation_context("openai", "setup", ErrorSeverity.HIGH):
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `BROKLE_API_KEY` | Brokle API key | None | Yes |
+| `BROKLE_PUBLIC_KEY` | Brokle public key | None | Yes |
 | `BROKLE_BASE_URL` | API base URL | `https://api.brokle.ai` | No |
 | `BROKLE_ORGANIZATION_ID` | Organization ID | None | Yes |
-| `BROKLE_PROJECT_ID` | Project ID | None | Yes |
+| `BROKLE_SECRET_KEY` | Secret key | None | Yes |
 | `BROKLE_ENVIRONMENT` | Environment name | `production` | No |
 | `BROKLE_AUTO_INSTRUMENT` | Auto-instrument on import | `true` | No |
 | `BROKLE_CIRCUIT_BREAKER_ENABLED` | Enable circuit breakers | `true` | No |
@@ -429,10 +429,10 @@ with instrumentation_context("openai", "setup", ErrorSeverity.HIGH):
 from brokle.config import BrokleConfig
 
 config = BrokleConfig(
-    api_key="your-api-key",
+    public_key="your-public-key",
     base_url="https://api.brokle.ai",
     organization_id="org_123",
-    project_id="proj_456",
+    secret_key="sk_your_secret_key",
     environment="production",
     auto_instrument=True,
     circuit_breaker_enabled=True,

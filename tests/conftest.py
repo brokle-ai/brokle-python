@@ -19,8 +19,8 @@ def event_loop():
 def test_config():
     """Create a test configuration."""
     return Config(
-        api_key="ak_test_key",
-        project_id="proj_test",
+        public_key="pk_test_key",
+        secret_key="sk_test_key",
         host="https://test.brokle.com",
         environment="test"
     )

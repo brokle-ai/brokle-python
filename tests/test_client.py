@@ -16,8 +16,8 @@ class TestBrokle:
     def config(self):
         """Create test configuration."""
         return Config(
-            api_key="ak_test_key",
-            project_id="proj_test",
+            public_key="pk_test_key",
+            secret_key="proj_test",
             host="https://test.example.com"
         )
     
@@ -30,17 +30,17 @@ class TestBrokle:
         """Test client initialization with config."""
         client = Brokle(config)
         assert client.config == config
-        assert client.config.api_key == "ak_test_key"
+        assert client.config.public_key == "pk_test_key"
     
     def test_init_with_kwargs(self):
         """Test client initialization with kwargs."""
         client = Brokle(
-            api_key="ak_test_key",
-            project_id="proj_test",
+            public_key="pk_test_key",
+            secret_key="proj_test",
             host="https://test.example.com"
         )
-        assert client.config.api_key == "ak_test_key"
-        assert client.config.project_id == "proj_test"
+        assert client.config.public_key == "pk_test_key"
+        assert client.config.secret_key == "proj_test"
         assert client.config.host == "https://test.example.com"
     
     @pytest.mark.asyncio
@@ -129,7 +129,7 @@ class TestGetClient:
     
     def test_get_client_with_config(self):
         """Test get_client with config object."""
-        config = Config(api_key="ak_test_key", project_id="proj_test")
+        config = Config(public_key="pk_test_key", secret_key="proj_test")
         client = get_client(config)
         
         assert isinstance(client, Brokle)
@@ -138,20 +138,20 @@ class TestGetClient:
     def test_get_client_with_kwargs(self):
         """Test get_client with kwargs."""
         client = get_client(
-            api_key="ak_test_key",
-            project_id="proj_test",
+            public_key="pk_test_key",
+            secret_key="proj_test",
             host="https://test.example.com"
         )
         
         assert isinstance(client, Brokle)
-        assert client.config.api_key == "ak_test_key"
-        assert client.config.project_id == "proj_test"
+        assert client.config.public_key == "pk_test_key"
+        assert client.config.secret_key == "proj_test"
         assert client.config.host == "https://test.example.com"
     
     def test_get_client_no_args(self):
         """Test get_client with no arguments."""
         with patch('brokle.client.get_config') as mock_get_config:
-            mock_config = Config(api_key="ak_global", project_id="proj_global")
+            mock_config = Config(public_key="pk_global", secret_key="proj_global")
             mock_get_config.return_value = mock_config
             
             client = get_client()
@@ -162,7 +162,7 @@ class TestGetClient:
     
     def test_get_client_mixed_args(self):
         """Test get_client with mixed arguments."""
-        config = Config(api_key="ak_test_key", project_id="proj_test")
+        config = Config(public_key="pk_test_key", secret_key="proj_test")
         
         with pytest.raises(ValueError, match="Cannot provide both config and keyword arguments"):
-            get_client(config, api_key="ak_override")
+            get_client(config, public_key="pk_override")

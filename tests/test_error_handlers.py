@@ -479,35 +479,35 @@ class TestConfigurationValidation:
         """Test validation of valid configuration."""
         # Create a mock config object
         mock_config = Mock()
-        mock_config.api_key = "test_key"
+        mock_config.public_key = "test_key"
         mock_config.base_url = "https://api.example.com"
 
-        result = validate_config(mock_config, ["api_key", "base_url"])
+        result = validate_config(mock_config, ["public_key", "base_url"])
         assert result is True
 
     def test_invalid_config_validation(self):
         """Test validation of invalid configuration."""
         # Config with missing fields
         mock_config = Mock()
-        mock_config.api_key = "test_key"
+        mock_config.public_key = "test_key"
         mock_config.base_url = None  # Missing required field
 
         with pytest.raises(ConfigurationError):
-            validate_config(mock_config, ["api_key", "base_url"])
+            validate_config(mock_config, ["public_key", "base_url"])
 
     def test_none_config_validation(self):
         """Test validation of None configuration."""
         with pytest.raises(ConfigurationError):
-            validate_config(None, ["api_key"])
+            validate_config(None, ["public_key"])
 
     def test_config_validation_with_exception(self):
         """Test configuration validation error handling."""
         # Create a config that raises exception when accessed
         mock_config = Mock()
-        mock_config.api_key = Mock(side_effect=Exception("Access error"))
+        mock_config.public_key = Mock(side_effect=Exception("Access error"))
 
         with pytest.raises(ConfigurationError):
-            validate_config(mock_config, ["api_key"])
+            validate_config(mock_config, ["public_key"])
 
 
 class TestGlobalErrorHandler:

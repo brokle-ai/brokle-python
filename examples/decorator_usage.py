@@ -13,9 +13,9 @@ from brokle.openai import openai
 
 # Configure Brokle
 configure(
-    api_key="ak_your_api_key_here",
+    public_key="pk_your_public_key_here",
     host="http://localhost:8000",
-    project_id="proj_your_project_id"
+    secret_key="sk_your_secret_key_here"
 )
 
 

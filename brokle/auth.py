@@ -12,8 +12,8 @@ from .config import Config
 class AuthInfo(BaseModel):
     """Authentication information."""
     
-    api_key: str
-    project_id: str
+    public_key: str
+    secret_key: str
     environment: str
     organization_id: Optional[str] = None
     user_id: Optional[str] = None
@@ -29,10 +29,10 @@ class AuthManager:
         self._auth_info: Optional[AuthInfo] = None
         self._validated = False
     
-    async def validate_api_key(self) -> AuthInfo:
-        """Validate API key with the platform."""
-        if not self.config.api_key:
-            raise ValueError("API key is required")
+    async def validate_public_key(self) -> AuthInfo:
+        """Validate public key with the platform."""
+        if not self.config.public_key:
+            raise ValueError("Public key is required")
         
         async with httpx.AsyncClient() as client:
             try:
@@ -45,12 +45,12 @@ class AuthManager:
                 
                 data = response.json()
                 if not data.get('success'):
-                    raise ValueError(f"API key validation failed: {data.get('error', 'Unknown error')}")
+                    raise ValueError(f"Public key validation failed: {data.get('error', 'Unknown error')}")
                 
                 auth_data = data.get('data', {})
                 self._auth_info = AuthInfo(
-                    api_key=self.config.api_key,
-                    project_id=auth_data.get('project_id', self.config.project_id),
+                    public_key=self.config.public_key,
+                    secret_key=auth_data.get('secret_key', self.config.secret_key),
                     environment=auth_data.get('environment', self.config.environment),
                     organization_id=auth_data.get('organization_id'),
                     user_id=auth_data.get('user_id'),
@@ -62,14 +62,14 @@ class AuthManager:
                 return self._auth_info
                 
             except httpx.HTTPError as e:
-                raise ValueError(f"Failed to validate API key: {e}")
+                raise ValueError(f"Failed to validate public key: {e}")
     
     def get_auth_info(self) -> Optional[AuthInfo]:
         """Get cached authentication information."""
         return self._auth_info
     
     def is_validated(self) -> bool:
-        """Check if API key has been validated."""
+        """Check if public key has been validated."""
         return self._validated
     
     def get_auth_headers(self) -> Dict[str, str]:

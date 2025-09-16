@@ -15,8 +15,8 @@ class TestOpenAIClient:
     def config(self):
         """Create test configuration."""
         return Config(
-            api_key="ak_test_key",
-            project_id="proj_test",
+            public_key="pk_test_key",
+            secret_key="proj_test",
             host="https://test.example.com"
         )
     
@@ -29,24 +29,24 @@ class TestOpenAIClient:
         """Test OpenAI client initialization with config."""
         client = OpenAI(config=config)
         assert client.config == config
-        assert client.config.api_key == "ak_test_key"
+        assert client.config.public_key == "pk_test_key"
     
     def test_init_with_kwargs(self):
         """Test OpenAI client initialization with kwargs."""
         client = OpenAI(
-            api_key="ak_test_key",
-            project_id="proj_test",
+            public_key="pk_test_key",
+            secret_key="proj_test",
             host="https://test.example.com"
         )
-        assert client.config.api_key == "ak_test_key"
-        assert client.config.project_id == "proj_test"
+        assert client.config.public_key == "pk_test_key"
+        assert client.config.secret_key == "proj_test"
         assert client.config.host == "https://test.example.com"
     
     def test_init_with_openai_api_key(self):
         """Test OpenAI client initialization with OpenAI API key."""
         # Should convert OpenAI API key to Brokle format
-        client = OpenAI(api_key="sk-openai-key")
-        assert client.config.api_key == "sk-openai-key"
+        client = OpenAI(public_key="pk_openai_key")
+        assert client.config.public_key == "pk_openai_key"
     
     @pytest.mark.asyncio
     async def test_chat_completions_create(self, client):

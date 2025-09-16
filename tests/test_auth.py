@@ -16,8 +16,8 @@ class TestAuthManager:
     def config(self):
         """Create test configuration."""
         return Config(
-            api_key="ak_test_key",
-            project_id="proj_test",
+            public_key="pk_test_key",
+            secret_key="proj_test",
             host="https://test.example.com"
         )
     
@@ -30,43 +30,43 @@ class TestAuthManager:
         """Test AuthManager initialization."""
         auth_manager = AuthManager(config)
         assert auth_manager.config == config
-        assert auth_manager.api_key == "ak_test_key"
+        assert auth_manager.config.public_key == "pk_test_key"
     
-    def test_validate_api_key_valid(self, auth_manager):
-        """Test API key validation with valid key."""
+    def test_validate_public_key_valid(self, auth_manager):
+        """Test Public key validation with valid key."""
         # Should not raise
-        auth_manager.validate_api_key()
+        auth_manager.validate_public_key()
     
-    def test_validate_api_key_invalid_format(self, config):
-        """Test API key validation with invalid format."""
-        config.api_key = "invalid_key"
+    def test_validate_public_key_invalid_format(self, config):
+        """Test Public key validation with invalid format."""
+        config.public_key = "invalid_key"
         auth_manager = AuthManager(config)
         
-        with pytest.raises(AuthenticationError, match="Invalid API key format"):
-            auth_manager.validate_api_key()
+        with pytest.raises(AuthenticationError, match="Invalid Public key format"):
+            auth_manager.validate_public_key()
     
-    def test_validate_api_key_missing(self, config):
-        """Test API key validation with missing key."""
-        config.api_key = None
+    def test_validate_public_key_missing(self, config):
+        """Test Public key validation with missing key."""
+        config.public_key = None
         auth_manager = AuthManager(config)
         
-        with pytest.raises(AuthenticationError, match="API key is required"):
-            auth_manager.validate_api_key()
+        with pytest.raises(AuthenticationError, match="Public key is required"):
+            auth_manager.validate_public_key()
     
-    def test_validate_api_key_empty(self, config):
-        """Test API key validation with empty key."""
-        config.api_key = ""
+    def test_validate_public_key_empty(self, config):
+        """Test Public key validation with empty key."""
+        config.public_key = ""
         auth_manager = AuthManager(config)
         
-        with pytest.raises(AuthenticationError, match="API key is required"):
-            auth_manager.validate_api_key()
+        with pytest.raises(AuthenticationError, match="Public key is required"):
+            auth_manager.validate_public_key()
     
     def test_get_auth_headers(self, auth_manager):
         """Test getting authentication headers."""
         headers = auth_manager.get_auth_headers()
-        
-        assert headers["X-API-Key"] == "ak_test_key"
-        assert headers["X-Project-ID"] == "proj_test"
+
+        assert headers["X-Public-Key"] == "pk_test_key"
+        assert headers["X-Secret-Key"] == "proj_test"
         assert "User-Agent" in headers
         assert "brokle-python" in headers["User-Agent"]
     
@@ -91,15 +91,15 @@ class TestAuthManager:
         assert auth_manager.is_authenticated() is True
     
     def test_is_authenticated_false_no_key(self, config):
-        """Test authentication status without API key."""
-        config.api_key = None
+        """Test authentication status without Public key."""
+        config.public_key = None
         auth_manager = AuthManager(config)
         
         assert auth_manager.is_authenticated() is False
     
     def test_is_authenticated_false_invalid_key(self, config):
-        """Test authentication status with invalid API key."""
-        config.api_key = "invalid_key"
+        """Test authentication status with invalid Public key."""
+        config.public_key = "invalid_key"
         auth_manager = AuthManager(config)
         
         assert auth_manager.is_authenticated() is False
@@ -116,22 +116,20 @@ class TestAuthManager:
         token = auth_manager.get_bearer_token()
         assert token is None  # Currently returns None as it's not implemented
     
-    def test_auth_manager_with_different_api_key_formats(self):
-        """Test AuthManager with different API key formats."""
-        # Test with Brokle format
-        config1 = Config(api_key="ak_test_key", project_id="proj_test")
+    def test_auth_manager_with_different_public_key_formats(self):
+        """Test AuthManager with different public key formats."""
+        # Test with valid Brokle format
+        config1 = Config(public_key="pk_test_key", secret_key="proj_test")
         auth1 = AuthManager(config1)
         assert auth1.is_authenticated() is True
-        
-        # Test with OpenAI format (should also work)
-        config2 = Config(api_key="sk-openai-key", project_id="proj_test")
-        auth2 = AuthManager(config2)
-        assert auth2.is_authenticated() is True
-        
-        # Test with invalid format
-        config3 = Config(api_key="invalid_format", project_id="proj_test")
-        auth3 = AuthManager(config3)
-        assert auth3.is_authenticated() is False
+
+        # Test with invalid format - should fail validation at config level
+        with pytest.raises(ValueError, match='Public key must start with "pk_"'):
+            Config(public_key="pk_openai_key", secret_key="proj_test")
+
+        # Test with invalid format - should fail validation at config level
+        with pytest.raises(ValueError, match='Public key must start with "pk_"'):
+            Config(public_key="invalid_format", secret_key="proj_test")
     
     def test_auth_headers_immutability(self, auth_manager):
         """Test that auth headers are independent copies."""
@@ -150,15 +148,15 @@ class TestAuthManager:
         """Test string representation of AuthManager."""
         str_repr = str(auth_manager)
         assert "AuthManager" in str_repr
-        assert "ak_test_key" not in str_repr  # Should not expose sensitive info
-        assert "proj_test" in str_repr  # Project ID is not sensitive
+        assert "pk_test_key" not in str_repr  # Should not expose sensitive info
+        assert "proj_test" in str_repr  # Secret key is not sensitive in string representation
     
     def test_auth_manager_repr(self, auth_manager):
         """Test repr representation of AuthManager."""
         repr_str = repr(auth_manager)
         assert "AuthManager" in repr_str
-        assert "project_id" in repr_str
-        assert "ak_test_key" not in repr_str  # Should not expose API key
+        assert "secret_key" in repr_str
+        assert "pk_test_key" not in repr_str  # Should not expose public key
     
     @patch('brokle.auth.time.time')
     def test_auth_headers_caching(self, mock_time, auth_manager):
@@ -181,24 +179,24 @@ class TestAuthManager:
             "X-Custom-Header": "custom_value",
             "X-Request-ID": "req_123"
         }
-        
+
         headers = auth_manager.get_auth_headers(additional_headers)
-        
+
         # Should include both auth headers and additional headers
-        assert headers["X-API-Key"] == "ak_test_key"
-        assert headers["X-Project-ID"] == "proj_test"
+        assert headers["X-Public-Key"] == "pk_test_key"
+        assert headers["X-Secret-Key"] == "proj_test"
         assert headers["X-Custom-Header"] == "custom_value"
         assert headers["X-Request-ID"] == "req_123"
     
     def test_auth_header_override_protection(self, auth_manager):
         """Test that auth headers cannot be overridden."""
         malicious_headers = {
-            "X-API-Key": "malicious_key",
-            "X-Project-ID": "malicious_project"
+            "X-Public-Key": "malicious_key",
+            "X-Secret-Key": "malicious_project"
         }
-        
+
         headers = auth_manager.get_auth_headers(malicious_headers)
-        
+
         # Should preserve original auth headers
-        assert headers["X-API-Key"] == "ak_test_key"
-        assert headers["X-Project-ID"] == "proj_test"
+        assert headers["X-Public-Key"] == "pk_test_key"
+        assert headers["X-Secret-Key"] == "proj_test"

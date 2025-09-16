@@ -130,12 +130,12 @@ print(f"OpenAI instrumentation healthy: {is_healthy}")
 
 ```bash
 # Brokle API Configuration
-export BROKLE_API_KEY="your-api-key-here"
+export BROKLE_PUBLIC_KEY="your-public-key-here"
 export BROKLE_BASE_URL="https://api.brokle.ai"  # Optional, defaults to production
 
 # Organization & Project Context
 export BROKLE_ORGANIZATION_ID="org_xxxxxxxxxx"
-export BROKLE_PROJECT_ID="proj_xxxxxxxxxx"
+export BROKLE_SECRET_KEY="your-secret-key-here"
 
 # Instrumentation Behavior
 export BROKLE_AUTO_INSTRUMENT="true"           # Enable auto-instrumentation on import
@@ -150,10 +150,10 @@ from brokle.config import BrokleConfig
 
 # Custom configuration
 config = BrokleConfig(
-    api_key="your-api-key",
+    public_key="your-public-key",
     base_url="https://api.brokle.ai",
     organization_id="org_xxxxxxxxxx",
-    project_id="proj_xxxxxxxxxx",
+    secret_key="your-secret-key",
     environment="production",  # or "development", "staging"
 
     # Instrumentation settings
@@ -246,17 +246,17 @@ except ImportError:
     # Solution: pip install openai
 ```
 
-#### 2. **API Key Issues**
+#### 2. **Public Key Issues**
 ```python
-# Verify API key configuration
+# Verify public key configuration
 from brokle.config import get_config
 
 config = get_config()
-if config.api_key:
-    print(f"✅ API key configured: {config.api_key[:8]}...")
+if config.public_key:
+    print(f"✅ Public key configured: {config.public_key[:8]}...")
 else:
-    print("❌ No API key configured")
-    # Solution: Set BROKLE_API_KEY environment variable
+    print("❌ No public key configured")
+    # Solution: Set BROKLE_PUBLIC_KEY environment variable
 ```
 
 #### 3. **Circuit Breaker Open**
@@ -279,7 +279,7 @@ if error_summary.get("error_counts"):
     print("⚠️ High error rate detected")
     print("Solutions:")
     print("1. Check network connectivity to Brokle API")
-    print("2. Verify API key and organization settings")
+    print("2. Verify public key and organization settings")
     print("3. Consider temporarily disabling auto-instrumentation")
 ```
 

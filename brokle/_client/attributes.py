@@ -20,7 +20,7 @@ class BrokleOtelSpanAttributes:
     TRACE_USER_ID = "user.id"
     TRACE_SESSION_ID = "session.id"
     TRACE_ORGANIZATION_ID = "brokle.trace.organization_id"
-    TRACE_PROJECT_ID = "brokle.trace.project_id"
+    TRACE_SECRET_KEY = "brokle.trace.secret_key"
     TRACE_ENVIRONMENT = "brokle.trace.environment"
     TRACE_TAGS = "brokle.trace.tags"
     TRACE_METADATA = "brokle.trace.metadata"
@@ -138,7 +138,7 @@ def create_trace_attributes(
     user_id: Optional[str] = None,
     session_id: Optional[str] = None,
     organization_id: Optional[str] = None,
-    project_id: Optional[str] = None,
+    secret_key: Optional[str] = None,
     environment: Optional[str] = None,
     version: Optional[str] = None,
     release: Optional[str] = None,
@@ -154,7 +154,7 @@ def create_trace_attributes(
         BrokleOtelSpanAttributes.TRACE_USER_ID: user_id,
         BrokleOtelSpanAttributes.TRACE_SESSION_ID: session_id,
         BrokleOtelSpanAttributes.TRACE_ORGANIZATION_ID: organization_id,
-        BrokleOtelSpanAttributes.TRACE_PROJECT_ID: project_id,
+        BrokleOtelSpanAttributes.TRACE_SECRET_KEY: secret_key,
         BrokleOtelSpanAttributes.TRACE_ENVIRONMENT: environment,
         BrokleOtelSpanAttributes.VERSION: version,
         BrokleOtelSpanAttributes.RELEASE: release,

@@ -20,7 +20,7 @@ except ImportError:
 from ..client import Brokle
 from ..config import get_config
 from ..decorators import observe
-from ..core.telemetry import start_generation
+# from ..core.telemetry import start_generation  # TODO: Fix broken import
 
 
 class OpenAI:
@@ -42,9 +42,9 @@ class OpenAI:
         
         # Initialize Brokle client
         self.brokle = Brokle(
-            api_key=api_key,
+            public_key=api_key,
             host=base_url,
-            project_id=project,
+            secret_key=project,
             timeout=timeout,
             max_retries=max_retries,
             **kwargs
@@ -331,9 +331,9 @@ class AsyncOpenAI:
         
         # Initialize Brokle client
         self.brokle = Brokle(
-            api_key=api_key,
+            public_key=api_key,
             host=base_url,
-            project_id=project,
+            secret_key=project,
             timeout=timeout,
             max_retries=max_retries,
             **kwargs

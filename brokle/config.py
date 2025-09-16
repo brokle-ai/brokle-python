@@ -12,9 +12,9 @@ class Config(BaseModel):
     """Configuration for Brokle SDK."""
     
     # Core configuration
-    api_key: Optional[str] = Field(default=None, description="Brokle API key")
+    public_key: Optional[str] = Field(default=None, description="Brokle public key")
     host: str = Field(default="http://localhost:8000", description="Brokle host URL")
-    project_id: Optional[str] = Field(default=None, description="Project ID")
+    secret_key: Optional[str] = Field(default=None, description="Brokle secret key")
     environment: str = Field(default="production", description="Environment name")
     
     # OpenTelemetry configuration
@@ -40,12 +40,12 @@ class Config(BaseModel):
     # Debug settings
     debug: bool = Field(default=False, description="Enable debug mode")
     
-    @field_validator('api_key')
+    @field_validator('public_key')
     @classmethod
-    def validate_api_key(cls, v: Optional[str]) -> Optional[str]:
-        """Validate API key format."""
-        if v and not v.startswith('ak_'):
-            raise ValueError('API key must start with "ak_"')
+    def validate_public_key(cls, v: Optional[str]) -> Optional[str]:
+        """Validate public key format."""
+        if v and not v.startswith('pk_'):
+            raise ValueError('Public key must start with "pk_"')
         return v
     
     @field_validator('host')
@@ -62,9 +62,9 @@ class Config(BaseModel):
         load_dotenv()
         
         return cls(
-            api_key=os.getenv('BROKLE_API_KEY'),
+            public_key=os.getenv('BROKLE_PUBLIC_KEY'),
             host=os.getenv('BROKLE_HOST', 'http://localhost:8000'),
-            project_id=os.getenv('BROKLE_PROJECT_ID'),
+            secret_key=os.getenv('BROKLE_SECRET_KEY'),
             environment=os.getenv('BROKLE_ENVIRONMENT', 'production'),
             
             # OpenTelemetry
@@ -92,10 +92,10 @@ class Config(BaseModel):
     
     def validate(self) -> None:
         """Validate configuration."""
-        if not self.api_key:
-            raise ValueError("API key is required")
-        if not self.project_id:
-            raise ValueError("Project ID is required")
+        if not self.public_key:
+            raise ValueError("Public key is required")
+        if not self.secret_key:
+            raise ValueError("Secret key is required")
     
     def get_headers(self) -> Dict[str, str]:
         """Get HTTP headers for API requests."""
@@ -104,11 +104,11 @@ class Config(BaseModel):
             'User-Agent': f'brokle-python/0.1.0',
         }
         
-        if self.api_key:
-            headers['X-API-Key'] = self.api_key
-        
-        if self.project_id:
-            headers['X-Project-ID'] = self.project_id
+        if self.public_key:
+            headers['X-Public-Key'] = self.public_key
+
+        if self.secret_key:
+            headers['X-Secret-Key'] = self.secret_key
         
         headers['X-Environment'] = self.environment
         
@@ -120,9 +120,9 @@ _global_config: Optional[Config] = None
 
 
 def configure(
-    api_key: Optional[str] = None,
+    public_key: Optional[str] = None,
     host: Optional[str] = None,
-    project_id: Optional[str] = None,
+    secret_key: Optional[str] = None,
     environment: Optional[str] = None,
     **kwargs: Any
 ) -> Config:
@@ -133,12 +133,12 @@ def configure(
         _global_config = Config.from_env()
     
     # Update with provided values
-    if api_key is not None:
-        _global_config.api_key = api_key
+    if public_key is not None:
+        _global_config.public_key = public_key
     if host is not None:
         _global_config.host = host
-    if project_id is not None:
-        _global_config.project_id = project_id
+    if secret_key is not None:
+        _global_config.secret_key = secret_key
     if environment is not None:
         _global_config.environment = environment
     
