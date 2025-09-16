@@ -248,7 +248,7 @@ class CostTrackingRequest(BaseModel):
     
     request_id: str = Field(description="Request ID")
     organization_id: str = Field(description="Organization ID")
-    project_id: str = Field(description="Project ID")
+    secret_key: str = Field(description="Secret key")
     environment_id: str = Field(description="Environment ID")
     provider: str = Field(description="AI provider")
     model: str = Field(description="Model name")
@@ -263,7 +263,7 @@ class BudgetRequest(BaseModel):
     """Budget management request."""
     
     organization_id: str = Field(description="Organization ID")
-    project_id: Optional[str] = Field(default=None, description="Project ID")
+    secret_key: Optional[str] = Field(default=None, description="Secret key")
     environment_id: Optional[str] = Field(default=None, description="Environment ID")
     budget_type: str = Field(description="Budget type (monthly, weekly, daily)")
     amount: float = Field(description="Budget amount in USD")
@@ -310,7 +310,7 @@ class ConfigRequest(BaseModel):
     """Configuration request."""
     
     organization_id: Optional[str] = Field(default=None, description="Organization ID")
-    project_id: Optional[str] = Field(default=None, description="Project ID")
+    secret_key: Optional[str] = Field(default=None, description="Secret key")
     environment: Optional[str] = Field(default=None, description="Environment")
     config_keys: Optional[List[str]] = Field(default=None, description="Specific config keys")
 
@@ -336,7 +336,7 @@ class UsageRecordingRequest(BaseModel):
     """Usage recording request."""
     
     organization_id: str = Field(description="Organization ID")
-    project_id: str = Field(description="Project ID")
+    secret_key: str = Field(description="Secret key")
     environment_id: str = Field(description="Environment ID")
     request_id: str = Field(description="Request ID")
     provider: str = Field(description="AI provider")
@@ -354,7 +354,7 @@ class QuotaCheckRequest(BaseModel):
     """Quota check request."""
     
     organization_id: str = Field(description="Organization ID")
-    project_id: Optional[str] = Field(default=None, description="Project ID")
+    secret_key: Optional[str] = Field(default=None, description="Secret key")
     environment_id: Optional[str] = Field(default=None, description="Environment ID")
     resource_type: str = Field(description="Resource type (requests, tokens, cost)")
     requested_amount: int = Field(description="Requested amount")
@@ -399,7 +399,7 @@ class PushNotificationRequest(NotificationRequest):
 class ObservabilityTraceRequest(BaseModel):
     """Create trace request for observability service."""
 
-    project_id: str = Field(description="Project ID")
+    secret_key: str = Field(description="Secret key")
     external_trace_id: str = Field(description="External trace ID")
     name: str = Field(description="Trace name")
     user_id: Optional[str] = Field(default=None, description="User ID")

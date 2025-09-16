@@ -329,7 +329,7 @@ class BudgetResponse(BaseModel):
     
     budget_id: str = Field(description="Budget ID")
     organization_id: str = Field(description="Organization ID")
-    project_id: Optional[str] = Field(default=None, description="Project ID")
+    secret_key: Optional[str] = Field(default=None, description="Secret key")
     environment_id: Optional[str] = Field(default=None, description="Environment ID")
     budget_type: str = Field(description="Budget type")
     amount: float = Field(description="Budget amount")
@@ -397,7 +397,7 @@ class ConfigResponse(BaseModel):
     """Configuration response."""
     
     organization_id: Optional[str] = Field(default=None, description="Organization ID")
-    project_id: Optional[str] = Field(default=None, description="Project ID")
+    secret_key: Optional[str] = Field(default=None, description="Secret key")
     environment: Optional[str] = Field(default=None, description="Environment")
     config: Dict[str, Any] = Field(description="Configuration data")
     version: str = Field(description="Configuration version")
@@ -434,7 +434,7 @@ class UsageRecordingResponse(BaseModel):
     request_id: str = Field(description="Request ID")
     recorded: bool = Field(description="Successfully recorded")
     organization_id: str = Field(description="Organization ID")
-    project_id: str = Field(description="Project ID")
+    secret_key: str = Field(description="Secret key")
     total_requests: int = Field(description="Total requests count")
     total_tokens: int = Field(description="Total tokens used")
     total_cost: float = Field(description="Total cost")
@@ -510,7 +510,7 @@ class ObservabilityTraceResponse(BaseModel):
     """Trace response from observability service."""
 
     id: str = Field(description="Trace ID")
-    project_id: str = Field(description="Project ID")
+    secret_key: str = Field(description="Secret key")
     external_trace_id: str = Field(description="External trace ID")
     name: str = Field(description="Trace name")
     user_id: Optional[str] = Field(default=None, description="User ID")

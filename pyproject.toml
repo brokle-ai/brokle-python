@@ -20,7 +20,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -29,7 +28,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9,<4.0"
 dependencies = [
     "httpx>=0.25.0",
     "pydantic>=2.0.0",
@@ -38,6 +37,9 @@ dependencies = [
     "opentelemetry-instrumentation>=0.41b0",
     "opentelemetry-exporter-otlp>=1.20.0",
     "opentelemetry-semantic-conventions>=0.41b0",
+    "opentelemetry-propagator-b3>=1.20.0",
+    "opentelemetry-propagator-jaeger>=1.20.0",
+    "opentelemetry-propagator-aws-xray>=1.0.0",
     "typing-extensions>=4.0.0",
     "python-dotenv>=1.0.0",
     "backoff>=2.2.1",
@@ -70,7 +72,21 @@ docs = [
     "mkdocstrings[python]>=0.22.0",
 ]
 all = [
-    "brokle[openai,anthropic,google,dev,docs]",
+    "openai>=1.0.0",
+    "wrapt>=1.15.0",
+    "anthropic>=0.5.0",
+    "google-generativeai>=0.3.0",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocstrings[python]>=0.22.0",
 ]
 
 [project.urls]

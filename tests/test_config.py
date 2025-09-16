@@ -13,47 +13,47 @@ class TestConfig:
     def test_config_from_env(self):
         """Test configuration from environment variables."""
         with patch.dict(os.environ, {
-            'BROKLE_API_KEY': 'ak_test_key',
+            'BROKLE_PUBLIC_KEY': 'pk_test_key',
             'BROKLE_HOST': 'https://test.example.com',
-            'BROKLE_PROJECT_ID': 'proj_test',
+            'BROKLE_SECRET_KEY': 'proj_test',
             'BROKLE_ENVIRONMENT': 'test',
         }):
             config = Config.from_env()
-            assert config.api_key == 'ak_test_key'
+            assert config.public_key == 'pk_test_key'
             assert config.host == 'https://test.example.com'
-            assert config.project_id == 'proj_test'
+            assert config.secret_key == 'proj_test'
             assert config.environment == 'test'
     
     def test_config_validation(self):
         """Test configuration validation."""
         config = Config(
-            api_key='ak_test_key',
-            project_id='proj_test'
+            public_key='pk_test_key',
+            secret_key='proj_test'
         )
         
         # Should not raise
         config.validate()
         
-        # Missing API key should raise
-        config.api_key = None
-        with pytest.raises(ValueError, match="API key is required"):
+        # Missing public key should raise
+        config.public_key = None
+        with pytest.raises(ValueError, match="Public key is required"):
             config.validate()
-        
-        # Missing project ID should raise
-        config.api_key = 'ak_test_key'
-        config.project_id = None
-        with pytest.raises(ValueError, match="Project ID is required"):
+
+        # Missing secret key should raise
+        config.public_key = 'pk_test_key'
+        config.secret_key = None
+        with pytest.raises(ValueError, match="Secret key is required"):
             config.validate()
     
-    def test_api_key_validation(self):
-        """Test API key format validation."""
-        # Valid API key
-        config = Config(api_key='ak_test_key')
-        assert config.api_key == 'ak_test_key'
-        
-        # Invalid API key format
-        with pytest.raises(ValueError, match='API key must start with "ak_"'):
-            Config(api_key='invalid_key')
+    def test_public_key_validation(self):
+        """Test public key format validation."""
+        # Valid public key
+        config = Config(public_key='pk_test_key')
+        assert config.public_key == 'pk_test_key'
+
+        # Invalid public key format
+        with pytest.raises(ValueError, match='Public key must start with "pk_"'):
+            Config(public_key='invalid_key')
     
     def test_host_validation(self):
         """Test host URL validation."""
@@ -71,14 +71,14 @@ class TestConfig:
     def test_get_headers(self):
         """Test getting HTTP headers."""
         config = Config(
-            api_key='ak_test_key',
-            project_id='proj_test',
+            public_key='pk_test_key',
+            secret_key='proj_test',
             environment='test'
         )
         
         headers = config.get_headers()
-        assert headers['X-API-Key'] == 'ak_test_key'
-        assert headers['X-Project-ID'] == 'proj_test'
+        assert headers['X-Public-Key'] == 'pk_test_key'
+        assert headers['X-Secret-Key'] == 'proj_test'
         assert headers['X-Environment'] == 'test'
         assert headers['Content-Type'] == 'application/json'
         assert 'brokle-python' in headers['User-Agent']
@@ -98,36 +98,36 @@ class TestGlobalConfig:
     def test_configure_and_get_config(self):
         """Test global configuration."""
         configure(
-            api_key='ak_global_test',
+            public_key='pk_global_test',
             host='https://global.example.com',
-            project_id='proj_global'
+            secret_key='proj_global'
         )
         
         config = get_config()
-        assert config.api_key == 'ak_global_test'
+        assert config.public_key == 'pk_global_test'
         assert config.host == 'https://global.example.com'
-        assert config.project_id == 'proj_global'
+        assert config.secret_key == 'proj_global'
     
     def test_configure_updates_existing(self):
         """Test that configure updates existing configuration."""
-        configure(api_key='ak_initial')
+        configure(public_key='pk_initial')
         
         config1 = get_config()
-        assert config1.api_key == 'ak_initial'
+        assert config1.public_key == 'pk_initial'
         
-        configure(api_key='ak_updated')
+        configure(public_key='pk_updated')
         
         config2 = get_config()
-        assert config2.api_key == 'ak_updated'
+        assert config2.public_key == 'pk_updated'
         assert config1 is config2  # Same instance
     
     def test_reset_config(self):
         """Test resetting configuration."""
-        configure(api_key='ak_test')
+        configure(public_key='pk_test')
         config1 = get_config()
         
         reset_config()
         config2 = get_config()
         
         assert config1 is not config2  # Different instances
-        assert config2.api_key is None  # Reset to default
+        assert config2.public_key is None  # Reset to default

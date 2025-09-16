@@ -204,8 +204,8 @@ Update docs
 ```python
 # Example unit test
 def test_config_validation():
-    config = Config(api_key="test_key", host="http://test.com")
-    assert config.api_key == "test_key"
+    config = Config(public_key="test_key", host="http://test.com")
+    assert config.public_key == "test_key"
     assert config.host == "http://test.com"
 
 # Example integration test  
