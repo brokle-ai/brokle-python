@@ -1,7 +1,7 @@
 """
-LangFuse-inspired Brokle client implementation with OpenTelemetry integration.
+Brokle client implementation with OpenTelemetry integration.
 
-This module implements the core Brokle client following LangFuse patterns
+This module implements the core Brokle client
 but with Brokle-specific enhancements for AI platform features.
 """
 
@@ -30,12 +30,12 @@ logger = logging.getLogger(__name__)
 
 class Brokle:
     """
-    Main Brokle client following LangFuse patterns with OTEL integration.
+    Main Brokle client with OTEL integration.
 
     This client provides:
     - Automatic OTEL span creation and management
     - Brokle-specific AI platform features (routing, caching, optimization)
-    - Clean API similar to LangFuse but with Brokle enhancements
+    - Clean API with Brokle enhancements
     """
 
     def __init__(
@@ -142,7 +142,7 @@ class Brokle:
         tags: Optional[List[str]] = None,
         **kwargs
     ) -> BrokleSpan:
-        """Create a new Brokle span (LangFuse pattern)."""
+        """Create a new Brokle span."""
         if not self._initialized:
             self._initialize_otel()
 
@@ -229,7 +229,7 @@ class Brokle:
             await self._http_client.aclose()
 
 
-# Global client instance (LangFuse pattern)
+# Global client instance
 _client: Optional[Brokle] = None
 _client_lock = threading.Lock()
 
@@ -241,7 +241,7 @@ def get_client(
     **kwargs
 ) -> Brokle:
     """
-    Get or create a singleton Brokle client (LangFuse pattern).
+    Get or create a singleton Brokle client.
 
     This function returns a singleton instance of the Brokle client,
     creating it if it doesn't exist.

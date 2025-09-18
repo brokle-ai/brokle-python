@@ -8,7 +8,7 @@ through Brokle Platform for intelligent routing, cost optimization, and observab
 from .client import OpenAI, AsyncOpenAI
 from .wrapper import create_openai_client, create_async_openai_client
 
-# Create module-level instance for LangFuse-style imports
+# Create module-level instance
 openai = create_openai_client()
 
 __all__ = [

@@ -72,12 +72,12 @@ class TestAuthManager:
     
     def test_get_auth_headers_with_environment(self, config):
         """Test getting authentication headers with environment."""
-        config.environment = "production"
+        config.environment = "default"
         auth_manager = AuthManager(config)
         
         headers = auth_manager.get_auth_headers()
         
-        assert headers["X-Environment"] == "production"
+        assert headers["X-Environment"] == "default"
     
     def test_get_auth_headers_without_environment(self, auth_manager):
         """Test getting authentication headers without environment."""

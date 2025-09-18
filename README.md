@@ -84,7 +84,7 @@ print(f"Cost: ${response.cost_usd:.4f}")
 print(f"Provider: {response.provider}")
 ```
 
-### 3. @observe Decorator (LangFuse-style)
+### 3. @observe Decorator
 
 Comprehensive observability with decorators:
 
@@ -404,7 +404,7 @@ brokle.configure(
     api_key="ak_your_api_key",
     host="http://localhost:8000",
     project_id="proj_your_project_id",
-    environment="production",
+    environment="default",
     otel_enabled=True,
     telemetry_enabled=True,
     cache_enabled=True,

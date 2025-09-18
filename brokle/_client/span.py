@@ -1,5 +1,5 @@
 """
-Brokle span classes following LangFuse patterns.
+Brokle span classes.
 
 This module provides span hierarchy for different types of operations:
 - BrokleSpan: General purpose spans
@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 
 class BrokleSpan:
     """
-    Brokle span implementation following LangFuse patterns.
+    Brokle span implementation.
 
     This class wraps OTEL spans with Brokle-specific functionality
-    and provides a clean API similar to LangFuse spans.
+    and provides a clean API.
     """
 
     def __init__(

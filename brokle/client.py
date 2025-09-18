@@ -2,7 +2,7 @@
 Main client for Brokle SDK.
 
 This module provides backwards compatibility with the existing client interface
-while delegating to the new LangFuse-inspired OTEL client.
+while delegating to the OTEL client.
 """
 
 # Import the new OTEL-based client

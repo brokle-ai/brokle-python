@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of Brokle Platform Python SDK
 - Three integration patterns:
   - OpenAI drop-in replacement
-  - @observe decorator (LangFuse-style)
+  - @observe decorator
   - Native SDK with full platform features
 - Core features:
   - Intelligent routing (cost, quality, latency optimization)

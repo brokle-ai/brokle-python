@@ -1,6 +1,4 @@
 """
-Brokle client implementation following LangFuse patterns.
-
 This module provides the core client functionality for the Brokle SDK,
 including OTEL integration and span management.
 """

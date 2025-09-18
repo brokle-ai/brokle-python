@@ -95,12 +95,6 @@ quick-test:
 integration-test:
 	python -m pytest tests/test_client.py tests/test_openai_client.py -v
 
-# Examples
-run-examples:
-	python examples/helicone_style.py
-	python examples/langfuse_style.py
-	python examples/native_features.py
-
 # Security
 security-check:
 	bandit -r brokle/

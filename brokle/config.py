@@ -8,6 +8,62 @@ from pydantic import BaseModel, Field, field_validator
 from dotenv import load_dotenv
 
 
+def validate_environment_name(env: str) -> None:
+    """
+    Validate environment name according to rules.
+
+    Rules:
+    - Must be lowercase
+    - Maximum 40 characters
+    - Cannot start with "brokle" prefix
+    - Cannot be empty
+
+    Args:
+        env: Environment name to validate
+
+    Raises:
+        ValueError: If environment name is invalid
+    """
+    if not env:
+        raise ValueError("Environment name cannot be empty")
+
+    if len(env) > 40:
+        raise ValueError(f"Environment name too long: {len(env)} characters (max 40)")
+
+    if env != env.lower():
+        raise ValueError("Environment name must be lowercase")
+
+    if env.startswith("brokle"):
+        raise ValueError("Environment name cannot start with 'brokle' prefix")
+
+
+def sanitize_environment_name(env: str) -> str:
+    """
+    Sanitize environment name to follow rules.
+
+    Args:
+        env: Environment name to sanitize
+
+    Returns:
+        Sanitized environment name
+    """
+    if not env:
+        return "default"
+
+    # Convert to lowercase
+    env = env.lower()
+
+    # Truncate if too long
+    if len(env) > 40:
+        env = env[:40]
+
+    # Validate that environment doesn't start with brokle prefix
+    if env.startswith("brokle"):
+        raise ValueError("Environment name cannot start with 'brokle' prefix")
+
+    return env or "default"
+
+
 class Config(BaseModel):
     """Configuration for Brokle SDK."""
     
@@ -15,7 +71,7 @@ class Config(BaseModel):
     api_key: Optional[str] = Field(default=None, description="Brokle API key")
     host: str = Field(default="http://localhost:8000", description="Brokle host URL")
     project_id: Optional[str] = Field(default=None, description="Project ID")
-    environment: str = Field(default="production", description="Environment name")
+    environment: str = Field(default="default", description="Environment name")
     
     # OpenTelemetry configuration
     otel_enabled: bool = Field(default=True, description="Enable OpenTelemetry integration")
@@ -55,6 +111,13 @@ class Config(BaseModel):
         if not v.startswith(('http://', 'https://')):
             raise ValueError('Host must start with http:// or https://')
         return v.rstrip('/')
+
+    @field_validator('environment')
+    @classmethod
+    def validate_environment(cls, v: str) -> str:
+        """Validate environment name according to rules."""
+        validate_environment_name(v)
+        return v
     
     @classmethod
     def from_env(cls) -> 'Config':
@@ -65,7 +128,7 @@ class Config(BaseModel):
             api_key=os.getenv('BROKLE_API_KEY'),
             host=os.getenv('BROKLE_HOST', 'http://localhost:8000'),
             project_id=os.getenv('BROKLE_PROJECT_ID'),
-            environment=os.getenv('BROKLE_ENVIRONMENT', 'production'),
+            environment=os.getenv('BROKLE_ENVIRONMENT', 'default'),
             
             # OpenTelemetry
             otel_enabled=os.getenv('BROKLE_OTEL_ENABLED', 'true').lower() == 'true',

@@ -2,8 +2,7 @@
 OpenTelemetry span attributes for Brokle Platform.
 
 This module defines constants and functions for managing OpenTelemetry span attributes
-used by Brokle SDK. It follows the LangFuse pattern but adapted for Brokle's
-specific features like intelligent routing, cost optimization, and evaluation.
+used by Brokle SDK. 
 """
 
 import json

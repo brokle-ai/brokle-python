@@ -1,7 +1,7 @@
 """
 OpenTelemetry integration for Brokle SDK.
 
-This module provides comprehensive OpenTelemetry integration following the LangFuse pattern
+This module provides comprehensive OpenTelemetry integration.
 but adapted for Brokle's specific features.
 """
 

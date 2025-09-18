@@ -154,7 +154,7 @@ config = BrokleConfig(
     base_url="https://api.brokle.ai",
     organization_id="org_xxxxxxxxxx",
     project_id="proj_xxxxxxxxxx",
-    environment="production",  # or "development", "staging"
+    environment="default",  # or "development", "staging"
 
     # Instrumentation settings
     auto_instrument=True,

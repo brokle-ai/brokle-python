@@ -330,7 +330,7 @@ class BudgetResponse(BaseModel):
     budget_id: str = Field(description="Budget ID")
     organization_id: str = Field(description="Organization ID")
     project_id: Optional[str] = Field(default=None, description="Project ID")
-    environment_id: Optional[str] = Field(default=None, description="Environment ID")
+    environment: Optional[str] = Field(default=None, description="Environment tag")
     budget_type: str = Field(description="Budget type")
     amount: float = Field(description="Budget amount")
     spent: float = Field(description="Amount spent")

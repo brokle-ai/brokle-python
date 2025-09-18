@@ -4,7 +4,7 @@ import os
 import pytest
 from unittest.mock import patch
 
-from brokle.config import Config, configure, get_config, reset_config
+from brokle.config import Config, configure, get_config, reset_config, validate_environment_name, sanitize_environment_name
 
 
 class TestConfig:
@@ -82,6 +82,60 @@ class TestConfig:
         assert headers['X-Environment'] == 'test'
         assert headers['Content-Type'] == 'application/json'
         assert 'brokle-python' in headers['User-Agent']
+
+    def test_environment_validation(self):
+        """Test environment name validation."""
+        # Valid environments should work
+        Config(environment="test")
+        Config(environment="staging")
+        Config(environment="default")
+
+        # Invalid environments should raise errors
+        with pytest.raises(ValueError, match="Environment name must be lowercase"):
+            Config(environment="PRODUCTION")
+
+        with pytest.raises(ValueError, match="Environment name too long"):
+            Config(environment="a" * 41)
+
+        with pytest.raises(ValueError, match="Cannot start with 'brokle' prefix"):
+            Config(environment="brokle-test")
+
+        with pytest.raises(ValueError, match="Environment name cannot be empty"):
+            Config(environment="")
+
+    def test_validate_environment_name_function(self):
+        """Test the validate_environment_name function directly."""
+        # Valid names should not raise
+        validate_environment_name("test")
+        validate_environment_name("staging")
+        validate_environment_name("default")
+        validate_environment_name("dev")
+
+        # Invalid names should raise
+        with pytest.raises(ValueError, match="must be lowercase"):
+            validate_environment_name("TEST")
+
+        with pytest.raises(ValueError, match="too long"):
+            validate_environment_name("a" * 41)
+
+        with pytest.raises(ValueError, match="brokle"):
+            validate_environment_name("brokle-env")
+
+        with pytest.raises(ValueError, match="cannot be empty"):
+            validate_environment_name("")
+
+    def test_sanitize_environment_name_function(self):
+        """Test the sanitize_environment_name function."""
+        assert sanitize_environment_name("TEST") == "test"
+        assert sanitize_environment_name("Production") == "production"
+        assert sanitize_environment_name("a" * 50) == "a" * 40
+        # Test that brokle prefix throws error in sanitization too
+        with pytest.raises(ValueError, match="brokle"):
+            sanitize_environment_name("brokle-test")
+        with pytest.raises(ValueError, match="brokle"):
+            sanitize_environment_name("brokle")
+        assert sanitize_environment_name("") == "default"
+        assert sanitize_environment_name("valid_env") == "valid_env"
 
 
 class TestGlobalConfig:

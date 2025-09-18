@@ -249,7 +249,7 @@ class CostTrackingRequest(BaseModel):
     request_id: str = Field(description="Request ID")
     organization_id: str = Field(description="Organization ID")
     project_id: str = Field(description="Project ID")
-    environment_id: str = Field(description="Environment ID")
+    environment: str = Field(description="Environment tag")
     provider: str = Field(description="AI provider")
     model: str = Field(description="Model name")
     calculated_cost: float = Field(description="Calculated cost")
@@ -264,7 +264,7 @@ class BudgetRequest(BaseModel):
     
     organization_id: str = Field(description="Organization ID")
     project_id: Optional[str] = Field(default=None, description="Project ID")
-    environment_id: Optional[str] = Field(default=None, description="Environment ID")
+    environment: Optional[str] = Field(default=None, description="Environment tag")
     budget_type: str = Field(description="Budget type (monthly, weekly, daily)")
     amount: float = Field(description="Budget amount in USD")
     alert_thresholds: Optional[List[float]] = Field(default=None, description="Alert thresholds (0.0-1.0)")
@@ -337,7 +337,7 @@ class UsageRecordingRequest(BaseModel):
     
     organization_id: str = Field(description="Organization ID")
     project_id: str = Field(description="Project ID")
-    environment_id: str = Field(description="Environment ID")
+    environment: str = Field(description="Environment tag")
     request_id: str = Field(description="Request ID")
     provider: str = Field(description="AI provider")
     model: str = Field(description="Model used")
@@ -355,7 +355,7 @@ class QuotaCheckRequest(BaseModel):
     
     organization_id: str = Field(description="Organization ID")
     project_id: Optional[str] = Field(default=None, description="Project ID")
-    environment_id: Optional[str] = Field(default=None, description="Environment ID")
+    environment: Optional[str] = Field(default=None, description="Environment tag")
     resource_type: str = Field(description="Resource type (requests, tokens, cost)")
     requested_amount: int = Field(description="Requested amount")
 

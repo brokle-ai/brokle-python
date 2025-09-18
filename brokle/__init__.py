@@ -1,6 +1,5 @@
 """.. include:: ../README.md"""
 
-# Core imports following LangFuse pattern
 from .client import Brokle, get_client
 from .config import Config, configure, get_config, reset_config
 from .auth import AuthManager
@@ -49,7 +48,7 @@ from .ai_platform import (
     get_healthy_providers, get_provider_rankings,
 )
 
-# Main exports - clean and minimal like LangFuse
+# Main exports
 __all__ = [
     # Core client and observability
     "Brokle",

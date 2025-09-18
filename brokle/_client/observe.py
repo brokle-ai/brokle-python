@@ -1,8 +1,7 @@
 """
-LangFuse-inspired observe decorator for Brokle SDK.
+Observe decorator for Brokle SDK.
 
-This module provides the @observe decorator following LangFuse patterns
-with Brokle-specific enhancements for AI platform features.
+This module provides the @observe decorator with Brokle-specific enhancements for AI platform features.
 """
 
 import asyncio
@@ -28,10 +27,10 @@ R = TypeVar("R")
 
 class BrokleDecorator:
     """
-    LangFuse-inspired decorator implementation for Brokle Platform.
+    Decorator implementation for Brokle Platform.
 
     This decorator provides seamless integration of Brokle observability
-    following LangFuse patterns but with Brokle-specific enhancements.
+    with Brokle-specific enhancements.
     """
 
     def __init__(self):
@@ -93,7 +92,7 @@ class BrokleDecorator:
         **kwargs
     ) -> Union[F, Callable[[F], F]]:
         """
-        LangFuse-inspired observe decorator with Brokle enhancements.
+        Observe decorator with Brokle enhancements.
 
         This decorator automatically creates spans around function execution,
         capturing timing, inputs/outputs, and LLM-specific metrics.
@@ -397,7 +396,7 @@ class BrokleDecorator:
         return sync_wrapper
 
 
-# Global decorator instance (LangFuse pattern)
+# Global decorator instance
 _decorator = BrokleDecorator()
 
 
@@ -426,7 +425,7 @@ def observe(
     **kwargs
 ) -> Union[F, Callable[[F], F]]:
     """
-    Global observe decorator function (LangFuse pattern).
+    Global observe decorator function.
 
     This is the main @observe decorator that users will import and use.
     It delegates to the global decorator instance.

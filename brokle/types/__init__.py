@@ -2,7 +2,7 @@
 Type definitions for Brokle SDK.
 """
 
-from .attributes import BrokleOtelSpanAttributes
+# from .attributes import BrokleOtelSpanAttributes  # TODO: Add when attributes module is created
 from .requests import (
     CompletionRequest,
     ChatCompletionRequest,
@@ -19,9 +19,6 @@ from .responses import (
 )
 
 __all__ = [
-    # Attributes
-    "BrokleOtelSpanAttributes",
-    
     # Requests
     "CompletionRequest",
     "ChatCompletionRequest", 

@@ -1,7 +1,7 @@
 """
 @observe Decorator Usage Example
 
-This example demonstrates the LangFuse-style @observe decorator for
+This example demonstrates the @observe decorator for
 comprehensive observability and tracing.
 """
 
