@@ -48,27 +48,17 @@ jobs:
       run: |
         python -m twine check dist/*
 
-    - name: Generate changelog
-      id: changelog
+    - name: Create release body
+      id: release_body
       run: |
-        # Simple changelog generation (you can enhance this)
-        echo "## Changes in ${{ steps.version.outputs.TAG }}" > RELEASE_CHANGELOG.md
-        echo "" >> RELEASE_CHANGELOG.md
-        echo "### What's New" >> RELEASE_CHANGELOG.md
-
-        # Get commits since last tag
-        if git describe --tags --abbrev=0 HEAD~1 2>/dev/null; then
-          LAST_TAG=$(git describe --tags --abbrev=0 HEAD~1)
-          git log --pretty=format:"- %s" $LAST_TAG..HEAD >> RELEASE_CHANGELOG.md
-        else
-          git log --pretty=format:"- %s" HEAD~10..HEAD >> RELEASE_CHANGELOG.md
-        fi
-
-        echo "" >> RELEASE_CHANGELOG.md
-        echo "### Installation" >> RELEASE_CHANGELOG.md
-        echo '```bash' >> RELEASE_CHANGELOG.md
-        echo 'pip install brokle==${{ steps.version.outputs.VERSION }}' >> RELEASE_CHANGELOG.md
-        echo '```' >> RELEASE_CHANGELOG.md
+        echo "### Installation" > RELEASE_BODY.md
+        echo "" >> RELEASE_BODY.md
+        echo '```bash' >> RELEASE_BODY.md
+        echo 'pip install brokle==${{ steps.version.outputs.VERSION }}' >> RELEASE_BODY.md
+        echo '```' >> RELEASE_BODY.md
+        echo "" >> RELEASE_BODY.md
+        echo "### Documentation" >> RELEASE_BODY.md
+        echo "📖 **[Complete Documentation](https://github.com/brokle-ai/brokle-python/blob/main/README.md)**" >> RELEASE_BODY.md
 
     - name: Determine if pre-release
       id: prerelease
@@ -83,35 +73,20 @@ jobs:
 
     - name: Create GitHub Release
       id: create_release
-      uses: actions/create-release@v1
+      uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ steps.version.outputs.TAG }}
-        release_name: ${{ steps.prerelease.outputs.RELEASE_NAME }}
-        body_path: RELEASE_CHANGELOG.md
+        name: ${{ steps.prerelease.outputs.RELEASE_NAME }}
+        body_path: RELEASE_BODY.md
         draft: false
         prerelease: ${{ steps.prerelease.outputs.IS_PRERELEASE }}
+        generate_release_notes: true
+        files: |
+          dist/brokle-${{ steps.version.outputs.VERSION }}-py3-none-any.whl
+          dist/brokle-${{ steps.version.outputs.VERSION }}.tar.gz
 
-    - name: Upload wheel to release
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: dist/brokle-${{ steps.version.outputs.VERSION }}-py3-none-any.whl
-        asset_name: brokle-${{ steps.version.outputs.VERSION }}-py3-none-any.whl
-        asset_content_type: application/zip
-
-    - name: Upload source to release
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: dist/brokle-${{ steps.version.outputs.VERSION }}.tar.gz
-        asset_name: brokle-${{ steps.version.outputs.VERSION }}.tar.gz
-        asset_content_type: application/gzip
 
   publish-to-pypi:
     name: Publish to PyPI
