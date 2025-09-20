@@ -4,9 +4,11 @@ Test suite for OpenAI auto-instrumentation.
 Tests the automatic instrumentation functionality without requiring a real Brokle backend.
 """
 
+import asyncio
+
 import pytest
 import sys
-import importlib
+from types import SimpleNamespace
 from unittest.mock import Mock, patch, MagicMock
 from typing import Any, Dict
 
@@ -18,10 +20,26 @@ class TestOpenAIAutoInstrumentation:
         """Set up test environment before each test."""
         # Clear any existing instrumentation
         self._clear_instrumentation()
+        # Reset global instrumentation state
+        try:
+            if 'brokle.integrations.openai' in sys.modules:
+                openai_module = sys.modules['brokle.integrations.openai']
+                openai_module._instrumented = False
+                openai_module._instrumentation_errors = []
+        except (ImportError, AttributeError):
+            pass
 
     def teardown_method(self):
         """Clean up after each test."""
         self._clear_instrumentation()
+        # Reset global instrumentation state
+        try:
+            if 'brokle.integrations.openai' in sys.modules:
+                openai_module = sys.modules['brokle.integrations.openai']
+                openai_module._instrumented = False
+                openai_module._instrumentation_errors = []
+        except (ImportError, AttributeError):
+            pass
 
     def _clear_instrumentation(self):
         """Clear instrumentation state for clean tests."""
@@ -54,26 +72,67 @@ class TestOpenAIAutoInstrumentation:
             yield sys.modules['wrapt']
 
     @pytest.fixture
-    def mock_brokle_client(self):
-        """Mock Brokle client."""
-        mock_client = MagicMock()
-        mock_observability = MagicMock()
+    def stub_brokle_client(self):
+        """Provide a lightweight Brokle client capturing span interactions."""
 
-        # Mock trace creation
-        mock_trace = MagicMock()
-        mock_trace.id = "trace_123"
-        mock_observability.create_trace_sync.return_value = mock_trace
+        class _StubObservationBase:
+            def __init__(self, metadata: Dict[str, Any]):
+                self.metadata = dict(metadata or {})
+                self.started = False
+                self.update_calls = []
+                self.end_calls = []
 
-        # Mock observation creation
-        mock_observation = MagicMock()
-        mock_observation.id = "obs_456"
-        mock_observability.create_observation_sync.return_value = mock_observation
+            def start(self):
+                self.started = True
+                return self
 
-        # Mock observation completion
-        mock_observability.complete_observation_sync.return_value = True
+            def update(self, *, metadata: Dict[str, Any] = None, **kwargs):
+                self.update_calls.append({"metadata": metadata, "kwargs": kwargs})
+                if metadata:
+                    self.metadata.update(metadata)
+                return self
 
-        mock_client.observability = mock_observability
-        return mock_client
+            def end(self, **kwargs):
+                self.end_calls.append(kwargs)
+                return None
+
+        class _StubGenerationObservation(_StubObservationBase):
+            def __init__(self, metadata: Dict[str, Any]):
+                super().__init__(metadata)
+                self.metric_updates = []
+
+            def update_metrics(self, **kwargs):
+                self.metric_updates.append(kwargs)
+                return self
+
+        class _StubSpanObservation(_StubObservationBase):
+            pass
+
+        class _StubBrokleClient:
+            def __init__(self):
+                self.generation_invocations = []
+                self.span_invocations = []
+
+            def generation(self, **kwargs):
+                observation = _StubGenerationObservation(kwargs.get("metadata"))
+                observation.model = kwargs.get("model")
+                observation.provider = kwargs.get("provider")
+                self.generation_invocations.append({
+                    "kwargs": kwargs,
+                    "observation": observation
+                })
+                return observation
+
+            def span(self, **kwargs):
+                observation = _StubSpanObservation(kwargs.get("metadata"))
+                observation.provider = kwargs.get("metadata", {}).get("provider")
+                self.span_invocations.append({
+                    "kwargs": kwargs,
+                    "observation": observation
+                })
+                return observation
+
+        return _StubBrokleClient()
 
     def test_import_enables_instrumentation(self, mock_openai, mock_wrapt):
         """Test that importing the module enables auto-instrumentation."""
@@ -152,9 +211,9 @@ class TestOpenAIAutoInstrumentation:
             assert any(module in wrapped for wrapped in modules_wrapped)
 
     @patch('brokle.integrations.openai._get_brokle_client')
-    def test_wrapper_execution_with_client(self, mock_get_client, mock_openai, mock_wrapt, mock_brokle_client):
+    def test_wrapper_execution_with_client(self, mock_get_client, mock_openai, mock_wrapt, stub_brokle_client):
         """Test wrapper execution when Brokle client is available."""
-        mock_get_client.return_value = mock_brokle_client
+        mock_get_client.return_value = stub_brokle_client
 
         import brokle.integrations.openai as openai_auto
 
@@ -168,10 +227,10 @@ class TestOpenAIAutoInstrumentation:
             mock_wrapped = Mock()
             mock_wrapped.__module__ = "openai.resources.chat.completions"
             mock_wrapped.__qualname__ = "Completions.create"
-            mock_wrapped.return_value = Mock(
-                choices=[Mock(message=Mock(content="Test response"))],
+            mock_wrapped.return_value = SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(content="Test response"))],
                 model="gpt-3.5-turbo",
-                usage=Mock(prompt_tokens=10, completion_tokens=15, total_tokens=25)
+                usage={"prompt_tokens": 10, "completion_tokens": 15, "total_tokens": 25}
             )
 
             # Execute wrapper
@@ -182,10 +241,35 @@ class TestOpenAIAutoInstrumentation:
                 {"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "test"}]}
             )
 
-            # Verify observability calls were made
-            mock_brokle_client.observability.create_trace_sync.assert_called_once()
-            mock_brokle_client.observability.create_observation_sync.assert_called_once()
-            mock_brokle_client.observability.complete_observation_sync.assert_called_once()
+            assert result.choices[0].message.content == "Test response"
+
+            # Verify observability calls were made with new API
+            assert len(stub_brokle_client.generation_invocations) == 1
+            generation_call = stub_brokle_client.generation_invocations[0]
+            observation = generation_call["observation"]
+
+            assert observation.started is True
+            assert observation.end_calls, "Observation should be ended"
+            # Successful completion should set status_message="success"
+            assert observation.end_calls[-1].get("status_message") == "success"
+
+            # Request metadata should be captured
+            assert "request" in observation.metadata
+            assert observation.metadata["request"]["model"] == "gpt-3.5-turbo"
+
+            # Response metadata should be stored
+            assert "response" in observation.metadata
+            assert observation.metadata["response"]["model"] == "gpt-3.5-turbo"
+            assert observation.metadata["usage"]["total_tokens"] == 25
+
+            # Metrics should capture token counts, cost, and latency
+            assert observation.metric_updates, "Expected metric updates for generation spans"
+            metrics = observation.metric_updates[-1]
+            assert metrics["input_tokens"] == 10
+            assert metrics["output_tokens"] == 15
+            assert metrics["total_tokens"] == 25
+            assert metrics["cost_usd"] == pytest.approx(0.00004, rel=1e-6)
+            assert metrics["latency_ms"] >= 0
 
     @patch('brokle.integrations.openai._get_brokle_client')
     def test_wrapper_execution_without_client(self, mock_get_client, mock_openai, mock_wrapt):
@@ -219,6 +303,89 @@ class TestOpenAIAutoInstrumentation:
 
             # Should call the original wrapped function
             mock_wrapped.assert_called_once()
+
+    @patch('brokle.integrations.openai._get_brokle_client')
+    def test_wrapper_handles_missing_usage(self, mock_get_client, mock_openai, mock_wrapt, stub_brokle_client):
+        """Ensure instrumentation handles responses without usage data."""
+        mock_get_client.return_value = stub_brokle_client
+
+        import brokle.integrations.openai as openai_auto
+
+        calls = mock_wrapt.wrap_function_wrapper.call_args_list
+        if calls:
+            wrapper_func = calls[0][0][2]
+
+            mock_wrapped = Mock()
+            mock_wrapped.__module__ = "openai.resources.chat.completions"
+            mock_wrapped.__qualname__ = "Completions.create"
+            mock_wrapped.return_value = SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(content="No usage"))],
+                model="gpt-3.5-turbo",
+                usage=None
+            )
+
+            result = wrapper_func(
+                mock_wrapped,
+                Mock(),
+                (),
+                {"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "test"}]}
+            )
+
+            assert result.choices[0].message.content == "No usage"
+
+            observation = stub_brokle_client.generation_invocations[0]["observation"]
+            assert observation.metadata["usage"] == {}
+            assert observation.metric_updates
+            metrics = observation.metric_updates[-1]
+            assert metrics["input_tokens"] is None
+            assert metrics["output_tokens"] is None
+            assert metrics["total_tokens"] is None
+            assert metrics["cost_usd"] in (0, None)
+            assert observation.end_calls[-1].get("status_message") == "success"
+
+    @pytest.mark.asyncio
+    async def test_async_wrapper_records_latency(self, mock_openai, mock_wrapt, stub_brokle_client):
+        """Async wrappers should finalize after the awaited call completes."""
+        with patch('brokle.integrations.openai._get_brokle_client') as mock_get_client:
+            mock_get_client.return_value = stub_brokle_client
+
+            import brokle.integrations.openai as openai_auto  # noqa: F401 - ensure instrumentation runs
+
+            calls = mock_wrapt.wrap_function_wrapper.call_args_list
+            async_wrapper = None
+            for call in calls:
+                if "Async" in call[0][1]:
+                    async_wrapper = call[0][2]
+                    break
+
+            assert async_wrapper is not None, "Expected async wrapper to be instrumented"
+
+            async def fake_async_method(*args, **kwargs):
+                await asyncio.sleep(0)
+                return SimpleNamespace(
+                    choices=[SimpleNamespace(message=SimpleNamespace(content="Async response"))],
+                    model="gpt-3.5-turbo",
+                    usage={"prompt_tokens": 20, "completion_tokens": 30, "total_tokens": 50}
+                )
+
+            coroutine = async_wrapper(
+                fake_async_method,
+                Mock(),
+                (),
+                {"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "async"}]}
+            )
+
+            awaited_result = await coroutine
+            assert awaited_result.choices[0].message.content == "Async response"
+
+            observation = stub_brokle_client.generation_invocations[0]["observation"]
+            assert observation.metric_updates
+            metrics = observation.metric_updates[-1]
+            assert metrics["input_tokens"] == 20
+            assert metrics["output_tokens"] == 30
+            assert metrics["total_tokens"] == 50
+            assert metrics["latency_ms"] >= 0
+            assert observation.end_calls[-1].get("status_message") == "success"
 
     def test_request_data_extraction(self, mock_openai, mock_wrapt):
         """Test request data extraction function."""
@@ -291,10 +458,10 @@ class TestOpenAIAutoInstrumentation:
         assert isinstance(cost_unknown, float)
         assert cost_unknown > 0
 
-    def test_error_handling_in_wrapper(self, mock_openai, mock_wrapt, mock_brokle_client):
+    def test_error_handling_in_wrapper(self, mock_openai, mock_wrapt, stub_brokle_client):
         """Test error handling when wrapped function raises exception."""
         with patch('brokle.integrations.openai._get_brokle_client') as mock_get_client:
-            mock_get_client.return_value = mock_brokle_client
+            mock_get_client.return_value = stub_brokle_client
 
             import brokle.integrations.openai as openai_auto
 
@@ -319,12 +486,13 @@ class TestOpenAIAutoInstrumentation:
                     )
 
                 # Verify that observation was created and error was recorded
-                mock_brokle_client.observability.create_observation_sync.assert_called_once()
-                mock_brokle_client.observability.complete_observation_sync.assert_called_once()
-
-                # Check that error status was recorded
-                complete_call = mock_brokle_client.observability.complete_observation_sync.call_args
-                assert "error:" in complete_call[1]["status_message"]
+                assert len(stub_brokle_client.generation_invocations) == 1
+                observation = stub_brokle_client.generation_invocations[0]["observation"]
+                assert observation.started is True
+                assert observation.end_calls, "Expected observation to end even on error"
+                end_kwargs = observation.end_calls[-1]
+                assert "status_message" in end_kwargs
+                assert "error:" in end_kwargs["status_message"]
 
     def test_integration_with_brokle_openai_module(self, mock_openai, mock_wrapt):
         """Test integration through brokle.openai module."""
@@ -342,18 +510,38 @@ class TestOpenAIAutoInstrumentation:
 
     def test_instrumentation_registry_integration(self, mock_openai, mock_wrapt):
         """Test integration with the main integrations registry."""
-        import brokle.integrations as integrations
+        # Force a fresh import cycle to ensure instrumentation runs with mocked dependencies
+        # Clear both the integrations registry and the openai module
+        modules_to_clear = ['brokle.integrations', 'brokle.integrations.openai']
+        cleared_modules = {}
 
-        # Check that auto-instrumentation functions are available
-        assert hasattr(integrations, 'openai_is_instrumented')
-        assert hasattr(integrations, 'openai_get_status')
-        assert hasattr(integrations, 'HAS_OPENAI')
-        assert hasattr(integrations, 'HAS_WRAPT')
-        assert hasattr(integrations, 'OPENAI_AUTO_AVAILABLE')
+        for module_name in modules_to_clear:
+            if module_name in sys.modules:
+                cleared_modules[module_name] = sys.modules[module_name]
+                del sys.modules[module_name]
 
-        # Check status
-        assert integrations.OPENAI_AUTO_AVAILABLE == True
-        assert integrations.openai_is_instrumented() == True
+        try:
+            # Import fresh - this should trigger instrumentation with our mocks
+            import brokle.integrations as integrations
+
+            # Check that auto-instrumentation functions are available
+            assert hasattr(integrations, 'openai_is_instrumented')
+            assert hasattr(integrations, 'openai_get_status')
+            assert hasattr(integrations, 'HAS_OPENAI')
+            assert hasattr(integrations, 'HAS_WRAPT')
+            assert hasattr(integrations, 'OPENAI_AUTO_AVAILABLE')
+
+            # Check that the registry properly imported the auto-instrumentation module
+            assert integrations.OPENAI_AUTO_AVAILABLE == True
+
+            # P1: Keep the boolean assertion to guard against regressions
+            # With fresh import and mocked dependencies, instrumentation should succeed
+            assert integrations.openai_is_instrumented() == True
+
+        finally:
+            # Restore cleared modules to avoid affecting other tests
+            for module_name, module_obj in cleared_modules.items():
+                sys.modules[module_name] = module_obj
 
     @pytest.mark.parametrize("method_config", [
         {
@@ -389,44 +577,70 @@ class TestOpenAIAutoInstrumentation:
 class TestAutoInstrumentationIntegration:
     """Test integration scenarios for auto-instrumentation."""
 
+    def _clear_modules(self, *module_names: str) -> None:
+        for module_name in module_names:
+            if module_name in sys.modules:
+                del sys.modules[module_name]
+
     def test_multiple_imports_are_safe(self):
         """Test that multiple imports of the same module are safe."""
-        with patch('brokle.integrations.openai.HAS_OPENAI', True), \
-             patch('brokle.integrations.openai.HAS_WRAPT', True), \
-             patch('wrapt.wrap_function_wrapper'):
+        with patch.dict('sys.modules', {
+            'openai': MagicMock(),
+            'openai.resources': MagicMock(),
+            'openai.resources.chat': MagicMock(),
+            'openai.resources.chat.completions': MagicMock(),
+            'openai.resources.completions': MagicMock(),
+            'openai.resources.embeddings': MagicMock(),
+            'wrapt': MagicMock()
+        }):
+            self._clear_modules('brokle.integrations', 'brokle.integrations.openai', 'brokle.openai')
 
-            # Import multiple times
             import brokle.integrations.openai as auto1
             import brokle.integrations.openai as auto2
             import brokle.openai as convenience
 
-            # All should report the same instrumentation status
-            assert auto1.is_instrumented() == auto2.is_instrumented()
-            assert auto1.is_instrumented() == convenience.is_instrumented()
+            assert auto1.is_instrumented() is True
+            assert auto1.is_instrumented() == auto2.is_instrumented() == convenience.is_instrumented()
 
     def test_import_order_independence(self):
         """Test that import order doesn't matter."""
-        # Test importing convenience module first
-        with patch('brokle.integrations.openai.HAS_OPENAI', True), \
-             patch('brokle.integrations.openai.HAS_WRAPT', True):
+        with patch.dict('sys.modules', {
+            'openai': MagicMock(),
+            'openai.resources': MagicMock(),
+            'openai.resources.chat': MagicMock(),
+            'openai.resources.chat.completions': MagicMock(),
+            'openai.resources.completions': MagicMock(),
+            'openai.resources.embeddings': MagicMock(),
+            'wrapt': MagicMock()
+        }):
+            self._clear_modules('brokle.integrations', 'brokle.integrations.openai', 'brokle.openai')
 
             import brokle.openai as convenience_first
             import brokle.integrations.openai as direct_second
 
-            assert convenience_first.is_instrumented() == direct_second.is_instrumented()
+            assert convenience_first.is_instrumented() == direct_second.is_instrumented() == True
 
     def test_graceful_degradation(self):
         """Test graceful degradation when dependencies are missing."""
-        # Test with missing dependencies
-        with patch('brokle.integrations.openai.HAS_OPENAI', False), \
-             patch('brokle.integrations.openai.HAS_WRAPT', False):
+        self._clear_modules('brokle.integrations', 'brokle.integrations.openai', 'brokle.openai', 'openai', 'wrapt')
 
+        import builtins
+
+        original_import = builtins.__import__
+
+        def failing_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name == 'wrapt':
+                raise ImportError("wrapt missing")
+            return original_import(name, globals, locals, fromlist, level)
+
+        with patch('builtins.__import__', side_effect=failing_import):
             import brokle.integrations.openai as openai_auto
 
-            # Should not crash, but should report not instrumented
-            assert openai_auto.is_instrumented() == False
+            assert openai_auto.HAS_WRAPT is False
+            assert openai_auto.is_instrumented() is False
 
             status = openai_auto.get_instrumentation_status()
-            assert status['instrumented'] == False
-            assert status['openai_available'] == False
-            assert status['wrapt_available'] == False
+            assert status['instrumented'] is False
+            assert status['wrapt_available'] is False
+
+        self._clear_modules('brokle.integrations', 'brokle.integrations.openai', 'brokle.openai')

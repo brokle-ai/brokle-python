@@ -23,7 +23,7 @@ try:
         HAS_OPENAI,
         HAS_WRAPT
     )
-    OPENAI_AUTO_AVAILABLE = True
+    OPENAI_AUTO_AVAILABLE = bool(HAS_OPENAI and HAS_WRAPT)
 except ImportError:
     OPENAI_AUTO_AVAILABLE = False
     openai_is_instrumented = lambda: False

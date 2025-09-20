@@ -14,7 +14,6 @@ Usage:
 
 import logging
 import time
-import functools
 import inspect
 from typing import Any, Dict, Optional, Union
 from datetime import datetime, timezone
@@ -198,11 +197,92 @@ def _create_openai_wrapper(method_name: str, operation_type: str = "llm"):
         observation = None
         request_data = {}
 
+        def _finalize_observation_success(result_data: Any, *, latency_ms: int) -> None:
+            """Finalize observation on success with metric updates."""
+            nonlocal observation
+
+            if not observation:
+                return
+
+            try:
+                response_data = _extract_response_data(result_data)
+                usage_raw = response_data.get("usage") if isinstance(response_data, dict) else None
+                usage = usage_raw or {}
+
+                total_cost = _calculate_cost(
+                    request_data.get("model", ""),
+                    usage
+                ) if request_data else None
+
+                if hasattr(observation, "update_metrics") and callable(getattr(observation, "update_metrics")):
+                    observation.update_metrics(
+                        input_tokens=usage.get("prompt_tokens"),
+                        output_tokens=usage.get("completion_tokens"),
+                        total_tokens=usage.get("total_tokens"),
+                        cost_usd=total_cost,
+                        latency_ms=latency_ms
+                    )
+
+                metadata_update = {
+                    "request": request_data,
+                    "response": response_data,
+                    "usage": usage,
+                    "total_cost": total_cost
+                }
+
+                existing_metadata = getattr(observation, "metadata", {})
+                if isinstance(existing_metadata, dict):
+                    metadata_update = {**existing_metadata, **metadata_update}
+
+                observation.update(metadata=metadata_update)
+                observation.end(status_message="success")
+
+                logger.debug(
+                    "Completed observation %s for %s (cost: $%s)",
+                    observation_id,
+                    method_name,
+                    total_cost
+                )
+
+            except Exception as e:
+                logger.debug(f"Failed to complete observation for {method_name}: {e}")
+
+        def _finalize_observation_error(exc: Exception) -> None:
+            """Finalize observation for error cases."""
+            nonlocal observation
+
+            if not observation:
+                return
+
+            try:
+                from opentelemetry.trace import StatusCode
+
+                observation.end(
+                    status=StatusCode.ERROR,
+                    status_message=f"error: {str(exc)[:200]}"
+                )
+
+                logger.debug(
+                    "Recorded error in observation %s for %s", observation_id, method_name
+                )
+
+            except Exception as complete_error:
+                logger.debug(f"Failed to record error in observation: {complete_error}")
+
         # Setup observability (non-blocking - never fail user's code)
         if client:
             try:
                 # Extract request data safely
                 request_data = _extract_request_data(args, kwargs)
+
+                metadata_common = {
+                    "method": method_name,
+                    "operation_type": operation_type,
+                    "library": "openai",
+                    "auto_instrumented": True,
+                    "provider": "openai",
+                    "request": request_data
+                }
 
                 # Create generation span for LLM operations
                 if operation_type == "llm":
@@ -210,29 +290,20 @@ def _create_openai_wrapper(method_name: str, operation_type: str = "llm"):
                         name=f"OpenAI {method_name}",
                         model=request_data.get("model", "unknown"),
                         provider="openai",
-                        metadata={
-                            "method": method_name,
-                            "operation_type": operation_type,
-                            "library": "openai",
-                            "auto_instrumented": True
-                        }
+                        metadata=metadata_common
                     ).start()
-                    observation_id = id(observation)  # Use object id since spans don't have .id
                 else:
                     # For embeddings and other operations, use span
+                    metadata_common = {
+                        **metadata_common,
+                        "model": request_data.get("model", "unknown")
+                    }
                     observation = client.span(
                         name=f"OpenAI {method_name}",
-                        metadata={
-                            "provider": "openai",
-                            "method": method_name,
-                            "operation_type": operation_type,
-                            "library": "openai",
-                            "auto_instrumented": True,
-                            "model": request_data.get("model", "unknown")
-                        }
+                        metadata=metadata_common
                     ).start()
-                    observation_id = id(observation)  # Use object id since spans don't have .id
 
+                observation_id = id(observation)  # Use object id since spans don't have .id
                 logger.debug(f"Created {operation_type} observation {observation_id} for OpenAI {method_name}")
 
             except Exception as e:
@@ -245,100 +316,27 @@ def _create_openai_wrapper(method_name: str, operation_type: str = "llm"):
         try:
             result = wrapped(*args, **kwargs)
 
-            # Check if result is a coroutine (async method)
-            is_coroutine = inspect.iscoroutine(result)
+            if inspect.isawaitable(result):
 
-            # Only calculate latency for sync methods (P1 fix: avoid bogus latency for async)
-            latency_ms = None
-            if not is_coroutine:
-                end_time = time.perf_counter()
-                latency_ms = int((end_time - start_time) * 1000)
+                async def _async_wrapper():
+                    try:
+                        awaited_result = await result
+                        latency_ms = int((time.perf_counter() - start_time) * 1000)
+                        _finalize_observation_success(awaited_result, latency_ms=latency_ms)
+                        return awaited_result
+                    except Exception as async_exc:
+                        _finalize_observation_error(async_exc)
+                        raise
 
-            # Complete observation with success data
-            if observation:
-                try:
-                    # Initialize variables for both sync and async cases
-                    total_cost = None
+                return _async_wrapper()
 
-                    # For coroutines, we can't extract response data until it's awaited
-                    # Only process response data for sync methods
-                    if not is_coroutine:
-                        # Extract response data safely
-                        response_data = _extract_response_data(result)
-                        usage = response_data.get("usage", {})
-
-                        # Ensure usage is a dict (guard against None from streaming/certain endpoints)
-                        if usage is None:
-                            usage = {}
-
-                        # Calculate cost
-                        total_cost = _calculate_cost(
-                            request_data.get("model", ""),
-                            usage
-                        ) if request_data else None
-
-                        # Update observation with response data
-                        observation.update(
-                            metadata={
-                                **observation.metadata,
-                                "response": response_data,
-                                "usage": usage,
-                                "total_cost": total_cost
-                            }
-                        )
-
-                        # Update metrics for OTEL attributes (P1 fix: restore dashboard/alert metrics)
-                        if hasattr(observation, 'update_metrics'):
-                            observation.update_metrics(
-                                input_tokens=usage.get("prompt_tokens"),
-                                output_tokens=usage.get("completion_tokens"),
-                                total_tokens=usage.get("total_tokens"),
-                                cost_usd=total_cost,
-                                latency_ms=latency_ms
-                            )
-                    else:
-                        # For async methods, just update basic metadata
-                        observation.update(
-                            metadata={
-                                **observation.metadata,
-                                "async_method": True,
-                                "note": "Metrics will be incomplete for async methods - response not yet awaited"
-                            }
-                        )
-
-                    # End the observation successfully
-                    observation.end(status_message="success")
-
-                    # Log completion (handle both sync and async cases)
-                    if not is_coroutine:
-                        logger.debug(f"Completed observation {observation_id} for {method_name} (cost: ${total_cost})")
-                    else:
-                        logger.debug(f"Completed observation {observation_id} for {method_name} (async - metrics incomplete)")
-
-                except Exception as e:
-                    logger.debug(f"Failed to complete observation for {method_name}: {e}")
-                    # Don't fail user code even if observability completion fails
+            latency_ms = int((time.perf_counter() - start_time) * 1000)
+            _finalize_observation_success(result, latency_ms=latency_ms)
 
             return result
 
         except Exception as e:
-            # Record error in observation, but always re-raise original exception
-            if observation:
-                try:
-                    from opentelemetry.trace import StatusCode
-
-                    # End the observation with error status
-                    observation.end(
-                        status=StatusCode.ERROR,
-                        status_message=f"error: {str(e)[:200]}"  # Limit error message length
-                    )
-
-                    logger.debug(f"Recorded error in observation {observation_id} for {method_name}")
-
-                except Exception as complete_error:
-                    logger.debug(f"Failed to record error in observation: {complete_error}")
-                    # Even error recording failures shouldn't break user code
-
+            _finalize_observation_error(e)
             # Always re-raise the original exception
             raise
 
