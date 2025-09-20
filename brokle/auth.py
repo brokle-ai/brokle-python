@@ -80,3 +80,11 @@ class AuthManager:
         """Clear authentication information."""
         self._auth_info = None
         self._validated = False
+
+    def __str__(self) -> str:
+        """String representation without exposing sensitive info."""
+        return f"AuthManager(project_id={self.config.project_id})"
+
+    def __repr__(self) -> str:
+        """Detailed representation without exposing API key."""
+        return f"AuthManager(project_id={self.config.project_id}, validated={self._validated})"

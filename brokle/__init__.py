@@ -3,10 +3,26 @@
 from .client import Brokle, get_client
 from .config import Config, configure, get_config, reset_config
 from .auth import AuthManager
-from .decorators import observe
 from ._client.attributes import BrokleOtelSpanAttributes
 from .integrations import auto_instrument, print_status, get_status, get_registry
 from ._version import __version__
+
+# Exception classes
+from .exceptions import (
+    BrokleError,
+    AuthenticationError,
+    RateLimitError,
+    ConfigurationError,
+    APIError,
+    NetworkError,
+    ValidationError,
+    TimeoutError,
+    UnsupportedOperationError,
+    QuotaExceededError,
+    ProviderError,
+    CacheError,
+    EvaluationError,
+)
 
 # Evaluation framework exports
 from .evaluation import (
@@ -53,13 +69,26 @@ __all__ = [
     # Core client and observability
     "Brokle",
     "get_client",
-    "observe",
     "Config",
     "configure",
     "get_config",
     "reset_config",
     "AuthManager",
     "BrokleOtelSpanAttributes",
+    # Exceptions
+    "BrokleError",
+    "AuthenticationError",
+    "RateLimitError",
+    "ConfigurationError",
+    "APIError",
+    "NetworkError",
+    "ValidationError",
+    "TimeoutError",
+    "UnsupportedOperationError",
+    "QuotaExceededError",
+    "ProviderError",
+    "CacheError",
+    "EvaluationError",
     # Integrations
     "auto_instrument",
     "print_status",

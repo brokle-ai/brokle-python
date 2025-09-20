@@ -16,11 +16,24 @@ except ImportError:
     HAS_OPENAI = False
     OpenAIClient = None
     AsyncOpenAIClient = None
+    # Fallback types for when OpenAI is not installed
+    class ChatCompletion:
+        pass
+    class ChatCompletionChunk:
+        pass
+    class Completion:
+        pass
+    class CompletionChoice:
+        pass
+    class CreateEmbeddingResponse:
+        pass
+    class Stream:
+        pass
+    class AsyncStream:
+        pass
 
 from ..client import Brokle
 from ..config import get_config
-from ..decorators import observe
-from ..core.telemetry import start_generation
 
 
 class OpenAI:
@@ -63,7 +76,6 @@ class OpenAI:
             self.brokle = brokle
             self.completions = self
         
-        @observe(as_type="generation")
         def create(
             self,
             *,
@@ -156,7 +168,6 @@ class OpenAI:
         def __init__(self, brokle: Brokle):
             self.brokle = brokle
         
-        @observe(as_type="generation")
         def create(
             self,
             *,
@@ -247,7 +258,6 @@ class OpenAI:
         def __init__(self, brokle: Brokle):
             self.brokle = brokle
         
-        @observe(as_type="generation")
         def create(
             self,
             *,
@@ -352,7 +362,6 @@ class AsyncOpenAI:
             self.brokle = brokle
             self.completions = self
         
-        @observe(as_type="generation")
         async def create(
             self,
             *,
@@ -443,7 +452,6 @@ class AsyncOpenAI:
         def __init__(self, brokle: Brokle):
             self.brokle = brokle
         
-        @observe(as_type="generation")
         async def create(
             self,
             *,
@@ -535,7 +543,6 @@ class AsyncOpenAI:
         def __init__(self, brokle: Brokle):
             self.brokle = brokle
         
-        @observe(as_type="generation")
         async def create(
             self,
             *,

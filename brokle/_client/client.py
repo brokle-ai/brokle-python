@@ -40,6 +40,8 @@ class Brokle:
 
     def __init__(
         self,
+        api_key: Optional[str] = None,
+        project_id: Optional[str] = None,
         public_key: Optional[str] = None,
         secret_key: Optional[str] = None,
         host: Optional[str] = None,
@@ -47,16 +49,30 @@ class Brokle:
         **kwargs
     ):
         """Initialize Brokle client with OTEL integration."""
-        # Use provided config or get default
-        self.config = config or get_config()
+        # Use provided config or start with global config
+        if config is None:
+            # Always start with global config to preserve existing settings
+            # Clone the global config to avoid mutating the singleton
+            self.config = get_config().model_copy()
+        else:
+            self.config = config
 
         # Override config with provided parameters
-        if public_key:
+        if api_key is not None:
+            self.config.api_key = api_key
+        if project_id is not None:
+            self.config.project_id = project_id
+        if public_key is not None:
             self.config.public_key = public_key
-        if secret_key:
+        if secret_key is not None:
             self.config.secret_key = secret_key
-        if host:
+        if host is not None:
             self.config.host = host
+
+        # Apply additional kwargs to config
+        for key, value in kwargs.items():
+            if hasattr(self.config, key):
+                setattr(self.config, key, value)
 
         # Initialize auth manager
         self.auth_manager = AuthManager(self.config)
@@ -235,9 +251,12 @@ _client_lock = threading.Lock()
 
 
 def get_client(
+    api_key: Optional[str] = None,
+    project_id: Optional[str] = None,
     public_key: Optional[str] = None,
     secret_key: Optional[str] = None,
     host: Optional[str] = None,
+    config: Optional[Config] = None,
     **kwargs
 ) -> Brokle:
     """
@@ -252,9 +271,12 @@ def get_client(
         with _client_lock:
             if _client is None:
                 _client = Brokle(
+                    api_key=api_key,
+                    project_id=project_id,
                     public_key=public_key,
                     secret_key=secret_key,
                     host=host,
+                    config=config,
                     **kwargs
                 )
 

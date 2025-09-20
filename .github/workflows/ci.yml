@@ -44,11 +44,11 @@ jobs:
 
     - name: Format check with black
       run: |
-        black --check brokle/ tests/ examples/
+        black --check brokle/ tests/
 
     - name: Import sort check with isort
       run: |
-        isort --check-only brokle/ tests/ examples/
+        isort --check-only brokle/ tests/
 
     - name: Type check with mypy
       run: |

@@ -97,7 +97,7 @@ class TestConfig:
         with pytest.raises(ValueError, match="Environment name too long"):
             Config(environment="a" * 41)
 
-        with pytest.raises(ValueError, match="Cannot start with 'brokle' prefix"):
+        with pytest.raises(ValueError, match="Environment name cannot start with 'brokle' prefix"):
             Config(environment="brokle-test")
 
         with pytest.raises(ValueError, match="Environment name cannot be empty"):
