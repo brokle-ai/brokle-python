@@ -7,6 +7,12 @@ from ._client.attributes import BrokleOtelSpanAttributes
 from .integrations import auto_instrument, print_status, get_status, get_registry
 from ._version import __version__
 
+# Auto-instrumentation convenience imports
+# Note: These imports don't auto-instrument by default - you need to explicitly import the modules
+# For auto-instrumentation, use:
+#   import brokle.openai  # Auto-instruments OpenAI
+#   import brokle.integrations.openai  # Alternative import for auto-instrumentation
+
 # Exception classes
 from .exceptions import (
     BrokleError,

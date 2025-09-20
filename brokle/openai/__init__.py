@@ -1,25 +1,38 @@
 """
-OpenAI-compatible client for Brokle Platform.
+OpenAI Auto-Instrumentation for Brokle Platform.
 
-This module provides drop-in replacement for OpenAI SDK that routes requests
-through Brokle Platform for intelligent routing, cost optimization, and observability.
+This module provides automatic instrumentation for OpenAI API calls.
+Simply importing this module enables comprehensive observability for all OpenAI usage.
+
+Usage:
+    import brokle.openai  # Enables auto-instrumentation
+
+    from openai import OpenAI
+    client = OpenAI()
+    # All OpenAI calls now automatically tracked by Brokle
+
+    # For manual function observability, use @observe decorator:
+    from brokle import observe
+
+    @observe()
+    def my_ai_function():
+        # Your custom logic with automatic tracing
+        pass
 """
 
-from .client import OpenAI, AsyncOpenAI, HAS_OPENAI
-from .wrapper import create_openai_client, create_async_openai_client
-
-# Create module-level instance only if OpenAI is available
-openai = None
-if HAS_OPENAI:
-    try:
-        openai = create_openai_client()
-    except ImportError:
-        pass
+# Import auto-instrumentation module - this triggers instrumentation on import
+from ..integrations.openai import (
+    is_instrumented,
+    get_instrumentation_errors,
+    get_instrumentation_status,
+    HAS_OPENAI,
+    HAS_WRAPT
+)
 
 __all__ = [
-    "OpenAI",
-    "AsyncOpenAI",
-    "openai",
-    "create_openai_client",
-    "create_async_openai_client",
+    "is_instrumented",
+    "get_instrumentation_errors",
+    "get_instrumentation_status",
+    "HAS_OPENAI",
+    "HAS_WRAPT"
 ]

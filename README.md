@@ -68,8 +68,9 @@ Zero code changes beyond import:
 # Before
 # from openai import OpenAI
 
-# After
-from brokle.openai import OpenAI
+# After - Enable auto-instrumentation
+import brokle.openai  # Enables automatic OpenAI instrumentation
+from openai import OpenAI
 
 client = OpenAI()
 
@@ -93,8 +94,12 @@ print(f"Provider: {response.provider}")
 Comprehensive observability with decorators:
 
 ```python
+import brokle.openai  # Enable auto-instrumentation
+
 from brokle import observe
-from brokle.openai import openai
+from openai import OpenAI
+
+openai = OpenAI()
 
 @observe()
 def generate_story(prompt: str) -> str:
@@ -166,7 +171,9 @@ asyncio.run(main())
 Perfect for existing OpenAI codebases:
 
 ```python
-from brokle.openai import OpenAI, AsyncOpenAI
+import brokle.openai  # Enable auto-instrumentation
+
+from openai import OpenAI, AsyncOpenAI
 
 # Synchronous
 client = OpenAI()

@@ -1,17 +1,18 @@
 """
-OpenAI Drop-in Replacement Example
+OpenAI Auto-Instrumentation Example
 
-This example shows how to use Brokle as a drop-in replacement for OpenAI SDK.
-Just change the import and get intelligent routing, cost optimization, and observability.
+This example shows how to use Brokle's auto-instrumentation for OpenAI.
+Just add one import and get comprehensive observability for all OpenAI usage.
 """
 
 import os
 import asyncio
 
-# Drop-in replacement - just change the import!
-# Before: from openai import OpenAI
-# After: from brokle.openai import OpenAI
-from brokle.openai import OpenAI, AsyncOpenAI
+# ✨ Auto-instrumentation - just add this import!
+import brokle.openai  # This enables automatic tracking for ALL OpenAI usage
+
+# Now use OpenAI normally - all calls are automatically tracked by Brokle
+from openai import OpenAI, AsyncOpenAI
 
 # Set up environment variables
 os.environ["BROKLE_API_KEY"] = "ak_your_api_key_here"
@@ -20,34 +21,34 @@ os.environ["BROKLE_PROJECT_ID"] = "proj_your_project_id"
 
 
 def sync_chat_example():
-    """Example of synchronous chat completion."""
+    """Example of synchronous chat completion with auto-instrumentation."""
     client = OpenAI()
-    
-    # Standard OpenAI API call with Brokle enhancements
+
+    # Standard OpenAI API call - automatically tracked by Brokle
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": "What is the capital of France?"}
         ],
-        
-        # Brokle specific parameters (optional)
-        routing_strategy="cost_optimized",  # Route to cheapest provider
-        cache_strategy="semantic",          # Use semantic caching
-        max_cost_usd=0.01,                 # Cost limit
-        custom_tags={"user_id": "123", "session": "chat_session_1"}
+        temperature=0.7,
+        max_tokens=150
     )
-    
+
     print("Response:", response.choices[0].message.content)
     print("Model used:", response.model)
-    
-    # Brokle metadata is included in response
-    if hasattr(response, 'cost_usd'):
-        print(f"Cost: ${response.cost_usd:.4f}")
-    if hasattr(response, 'provider'):
-        print(f"Provider: {response.provider}")
-    if hasattr(response, 'cached'):
-        print(f"Cached: {response.cached}")
+    print("Usage:", response.usage)
+
+    # Check if auto-instrumentation is working
+    if brokle.openai.is_instrumented():
+        print("✅ Brokle auto-instrumentation is active!")
+        print("   → Request automatically tracked for observability")
+        print("   → Costs, tokens, and performance metrics captured")
+    else:
+        print("⚠️ Auto-instrumentation not active")
+        errors = brokle.openai.get_instrumentation_errors()
+        if errors:
+            print("Errors:", errors)
 
 
 def sync_completion_example():

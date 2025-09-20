@@ -8,8 +8,11 @@ comprehensive observability and tracing.
 import asyncio
 from typing import List, Dict, Any
 
+# Import auto-instrumentation (automatically instruments all OpenAI usage)
+import brokle.openai
+
 from brokle import observe, Brokle
-from brokle.openai import openai
+from openai import OpenAI
 
 # Initialize Brokle client (auto-registers for @observe decorators)
 client = Brokle(
@@ -17,6 +20,9 @@ client = Brokle(
     host="http://localhost:8000",
     project_id="proj_your_project_id",
 )
+
+# Initialize standard OpenAI client (automatically instrumented)
+openai = OpenAI()
 
 
 @observe()
@@ -117,7 +123,10 @@ async def async_function():
 @observe(as_type="generation")
 async def async_generate_code(requirement: str) -> str:
     """Generate code asynchronously with generation tracking."""
-    response = await openai.chat.completions.create(
+    from openai import AsyncOpenAI
+    async_openai = AsyncOpenAI()
+
+    response = await async_openai.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are an expert programmer. Write clean, well-documented code."},
