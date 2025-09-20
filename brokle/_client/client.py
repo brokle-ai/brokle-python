@@ -5,6 +5,7 @@ This module implements the core Brokle client
 but with Brokle-specific enhancements for AI platform features.
 """
 
+import asyncio
 import logging
 import os
 import threading
@@ -56,6 +57,7 @@ class Brokle:
         otel_enabled: Optional[bool] = None,
         debug: Optional[bool] = None,
         config: Optional[Config] = None,
+        _internal_register: bool = True,
         **kwargs
     ):
         """Initialize Brokle client with OTEL integration.
@@ -68,77 +70,98 @@ class Brokle:
             otel_enabled: Enable OpenTelemetry. Falls back to BROKLE_OTEL_ENABLED env var.
             debug: Enable debug logging. Falls back to BROKLE_DEBUG env var.
             config: Pre-configured Config object (overrides env vars and parameters).
+            _internal_register: INTERNAL USE ONLY - controls singleton registration.
             **kwargs: Additional configuration parameters.
         """
-        if config is not None:
-            # Use provided config object directly
-            self.config = config
-        else:
-            # Create config with parameter and environment variable fallback
-            api_key = api_key or os.environ.get(BROKLE_API_KEY)
-            project_id = project_id or os.environ.get(BROKLE_PROJECT_ID)
-            host = host or os.environ.get(BROKLE_HOST, "http://localhost:8000")
-            environment = environment or os.environ.get(BROKLE_ENVIRONMENT, "default")
+        # Track initialization state for resource cleanup
+        self._fully_initialized = False
 
-            # Handle boolean environment variables
-            if otel_enabled is None:
-                otel_env = os.environ.get(BROKLE_OTEL_ENABLED)
-                otel_enabled = otel_env.lower() in ('true', '1', 'yes') if otel_env else True
+        try:
+            if config is not None:
+                # Use provided config object directly
+                self.config = config
+            else:
+                # Create config with parameter and environment variable fallback
+                api_key = api_key or os.environ.get(BROKLE_API_KEY)
+                project_id = project_id or os.environ.get(BROKLE_PROJECT_ID)
+                host = host or os.environ.get(BROKLE_HOST, "http://localhost:8000")
+                environment = environment or os.environ.get(BROKLE_ENVIRONMENT, "default")
 
-            if debug is None:
-                debug_env = os.environ.get(BROKLE_DEBUG)
-                debug = debug_env.lower() in ('true', '1', 'yes') if debug_env else False
+                # Handle boolean environment variables
+                if otel_enabled is None:
+                    otel_env = os.environ.get(BROKLE_OTEL_ENABLED)
+                    otel_enabled = otel_env.lower() in ('true', '1', 'yes') if otel_env else True
 
-            # Validate required parameters
-            if api_key is None:
-                logger.warning(
-                    "Authentication error: Brokle client initialized without api_key. "
-                    "Provide an api_key parameter or set BROKLE_API_KEY environment variable."
-                )
-                # Continue with disabled tracing similar
-                api_key = "ak_fake"  # Must start with "ak_" to pass validation
-                otel_enabled = False
+                if debug is None:
+                    debug_env = os.environ.get(BROKLE_DEBUG)
+                    debug = debug_env.lower() in ('true', '1', 'yes') if debug_env else False
 
-            if project_id is None:
-                logger.warning(
-                    "Configuration error: Brokle client initialized without project_id. "
-                    "Provide a project_id parameter or set BROKLE_PROJECT_ID environment variable."
-                )
-                project_id = "fake"
-                otel_enabled = False
+                # Validate required parameters
+                if api_key is None:
+                    logger.warning(
+                        "Authentication error: Brokle client initialized without api_key. "
+                        "Provide an api_key parameter or set BROKLE_API_KEY environment variable."
+                    )
+                    # Continue with disabled tracing similar
+                    api_key = "ak_fake"  # Must start with "ak_" to pass validation
+                    otel_enabled = False
 
-            # Create config with all parameters
-            config_params = {
-                'api_key': api_key,
-                'project_id': project_id,
-                'host': host,
-                'environment': environment,
-                'otel_enabled': otel_enabled,
-                'debug': debug,
-                **kwargs
-            }
+                if project_id is None:
+                    logger.warning(
+                        "Configuration error: Brokle client initialized without project_id. "
+                        "Provide a project_id parameter or set BROKLE_PROJECT_ID environment variable."
+                    )
+                    project_id = "fake"
+                    otel_enabled = False
 
-            self.config = Config(**config_params)
+                # Create config with all parameters
+                config_params = {
+                    'api_key': api_key,
+                    'project_id': project_id,
+                    'host': host,
+                    'environment': environment,
+                    'otel_enabled': otel_enabled,
+                    'debug': debug,
+                    **kwargs
+                }
 
-        # Initialize auth manager
-        self.auth_manager = AuthManager(self.config)
+                self.config = Config(**config_params)
 
-        # Initialize HTTP client
-        self._http_client = httpx.AsyncClient(
-            timeout=httpx.Timeout(60.0),
-            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20)
-        )
+            # Initialize auth manager
+            self.auth_manager = AuthManager(self.config)
 
-        # Initialize OTEL components
-        self._tracer_provider: Optional[TracerProvider] = None
-        self._tracer: Optional[trace.Tracer] = None
-        self._span_exporter: Optional[BrokleSpanExporter] = None
-        self._initialized = False
-        self._lock = threading.Lock()
+            # Initialize HTTP client
+            self._http_client = httpx.AsyncClient(
+                timeout=httpx.Timeout(60.0),
+                limits=httpx.Limits(max_connections=100, max_keepalive_connections=20)
+            )
 
-        # Initialize OTEL if enabled
-        if self.config.otel_enabled:
-            self._initialize_otel()
+            # Initialize OTEL components
+            self._tracer_provider: Optional[TracerProvider] = None
+            self._tracer: Optional[trace.Tracer] = None
+            self._span_exporter: Optional[BrokleSpanExporter] = None
+            self._initialized = False
+            self._lock = threading.Lock()
+
+            # Initialize OTEL if enabled
+            if self.config.otel_enabled:
+                self._initialize_otel()
+
+            # Mark as fully initialized before registration
+            self._fully_initialized = True
+
+            # Auto-register in singleton cache (Langfuse pattern) - only if requested
+            if _internal_register and self.config.api_key != "ak_fake":
+                with _instances_lock:
+                    if self.config.api_key:
+                        _instances[self.config.api_key] = self
+                    elif "__default__" not in _instances:
+                        _instances["__default__"] = self
+
+        except Exception:
+            # CRITICAL: Force cleanup of partial resources
+            self._cleanup_resources(force=True)
+            raise
 
     def _initialize_otel(self) -> None:
         """Initialize OpenTelemetry components."""
@@ -282,13 +305,57 @@ class Brokle:
         if self._tracer_provider and hasattr(self._tracer_provider, 'force_flush'):
             self._tracer_provider.force_flush(timeout_millis=30000)
 
+    async def _async_cleanup(self) -> None:
+        """Idempotent async cleanup - safe to call multiple times."""
+        # Close HTTP client idempotently
+        if hasattr(self, '_http_client') and self._http_client is not None:
+            try:
+                await self._http_client.aclose()
+            except Exception:
+                pass  # Defensive - already closed or error
+            finally:
+                self._http_client = None
+
+        # Shutdown OTEL resources defensively
+        if hasattr(self, '_tracer_provider') and self._tracer_provider is not None:
+            try:
+                self._tracer_provider.force_flush()
+                if hasattr(self._tracer_provider, 'shutdown'):
+                    self._tracer_provider.shutdown()
+            except Exception:
+                pass  # Some providers may not have shutdown
+            finally:
+                self._tracer_provider = None
+
+        if hasattr(self, '_span_exporter') and self._span_exporter is not None:
+            try:
+                if hasattr(self._span_exporter, 'shutdown'):
+                    self._span_exporter.shutdown()
+            except Exception:
+                pass  # Defensive guard
+            finally:
+                self._span_exporter = None
+
+    def _cleanup_resources(self, force: bool = False) -> None:
+        """Cleanup resources with optional force for partial initialization."""
+        if not force and not getattr(self, '_fully_initialized', False):
+            return  # Skip cleanup unless forced
+
+        if not (hasattr(self, '_http_client') and self._http_client):
+            return
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop - safe to use asyncio.run
+            asyncio.run(self._async_cleanup())
+        else:
+            # Inside running loop - schedule as task
+            loop.create_task(self._async_cleanup())
+
     async def shutdown(self) -> None:
         """Shutdown the client and cleanup resources."""
-        if self._tracer_provider and hasattr(self._tracer_provider, 'shutdown'):
-            self._tracer_provider.shutdown()
-
-        if self._http_client:
-            await self._http_client.aclose()
+        await self._async_cleanup()
 
 
 # Resource management for multiple clients
@@ -327,63 +394,53 @@ def get_client(*, api_key: Optional[str] = None, **kwargs) -> Brokle:
 
     Example:
         ```python
-        # Single project
-        client = get_client()  # Default client
+        # Recommended patterns:
 
-        # In multi-project usage:
+        # 1. Direct instantiation (explicit configuration) - auto-registers for @observe
+        client = Brokle(api_key="ak_project_a", project_id="proj_123")
+
+        # 2. Environment variables (requires BROKLE_API_KEY, etc. set)
+        client = get_client()  # Creates or returns existing client
+
+        # Multi-project usage:
         client_a = get_client(api_key="ak_project_a")  # Returns project A's client
         client_b = get_client(api_key="ak_project_b")  # Returns project B's client
-
-        # Without specific key in multi-project setup:
-        client = get_client()  # Returns disabled client for safety
         ```
     """
+    # Resolve API key
+    if not api_key:
+        api_key = os.environ.get(BROKLE_API_KEY)
+
+    cache_key = api_key if api_key else "__default__"
+
+    # First check: fast path
     with _instances_lock:
-        # If no explicit api_key provided, check environment
-        if not api_key:
-            api_key = os.environ.get(BROKLE_API_KEY)
+        if cache_key in _instances:
+            return _instances[cache_key]
 
-        if not api_key:
-            # Check if we have a default instance
-            default_instance = _instances.get("__default__")
-            if default_instance is not None:
-                return default_instance
+        if not api_key and len(_instances) == 1:
+            return next(iter(_instances.values()))
 
-            if len(_instances) == 0:
-                # No clients initialized yet, create default instance
-                default_instance = Brokle(**kwargs)
-                # Store under sentinel key to maintain singleton contract
-                _instances["__default__"] = default_instance
-                return default_instance
+    # Create instance outside lock to avoid deadlock
+    new_instance = None
+    try:
+        new_instance = Brokle(api_key=api_key, _internal_register=False, **kwargs)
 
-            if len(_instances) == 1:
-                # Only one client exists (not default), safe to use without specifying key
-                instance = list(_instances.values())[0]
-                return instance
+        # Second check with race protection
+        with _instances_lock:
+            if cache_key in _instances:
+                # Someone beat us - cleanup our instance safely
+                if new_instance._fully_initialized:
+                    new_instance._cleanup_resources()
+                return _instances[cache_key]
 
-            else:
-                # Multiple clients exist but no key specified - disable tracing
-                # to prevent cross-project data leakage
-                logger.warning(
-                    "No 'api_key' provided, but multiple Brokle clients are instantiated in current process. "
-                    "Disabling tracing to avoid cross-project leakage."
-                )
-                return Brokle(
-                    api_key="ak_fake",
-                    project_id="fake",
-                    otel_enabled=False,
-                    **kwargs
-                )
+            # We won - register our instance
+            _instances[cache_key] = new_instance
 
-        else:
-            # Specific key provided, look up existing instance
-            existing_instance = _instances.get(api_key)
+        return new_instance
 
-            if existing_instance is None:
-                # Create new instance for this api_key
-                new_instance = Brokle(api_key=api_key, **kwargs)
-                _instances[api_key] = new_instance
-                return new_instance
-
-            # Return existing instance
-            return existing_instance
+    except Exception:
+        # Cleanup failed instance if it was created
+        if new_instance:
+            new_instance._cleanup_resources(force=True)
+        raise

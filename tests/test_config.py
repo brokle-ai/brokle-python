@@ -4,7 +4,7 @@ import os
 import pytest
 from unittest.mock import patch
 
-from brokle.config import Config, configure, get_config, reset_config, validate_environment_name, sanitize_environment_name
+from brokle.config import Config, validate_environment_name, sanitize_environment_name
 
 
 class TestConfig:
@@ -138,50 +138,12 @@ class TestConfig:
         assert sanitize_environment_name("valid_env") == "valid_env"
 
 
-class TestGlobalConfig:
-    """Test global configuration management."""
-    
-    def setup_method(self):
-        """Reset config before each test."""
-        reset_config()
-    
-    def teardown_method(self):
-        """Clean up after each test."""
-        reset_config()
-    
-    def test_configure_and_get_config(self):
-        """Test global configuration."""
-        configure(
-            api_key='ak_global_test',
-            host='https://global.example.com',
-            project_id='proj_global'
-        )
-        
-        config = get_config()
-        assert config.api_key == 'ak_global_test'
-        assert config.host == 'https://global.example.com'
-        assert config.project_id == 'proj_global'
-    
-    def test_configure_updates_existing(self):
-        """Test that configure updates existing configuration."""
-        configure(api_key='ak_initial')
-        
-        config1 = get_config()
-        assert config1.api_key == 'ak_initial'
-        
-        configure(api_key='ak_updated')
-        
-        config2 = get_config()
-        assert config2.api_key == 'ak_updated'
-        assert config1 is config2  # Same instance
-    
-    def test_reset_config(self):
-        """Test resetting configuration."""
-        configure(api_key='ak_test')
-        config1 = get_config()
-        
-        reset_config()
-        config2 = get_config()
-        
-        assert config1 is not config2  # Different instances
-        assert config2.api_key is None  # Reset to default
+def test_from_env_respects_flags():
+    """Ensure boolean/int environment values convert correctly."""
+    with patch.dict(os.environ, {
+        'BROKLE_TELEMETRY_ENABLED': 'false',
+        'BROKLE_MAX_RETRIES': '5',
+    }):
+        config = Config.from_env()
+        assert config.telemetry_enabled is False
+        assert config.max_retries == 5

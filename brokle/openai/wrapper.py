@@ -3,7 +3,7 @@ Wrapper functions for creating OpenAI-compatible clients.
 """
 
 from .client import OpenAI, AsyncOpenAI, HAS_OPENAI
-from ..config import get_config
+from ..client import get_client
 
 
 def create_openai_client(**kwargs):
@@ -11,8 +11,8 @@ def create_openai_client(**kwargs):
     if not HAS_OPENAI:
         raise ImportError("OpenAI package is required for OpenAI compatibility. Install with: pip install openai")
 
-    config = get_config()
-    return OpenAI(config=config, **kwargs)
+    client = get_client()
+    return OpenAI(config=client.config.model_copy(), **kwargs)
 
 
 def create_async_openai_client(**kwargs):
@@ -20,5 +20,5 @@ def create_async_openai_client(**kwargs):
     if not HAS_OPENAI:
         raise ImportError("OpenAI package is required for OpenAI compatibility. Install with: pip install openai")
 
-    config = get_config()
-    return AsyncOpenAI(config=config, **kwargs)
+    client = get_client()
+    return AsyncOpenAI(config=client.config.model_copy(), **kwargs)

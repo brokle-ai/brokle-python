@@ -33,8 +33,6 @@ except ImportError:
         pass
 
 from ..client import Brokle
-from ..config import get_config
-
 
 class OpenAI:
     """OpenAI-compatible client that routes through Brokle."""

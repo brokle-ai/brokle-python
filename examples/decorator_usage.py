@@ -8,14 +8,14 @@ comprehensive observability and tracing.
 import asyncio
 from typing import List, Dict, Any
 
-from brokle import observe, configure
+from brokle import observe, Brokle
 from brokle.openai import openai
 
-# Configure Brokle
-configure(
+# Initialize Brokle client (auto-registers for @observe decorators)
+client = Brokle(
     api_key="ak_your_api_key_here",
     host="http://localhost:8000",
-    project_id="proj_your_project_id"
+    project_id="proj_your_project_id",
 )
 
 

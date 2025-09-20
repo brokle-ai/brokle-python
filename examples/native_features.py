@@ -9,19 +9,20 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, List, Any
 
-from brokle import Brokle, configure
+from brokle import Brokle
 
-# Configure Brokle
-configure(
-    api_key="ak_your_api_key_here",
-    host="http://localhost:8000",
-    project_id="proj_your_project_id"
-)
+# Shared client settings (use environment variables or update here for quick tests)
+BROKLE_SETTINGS = {
+    "api_key": "ak_your_api_key_here",
+    "host": "http://localhost:8000",
+    "project_id": "proj_your_project_id",
+    "otel_enabled": False,
+}
 
 
 async def basic_chat_completion():
     """Basic chat completion with native SDK."""
-    async with Brokle() as client:
+    async with Brokle(**BROKLE_SETTINGS) as client:
         response = await client.chat.create(
             model="gpt-4",
             messages=[
@@ -53,7 +54,7 @@ async def basic_chat_completion():
 
 async def advanced_routing_example():
     """Demonstrate advanced routing strategies."""
-    async with Brokle() as client:
+    async with Brokle(**BROKLE_SETTINGS) as client:
         
         # Cost-optimized routing
         print("1. Cost-Optimized Routing:")
@@ -96,7 +97,7 @@ async def advanced_routing_example():
 
 async def semantic_caching_example():
     """Demonstrate semantic caching capabilities."""
-    async with Brokle() as client:
+    async with Brokle(**BROKLE_SETTINGS) as client:
         
         # First request
         print("1. First request (cache miss):")
@@ -144,7 +145,7 @@ async def semantic_caching_example():
 
 async def evaluation_example():
     """Demonstrate response evaluation capabilities."""
-    async with Brokle() as client:
+    async with Brokle(**BROKLE_SETTINGS) as client:
         
         # Create response with evaluation
         response = await client.chat.create(
@@ -177,7 +178,7 @@ async def evaluation_example():
 
 async def analytics_example():
     """Demonstrate analytics capabilities."""
-    async with Brokle() as client:
+    async with Brokle(**BROKLE_SETTINGS) as client:
         
         # Get real-time metrics
         print("1. Real-time Metrics:")
@@ -211,7 +212,7 @@ async def analytics_example():
 
 async def embeddings_example():
     """Demonstrate embeddings with native features."""
-    async with Brokle() as client:
+    async with Brokle(**BROKLE_SETTINGS) as client:
         
         response = await client.embeddings.create(
             model="text-embedding-ada-002",
@@ -237,7 +238,7 @@ async def embeddings_example():
 
 async def completions_example():
     """Demonstrate text completions with native features."""
-    async with Brokle() as client:
+    async with Brokle(**BROKLE_SETTINGS) as client:
         
         response = await client.completions.create(
             model="gpt-3.5-turbo-instruct",
@@ -260,7 +261,7 @@ async def completions_example():
 
 async def error_handling_example():
     """Demonstrate comprehensive error handling."""
-    async with Brokle() as client:
+    async with Brokle(**BROKLE_SETTINGS) as client:
         
         # Test quota exceeded
         print("1. Testing quota limits:")
@@ -296,7 +297,7 @@ async def error_handling_example():
 
 async def batch_processing_example():
     """Demonstrate batch processing with native features."""
-    async with Brokle() as client:
+    async with Brokle(**BROKLE_SETTINGS) as client:
         
         questions = [
             "What is photosynthesis?",
@@ -336,7 +337,7 @@ async def batch_processing_example():
 
 async def health_check_example():
     """Demonstrate health check and configuration."""
-    async with Brokle() as client:
+    async with Brokle(**BROKLE_SETTINGS) as client:
         
         # Health check
         print("1. Health Check:")

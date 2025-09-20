@@ -14,15 +14,12 @@ from typing import Dict, Any, List
 import brokle
 from brokle.observability_decorators import observe_enhanced
 
-# Configure Brokle
-brokle.configure(
-    base_url="http://localhost:8080",  # Your Brokle instance
-    api_key="your-api-key",           # Your API key
-    project_id="your-project-id"       # Your project ID
+# Create Brokle client with explicit configuration
+client = brokle.Brokle(
+    host="http://localhost:8080",  # Your Brokle instance
+    api_key="your-api-key",        # Your API key
+    project_id="your-project-id",  # Your project ID
 )
-
-# Get the client
-client = brokle.get_client()
 
 
 # Example 1: Basic function observability

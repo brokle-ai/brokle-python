@@ -13,15 +13,12 @@ from typing import List
 import brokle
 from brokle.auto_instrumentation import auto_instrument, print_status, get_status
 
-# Configure Brokle
-brokle.configure(
-    base_url="http://localhost:8080",  # Your Brokle instance
-    api_key="your-api-key",           # Your API key
-    project_id="your-project-id"      # Your project ID
+# Create Brokle client with explicit configuration
+client = brokle.Brokle(
+    host="http://localhost:8080",  # Your Brokle instance
+    api_key="your-api-key",        # Your API key
+    project_id="your-project-id",  # Your project ID
 )
-
-# Get the client
-client = brokle.get_client()
 
 
 def setup_auto_instrumentation():

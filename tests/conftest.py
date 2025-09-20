@@ -208,12 +208,12 @@ def generate_test_metadata():
 
 # Cleanup fixtures
 @pytest.fixture(autouse=True)
-def reset_config():
-    """Reset global configuration before each test."""
-    from brokle.config import reset_config
-    reset_config()
+def reset_client_state():
+    """Reset singleton client cache before and after each test."""
+    client_module = __import__("brokle._client.client", fromlist=["_instances"])
+    client_module._instances.clear()
     yield
-    reset_config()
+    client_module._instances.clear()
 
 
 @pytest.fixture(autouse=True)

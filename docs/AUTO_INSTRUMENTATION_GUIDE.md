@@ -146,26 +146,18 @@ export BROKLE_CIRCUIT_BREAKER_ENABLED="true"  # Enable circuit breaker protectio
 ### Advanced Configuration
 
 ```python
-from brokle.config import BrokleConfig
+from brokle import get_client
 
-# Custom configuration
-config = BrokleConfig(
+# Provide explicit credentials (falls back to BROKLE_* env vars if omitted)
+client = get_client(
     api_key="your-api-key",
-    base_url="https://api.brokle.ai",
-    organization_id="org_xxxxxxxxxx",
     project_id="proj_xxxxxxxxxx",
-    environment="default",  # or "development", "staging"
-
-    # Instrumentation settings
-    auto_instrument=True,
-    circuit_breaker_enabled=True,
-    max_retries=3,
-    timeout_seconds=30
+    host="https://api.brokle.ai",
 )
 
-# Use custom config
-import brokle.auto_instrumentation as brokle_ai
-brokle_ai.configure(config)
+# Auto-instrumentation reads settings from the shared client instance.
+import brokle.integrations.auto_instrumentation as brokle_ai
+brokle_ai.enable_auto_instrumentation()
 ```
 
 ## 🔧 Advanced Features
@@ -249,9 +241,9 @@ except ImportError:
 #### 2. **API Key Issues**
 ```python
 # Verify API key configuration
-from brokle.config import get_config
+from brokle import get_client
 
-config = get_config()
+config = get_client().config
 if config.api_key:
     print(f"✅ API key configured: {config.api_key[:8]}...")
 else:

@@ -1,13 +1,24 @@
 """Core integration tests for the Brokle SDK."""
 
+import os
 import pytest
 from unittest.mock import patch
 
+import brokle._client.client as client_module
+
 from brokle import (
-    Brokle, get_client, Config, configure, get_config, reset_config,
+    Brokle, get_client, Config,
     AuthManager, BrokleError, AuthenticationError, ConfigurationError
 )
 from pydantic import ValidationError
+
+
+@pytest.fixture(autouse=True)
+def clear_client_instances():
+    """Ensure singleton cache is reset across tests."""
+    client_module._instances.clear()
+    yield
+    client_module._instances.clear()
 
 
 class TestSDKImports:
@@ -50,23 +61,17 @@ class TestConfigIntegration:
         )
         assert config.environment == "staging"
 
-    def test_global_config_integration(self):
-        """Test global configuration management."""
-        # Reset first
-        reset_config()
-
-        # Configure globally
-        configure(
-            api_key="ak_global_key",
-            project_id="proj_global"
-        )
-
-        config = get_config()
-        assert config.api_key == "ak_global_key"
-        assert config.project_id == "proj_global"
-
-        # Cleanup
-        reset_config()
+    def test_config_from_env_defaults(self):
+        """Config.from_env should pick up environment variables."""
+        with patch.dict(os.environ, {
+            "BROKLE_API_KEY": "ak_env_key",
+            "BROKLE_PROJECT_ID": "proj_env",
+            "BROKLE_HOST": "https://env.example.com",
+        }, clear=True):
+            config = Config.from_env()
+        assert config.api_key == "ak_env_key"
+        assert config.project_id == "proj_env"
+        assert config.host == "https://env.example.com"
 
 
 class TestAuthManagerIntegration:
@@ -220,13 +225,8 @@ class TestClientIntegration:
 class TestGetClientIntegration:
     """Test get_client function integration."""
 
-    def teardown_method(self):
-        """Reset global client after each test."""
-        import brokle._client.client as client_module
-        client_module._client = None
-
-    def test_get_client_with_kwargs(self):
-        """Test get_client with keyword arguments."""
+    def test_get_client_with_explicit_config(self):
+        """Explicit kwargs should build a client without touching environment."""
         client = get_client(
             api_key="ak_test_key",
             project_id="proj_test",
@@ -237,159 +237,49 @@ class TestGetClientIntegration:
         assert client.config.api_key == "ak_test_key"
         assert client.config.project_id == "proj_test"
 
-    def test_get_client_singleton(self):
-        """Test get_client returns singleton instance."""
-        client1 = get_client(
-            api_key="ak_test_key",
-            project_id="proj_test",
-            otel_enabled=False
-        )
-        client2 = get_client()
+    def test_get_client_env_fallback(self):
+        """Environment variables should seed the default singleton."""
+        with patch.dict(os.environ, {
+            "BROKLE_API_KEY": "ak_env",
+            "BROKLE_PROJECT_ID": "proj_env",
+            "BROKLE_HOST": "https://env.example.com",
+        }, clear=True):
+            client = get_client(otel_enabled=False)
 
-        # Should be the same instance
-        assert client1 is client2
+        assert client.config.api_key == "ak_env"
+        assert client.config.project_id == "proj_env"
+        assert client.config.host == "https://env.example.com"
 
-    def test_get_client_with_config(self):
-        """Test get_client with config object."""
-        config = Config(
-            api_key="ak_test_key",
-            project_id="proj_test",
-            otel_enabled=False
-        )
+    def test_get_client_singleton_default(self):
+        """Calling get_client() repeatedly returns the same default instance."""
+        with patch.dict(os.environ, {
+            "BROKLE_API_KEY": "ak_singleton",
+            "BROKLE_PROJECT_ID": "proj_singleton",
+        }, clear=True):
+            first = get_client(otel_enabled=False)
+            second = get_client()
 
-        client = get_client(config=config)
-        assert isinstance(client, Brokle)
-        assert client.config.api_key == "ak_test_key"
+        assert first is second
 
-    def test_get_client_integration_with_global_config(self):
-        """Test get_client works with global configuration."""
-        # Reset global config
-        reset_config()
+    def test_get_client_multi_project(self):
+        """Different api keys should result in distinct cached clients."""
+        client_a = get_client(api_key="ak_project_a", project_id="proj_a", otel_enabled=False)
+        client_b = get_client(api_key="ak_project_b", project_id="proj_b", otel_enabled=False)
 
-        # Set global config
-        configure(
-            api_key="ak_global_key",
-            project_id="proj_global",
-            otel_enabled=False
-        )
+        assert client_a is not client_b
+        assert client_a.config.project_id == "proj_a"
+        assert client_b.config.project_id == "proj_b"
 
-        # get_client should use global config when no params provided
-        client = get_client()
-        assert client.config.api_key == "ak_global_key"
-        assert client.config.project_id == "proj_global"
+    def test_get_client_without_key_when_multiple_exist(self):
+        """No api_key with multiple cached clients should return disabled instance."""
+        get_client(api_key="ak_project_a", project_id="proj_a", otel_enabled=True)
+        get_client(api_key="ak_project_b", project_id="proj_b", otel_enabled=True)
 
-        # Cleanup
-        reset_config()
+        with patch.dict(os.environ, {}, clear=True):
+            default = get_client()
 
-    def test_client_preserves_global_config_with_overrides(self):
-        """Test that client preserves global config when only some params are overridden."""
-        # Reset global config
-        reset_config()
-
-        # Set global config with custom host and otel settings
-        configure(
-            api_key="ak_global_key",
-            project_id="proj_global",
-            host="https://custom.api.com",
-            environment="production",
-            otel_enabled=False
-        )
-
-        # Create client with only api_key override - should preserve other settings
-        client = Brokle(api_key="ak_override_key")
-
-        # Should have the overridden api_key
-        assert client.config.api_key == "ak_override_key"
-
-        # Should preserve all other global config settings
-        assert client.config.project_id == "proj_global"
-        assert client.config.host == "https://custom.api.com"
-        assert client.config.environment == "production"
-        assert client.config.otel_enabled == False
-
-        # Cleanup
-        reset_config()
-
-    def test_client_kwargs_override_global_config(self):
-        """Test that kwargs properly override global config settings."""
-        # Reset global config
-        reset_config()
-
-        # Set global config
-        configure(
-            api_key="ak_global_key",
-            project_id="proj_global",
-            host="https://global.api.com",
-            otel_enabled=True
-        )
-
-        # Create client with kwargs overrides
-        client = Brokle(
-            api_key="ak_new_key",
-            host="https://override.api.com",
-            otel_enabled=False
-        )
-
-        # Should have overridden values
-        assert client.config.api_key == "ak_new_key"
-        assert client.config.host == "https://override.api.com"
-        assert client.config.otel_enabled == False
-
-        # Should preserve non-overridden values
-        assert client.config.project_id == "proj_global"
-
-        # Cleanup
-        reset_config()
-
-    def test_client_does_not_mutate_global_config(self):
-        """Test that client creation with overrides doesn't mutate the global config."""
-        # Reset global config
-        reset_config()
-
-        # Set global config
-        configure(
-            api_key="ak_global_key",
-            project_id="proj_global",
-            host="https://global.api.com",
-            environment="production",
-            otel_enabled=True
-        )
-
-        # Get reference to global config state before client creation
-        global_config_before = get_config()
-        original_api_key = global_config_before.api_key
-        original_host = global_config_before.host
-        original_otel = global_config_before.otel_enabled
-
-        # Create client with overrides
-        client = Brokle(
-            api_key="ak_override_key",
-            host="https://override.api.com",
-            otel_enabled=False
-        )
-
-        # Verify client has overridden values
-        assert client.config.api_key == "ak_override_key"
-        assert client.config.host == "https://override.api.com"
-        assert client.config.otel_enabled == False
-
-        # CRITICAL: Verify global config was NOT mutated
-        global_config_after = get_config()
-        assert global_config_after.api_key == original_api_key  # Should be "ak_global_key"
-        assert global_config_after.host == original_host  # Should be "https://global.api.com"
-        assert global_config_after.otel_enabled == original_otel  # Should be True
-
-        # Verify it's the same singleton object
-        assert global_config_before is global_config_after
-
-        # Create another client to ensure it gets the original global config
-        client2 = Brokle()
-        assert client2.config.api_key == "ak_global_key"
-        assert client2.config.host == "https://global.api.com"
-        assert client2.config.otel_enabled == True
-
-        # Cleanup
-        reset_config()
+        assert default.config.otel_enabled is False
+        assert default.config.api_key == "ak_fake"
 
 
 class TestExceptionIntegration:
@@ -473,31 +363,19 @@ class TestEndToEndWorkflow:
         # Should handle async operations gracefully
         await client.shutdown()
 
-    def test_global_config_workflow(self):
-        """Test workflow using global configuration."""
-        # Reset
-        reset_config()
+    def test_env_based_workflow(self):
+        """End-to-end workflow backed by environment variables."""
+        with patch.dict(os.environ, {
+            "BROKLE_API_KEY": "ak_global_key",
+            "BROKLE_PROJECT_ID": "proj_global",
+            "BROKLE_ENVIRONMENT": "staging",
+        }, clear=True):
+            client = get_client(otel_enabled=False)
 
-        # 1. Configure globally
-        configure(
-            api_key="ak_global_key",
-            project_id="proj_global",
-            environment="staging",
-            otel_enabled=False
-        )
-
-        # 2. Get client using global config
-        client = get_client()
-
-        # 3. Verify configuration
         assert client.config.api_key == "ak_global_key"
         assert client.config.project_id == "proj_global"
         assert client.config.environment == "staging"
 
-        # 4. Verify auth headers
         headers = client.auth_manager.get_auth_headers()
         assert headers["X-Project-ID"] == "proj_global"
         assert headers["X-Environment"] == "staging"
-
-        # Cleanup
-        reset_config()

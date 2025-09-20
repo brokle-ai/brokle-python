@@ -184,14 +184,18 @@ BROKLE_CACHE_ENABLED=true
 
 ### Programmatic Configuration
 ```python
-import brokle
+from brokle import Brokle, get_client
 
-brokle.configure(
+# Dedicated client with explicit credentials
+client = Brokle(
     api_key="ak_your_key",
     host="http://localhost:8080",
     project_id="proj_your_project",
-    environment="production"  # Validates style rules
+    environment="production",
 )
+
+# Or rely on BROKLE_* environment variables via the shared singleton
+client = get_client()
 ```
 
 ## Key Development Patterns

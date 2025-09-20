@@ -81,7 +81,7 @@ error_handler = brokle_ai.get_error_handler()
 ### API Key Issues
 1. Set environment variable: `export BROKLE_API_KEY="your-key"`
 2. Verify in code: `print(os.getenv('BROKLE_API_KEY'))`
-3. Check configuration: `from brokle.config import get_config; print(get_config().api_key)`
+3. Check configuration: `from brokle import get_client; print(get_client().config.api_key)`
 
 ### Circuit Breaker Open
 1. Check health: `brokle_ai.print_health_report()`

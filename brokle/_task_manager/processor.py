@@ -281,10 +281,10 @@ def get_background_processor(config: Optional[Config] = None) -> BackgroundProce
     with _lock:
         if _background_processor is None:
             if config is None:
-                from ..config import get_config
-                config = get_config()
+                from ..client import get_client
+                config = get_client().config.model_copy()
             _background_processor = BackgroundProcessor(config)
-        
+
         return _background_processor
 
 

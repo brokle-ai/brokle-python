@@ -44,16 +44,20 @@ export BROKLE_PROJECT_ID="proj_your_project_id"
 export BROKLE_ENVIRONMENT="production"
 ```
 
-Or configure programmatically:
+Or instantiate directly (environment variables are used as fallback when omitted):
 
 ```python
-import brokle
+from brokle import Brokle, get_client
 
-brokle.configure(
+# Explicit configuration
+client = Brokle(
     api_key="ak_your_api_key_here",
+    project_id="proj_your_project_id",
     host="http://localhost:8000",
-    project_id="proj_your_project_id"
 )
+
+# Or rely on environment variables with the shared singleton
+client = get_client()
 ```
 
 ### 2. OpenAI Drop-in Replacement
@@ -398,19 +402,23 @@ BROKLE_TELEMETRY_BATCH_SIZE=100
 ### Programmatic Configuration
 
 ```python
-import brokle
+from brokle import Brokle, get_client
 
-brokle.configure(
+# Create a dedicated client with custom settings
+client = Brokle(
     api_key="ak_your_api_key",
-    host="http://localhost:8000",
     project_id="proj_your_project_id",
+    host="http://localhost:8000",
     environment="default",
     otel_enabled=True,
     telemetry_enabled=True,
     cache_enabled=True,
     routing_enabled=True,
-    evaluation_enabled=True
+    evaluation_enabled=True,
 )
+
+# Or reuse the process-wide singleton configured via environment variables
+shared_client = get_client()
 ```
 
 ## OpenTelemetry Integration

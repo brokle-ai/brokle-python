@@ -426,23 +426,16 @@ with instrumentation_context("openai", "setup", ErrorSeverity.HIGH):
 ### Programmatic Configuration
 
 ```python
-from brokle.config import BrokleConfig
+from brokle import get_client
 
-config = BrokleConfig(
+client = get_client(
     api_key="your-api-key",
-    base_url="https://api.brokle.ai",
-    organization_id="org_123",
     project_id="proj_456",
-    environment="default",
-    auto_instrument=True,
-    circuit_breaker_enabled=True,
-    max_retries=3,
-    timeout_seconds=30
+    host="https://api.brokle.ai",
 )
 
-# Apply configuration
-import brokle.auto_instrumentation as brokle_ai
-brokle_ai.configure(config)
+import brokle.integrations.auto_instrumentation as brokle_ai
+brokle_ai.enable_auto_instrumentation()
 ```
 
 ## Constants

@@ -37,8 +37,9 @@ class AnthropicInstrumentation:
         """Get or create Brokle config with lazy loading."""
         if self._config is None:
             try:
-                from ..config import get_config
-                self._config = get_config()
+                client = self.client
+                if client is not None:
+                    self._config = client.config
             except Exception as e:
                 logger.warning(f"Failed to load Brokle config: {e}")
                 self._config = None
