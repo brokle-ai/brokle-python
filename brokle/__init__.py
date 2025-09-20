@@ -1,7 +1,7 @@
 """.. include:: ../README.md"""
 
 from .client import Brokle, get_client
-from .config import Config, configure, get_config, reset_config
+from .config import Config
 from .auth import AuthManager
 from ._client.attributes import BrokleOtelSpanAttributes
 from .integrations import auto_instrument, print_status, get_status, get_registry
@@ -70,9 +70,6 @@ __all__ = [
     "Brokle",
     "get_client",
     "Config",
-    "configure",
-    "get_config",
-    "reset_config",
     "AuthManager",
     "BrokleOtelSpanAttributes",
     # Exceptions

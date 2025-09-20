@@ -251,7 +251,7 @@ def main():
     
     # Sensitive operation
     print("6. Sensitive Operation (input not captured):")
-    result = sensitive_operation("secret_key", {"name": "John", "email": "john@example.com"})
+    result = sensitive_operation("secret_token", {"name": "John", "email": "john@example.com"})
     print(f"Result: {result}\n")
     
     # Error handling

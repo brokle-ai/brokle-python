@@ -83,6 +83,9 @@ class Config(BaseModel):
     telemetry_enabled: bool = Field(default=True, description="Enable telemetry collection")
     telemetry_batch_size: int = Field(default=100, description="Telemetry batch size")
     telemetry_flush_interval: int = Field(default=10000, description="Telemetry flush interval (ms)")
+
+    # Debug settings
+    debug: bool = Field(default=False, description="Enable debug logging")
     
     # HTTP settings
     timeout: int = Field(default=30, description="HTTP timeout in seconds")
@@ -178,62 +181,6 @@ class Config(BaseModel):
         return headers
 
 
-# Global configuration instance
-_global_config: Optional[Config] = None
-
-
-def configure(
-    api_key: Optional[str] = None,
-    host: Optional[str] = None,
-    project_id: Optional[str] = None,
-    environment: Optional[str] = None,
-    **kwargs: Any
-) -> Config:
-    """Configure Brokle SDK globally."""
-    global _global_config
-    
-    if _global_config is None:
-        _global_config = Config.from_env()
-    
-    # Update with provided values
-    if api_key is not None:
-        _global_config.api_key = api_key
-    if host is not None:
-        _global_config.host = host
-    if project_id is not None:
-        _global_config.project_id = project_id
-    if environment is not None:
-        _global_config.environment = environment
-    
-    # Update other kwargs
-    for key, value in kwargs.items():
-        if hasattr(_global_config, key):
-            setattr(_global_config, key, value)
-    
-    return _global_config
-
-
-def get_config() -> Config:
-    """Get current configuration."""
-    global _global_config
-    
-    if _global_config is None:
-        _global_config = Config.from_env()
-    
-    return _global_config
-
-
-def reset_config() -> None:
-    """Reset configuration to defaults."""
-    global _global_config
-    _global_config = None
-
-
-def is_configured() -> bool:
-    """Check if SDK is configured."""
-    config = get_config()
-    try:
-        config.validate()
-        return True
-    except ValueError:
-        return False
+# Note: Global configuration functions (configure, get_config, reset_config) have been removed
+# in favor of direct instantiation and environment variable fallback.
+# Use Brokle(api_key=...) or get_client() instead.

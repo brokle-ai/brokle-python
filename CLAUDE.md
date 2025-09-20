@@ -122,7 +122,7 @@ brokle/
 **Client Layer** (`client.py`, `_client/`):
 - Async HTTP client with connection pooling
 - Authentication and request signing
-- Environment tag support (Langfuse-style validation)
+- Environment tag support
 
 **Configuration** (`config.py`):
 - Environment variable and programmatic configuration
@@ -150,7 +150,7 @@ brokle/
 - `test_exceptions.py` - Error handling and custom exceptions
 
 ### Environment Testing
-The SDK includes comprehensive environment tag validation following Langfuse-style rules:
+The SDK includes comprehensive environment tag validation rules:
 - Max 40 characters, lowercase only
 - Cannot start with "brokle" prefix
 - Default environment is "default"
@@ -190,7 +190,7 @@ brokle.configure(
     api_key="ak_your_key",
     host="http://localhost:8080",
     project_id="proj_your_project",
-    environment="production"  # Validates Langfuse-style rules
+    environment="production"  # Validates style rules
 )
 ```
 
@@ -255,4 +255,4 @@ This SDK is designed to work with the Brokle platform backend:
 - Environment tags in request headers
 - Project-scoped API key validation
 
-The SDK validates environment tags using Langfuse-style rules and sends appropriate headers to the backend for proper request routing and scoping.
+The SDK validates environment tags using rules and sends appropriate headers to the backend for proper request routing and scoping.

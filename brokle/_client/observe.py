@@ -15,7 +15,6 @@ from typing_extensions import ParamSpec
 
 from .client import get_client
 from .span import BrokleSpan, BrokleGeneration
-from ..config import get_config
 from .._utils.serialization import serialize
 
 logger = logging.getLogger(__name__)
@@ -34,7 +33,8 @@ class BrokleDecorator:
     """
 
     def __init__(self):
-        self.config = get_config()
+        # Get client which will handle configuration internally
+        self.client = get_client()
 
     @overload
     def observe(self, func: F) -> F: ...

@@ -19,13 +19,21 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.util._decorator import _AgnosticContextManager, _agnosticcontextmanager
 
-from ..config import Config, get_config
+from ..config import Config
 from ..auth import AuthManager
 from .attributes import BrokleOtelSpanAttributes
 from .span import BrokleSpan, BrokleGeneration
 from .exporters import BrokleSpanExporter
 
 logger = logging.getLogger(__name__)
+
+# Environment variable constants
+BROKLE_API_KEY = "BROKLE_API_KEY"
+BROKLE_PROJECT_ID = "BROKLE_PROJECT_ID"
+BROKLE_HOST = "BROKLE_HOST"
+BROKLE_ENVIRONMENT = "BROKLE_ENVIRONMENT"
+BROKLE_OTEL_ENABLED = "BROKLE_OTEL_ENABLED"
+BROKLE_DEBUG = "BROKLE_DEBUG"
 
 
 class Brokle:
@@ -40,39 +48,77 @@ class Brokle:
 
     def __init__(
         self,
+        *,
         api_key: Optional[str] = None,
         project_id: Optional[str] = None,
-        public_key: Optional[str] = None,
-        secret_key: Optional[str] = None,
         host: Optional[str] = None,
+        environment: Optional[str] = None,
+        otel_enabled: Optional[bool] = None,
+        debug: Optional[bool] = None,
         config: Optional[Config] = None,
         **kwargs
     ):
-        """Initialize Brokle client with OTEL integration."""
-        # Use provided config or start with global config
-        if config is None:
-            # Always start with global config to preserve existing settings
-            # Clone the global config to avoid mutating the singleton
-            self.config = get_config().model_copy()
-        else:
+        """Initialize Brokle client with OTEL integration.
+
+        Args:
+            api_key: Brokle API key. Falls back to BROKLE_API_KEY env var.
+            project_id: Brokle project ID. Falls back to BROKLE_PROJECT_ID env var.
+            host: Brokle API host. Falls back to BROKLE_HOST env var.
+            environment: Environment name. Falls back to BROKLE_ENVIRONMENT env var.
+            otel_enabled: Enable OpenTelemetry. Falls back to BROKLE_OTEL_ENABLED env var.
+            debug: Enable debug logging. Falls back to BROKLE_DEBUG env var.
+            config: Pre-configured Config object (overrides env vars and parameters).
+            **kwargs: Additional configuration parameters.
+        """
+        if config is not None:
+            # Use provided config object directly
             self.config = config
+        else:
+            # Create config with parameter and environment variable fallback
+            api_key = api_key or os.environ.get(BROKLE_API_KEY)
+            project_id = project_id or os.environ.get(BROKLE_PROJECT_ID)
+            host = host or os.environ.get(BROKLE_HOST, "http://localhost:8000")
+            environment = environment or os.environ.get(BROKLE_ENVIRONMENT, "default")
 
-        # Override config with provided parameters
-        if api_key is not None:
-            self.config.api_key = api_key
-        if project_id is not None:
-            self.config.project_id = project_id
-        if public_key is not None:
-            self.config.public_key = public_key
-        if secret_key is not None:
-            self.config.secret_key = secret_key
-        if host is not None:
-            self.config.host = host
+            # Handle boolean environment variables
+            if otel_enabled is None:
+                otel_env = os.environ.get(BROKLE_OTEL_ENABLED)
+                otel_enabled = otel_env.lower() in ('true', '1', 'yes') if otel_env else True
 
-        # Apply additional kwargs to config
-        for key, value in kwargs.items():
-            if hasattr(self.config, key):
-                setattr(self.config, key, value)
+            if debug is None:
+                debug_env = os.environ.get(BROKLE_DEBUG)
+                debug = debug_env.lower() in ('true', '1', 'yes') if debug_env else False
+
+            # Validate required parameters
+            if api_key is None:
+                logger.warning(
+                    "Authentication error: Brokle client initialized without api_key. "
+                    "Provide an api_key parameter or set BROKLE_API_KEY environment variable."
+                )
+                # Continue with disabled tracing similar
+                api_key = "ak_fake"  # Must start with "ak_" to pass validation
+                otel_enabled = False
+
+            if project_id is None:
+                logger.warning(
+                    "Configuration error: Brokle client initialized without project_id. "
+                    "Provide a project_id parameter or set BROKLE_PROJECT_ID environment variable."
+                )
+                project_id = "fake"
+                otel_enabled = False
+
+            # Create config with all parameters
+            config_params = {
+                'api_key': api_key,
+                'project_id': project_id,
+                'host': host,
+                'environment': environment,
+                'otel_enabled': otel_enabled,
+                'debug': debug,
+                **kwargs
+            }
+
+            self.config = Config(**config_params)
 
         # Initialize auth manager
         self.auth_manager = AuthManager(self.config)
@@ -110,8 +156,8 @@ class Brokle:
                 # Create custom Brokle span exporter
                 self._span_exporter = BrokleSpanExporter(
                     endpoint=self.config.host,
-                    api_key=self.config.secret_key,
-                    public_key=self.config.public_key
+                    api_key=self.config.api_key,
+                    project_id=self.config.project_id
                 )
 
                 # Add span processor
@@ -245,39 +291,99 @@ class Brokle:
             await self._http_client.aclose()
 
 
-# Global client instance
-_client: Optional[Brokle] = None
-_client_lock = threading.Lock()
+# Resource management for multiple clients
+_instances: Dict[str, Brokle] = {}
+_instances_lock = threading.Lock()
 
 
-def get_client(
-    api_key: Optional[str] = None,
-    project_id: Optional[str] = None,
-    public_key: Optional[str] = None,
-    secret_key: Optional[str] = None,
-    host: Optional[str] = None,
-    config: Optional[Config] = None,
-    **kwargs
-) -> Brokle:
+def get_client(*, api_key: Optional[str] = None, **kwargs) -> Brokle:
+    """Get or create a Brokle client instance.
+
+    Returns an existing Brokle client or creates a new one if none exists. In multi-project setups,
+    providing an api_key is required. Multi-project support.
+
+    Behavior:
+    - Single project: Returns existing client or creates new one
+    - Multi-project: Requires api_key to return specific client
+    - No api_key in multi-project: Returns disabled client to prevent data leakage
+
+    The function uses a singleton pattern per api_key to conserve resources and maintain state.
+
+    Args:
+        api_key (Optional[str]): Project identifier
+            - With key: Returns client for that project
+            - Without key: Returns single client or disabled client if multiple exist
+        **kwargs: Additional configuration parameters
+
+    Returns:
+        Brokle: Client instance in one of three states:
+            1. Client for specified api_key
+            2. Default client for single-project setup
+            3. Disabled client when multiple projects exist without key
+
+    Security:
+        Disables tracing when multiple projects exist without explicit key to prevent
+        cross-project data leakage.
+
+    Example:
+        ```python
+        # Single project
+        client = get_client()  # Default client
+
+        # In multi-project usage:
+        client_a = get_client(api_key="ak_project_a")  # Returns project A's client
+        client_b = get_client(api_key="ak_project_b")  # Returns project B's client
+
+        # Without specific key in multi-project setup:
+        client = get_client()  # Returns disabled client for safety
+        ```
     """
-    Get or create a singleton Brokle client.
+    with _instances_lock:
+        # If no explicit api_key provided, check environment
+        if not api_key:
+            api_key = os.environ.get(BROKLE_API_KEY)
 
-    This function returns a singleton instance of the Brokle client,
-    creating it if it doesn't exist.
-    """
-    global _client
+        if not api_key:
+            # Check if we have a default instance
+            default_instance = _instances.get("__default__")
+            if default_instance is not None:
+                return default_instance
 
-    if _client is None:
-        with _client_lock:
-            if _client is None:
-                _client = Brokle(
-                    api_key=api_key,
-                    project_id=project_id,
-                    public_key=public_key,
-                    secret_key=secret_key,
-                    host=host,
-                    config=config,
+            if len(_instances) == 0:
+                # No clients initialized yet, create default instance
+                default_instance = Brokle(**kwargs)
+                # Store under sentinel key to maintain singleton contract
+                _instances["__default__"] = default_instance
+                return default_instance
+
+            if len(_instances) == 1:
+                # Only one client exists (not default), safe to use without specifying key
+                instance = list(_instances.values())[0]
+                return instance
+
+            else:
+                # Multiple clients exist but no key specified - disable tracing
+                # to prevent cross-project data leakage
+                logger.warning(
+                    "No 'api_key' provided, but multiple Brokle clients are instantiated in current process. "
+                    "Disabling tracing to avoid cross-project leakage."
+                )
+                return Brokle(
+                    api_key="ak_fake",
+                    project_id="fake",
+                    otel_enabled=False,
                     **kwargs
                 )
 
-    return _client
+        else:
+            # Specific key provided, look up existing instance
+            existing_instance = _instances.get(api_key)
+
+            if existing_instance is None:
+                # Create new instance for this api_key
+                new_instance = Brokle(api_key=api_key, **kwargs)
+                _instances[api_key] = new_instance
+                return new_instance
+
+            # Return existing instance
+            return existing_instance

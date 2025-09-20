@@ -32,13 +32,13 @@ class BrokleSpanExporter(SpanExporter):
         self,
         endpoint: str,
         api_key: str,
-        public_key: str,
+        project_id: str,
         timeout: float = 30.0,
         session: Optional[httpx.AsyncClient] = None
     ):
         self.endpoint = endpoint.rstrip('/')
         self.api_key = api_key
-        self.public_key = public_key
+        self.project_id = project_id
         self.timeout = timeout
         self._session = session or httpx.AsyncClient(
             timeout=httpx.Timeout(timeout),
@@ -213,7 +213,7 @@ class BrokleSpanExporter(SpanExporter):
         """Send traces and observations to Brokle API."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "X-Public-Key": self.public_key,
+            "X-Project-ID": self.project_id,
             "Content-Type": "application/json",
             "User-Agent": "brokle-python-sdk/0.1.0",
         }
