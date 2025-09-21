@@ -117,6 +117,13 @@ class ContextAwareClientManager:
             self._track_client_usage(current_client)
             return current_client
 
+        # Single client behavior: if no parameters provided and exactly one client exists, return it
+        if (not any([api_key, host, project_id, environment, config]) and
+            not kwargs and len(self._active_contexts) == 1):
+            single_client = next(iter(self._active_contexts.values())).client
+            self._track_client_usage(single_client)
+            return single_client
+
         # Create new client with proper configuration
         new_client = self._create_context_client(
             api_key=api_key,
@@ -155,9 +162,17 @@ class ContextAwareClientManager:
         config = client.config
 
         # Check API key compatibility
-        if api_key and api_key != config.api_key:
+        if api_key is not None and api_key != config.api_key:
             self._warn_context_mismatch("API key mismatch detected")
             return False
+
+        # If no API key provided, check if environment would provide same API key
+        if api_key is None:
+            import os
+            env_api_key = os.getenv('BROKLE_API_KEY')
+            if env_api_key != config.api_key:
+                # Environment API key doesn't match current client, can't reuse
+                return False
 
         # Check host compatibility
         if host and host != config.host:

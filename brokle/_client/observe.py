@@ -13,7 +13,7 @@ from datetime import datetime
 
 from typing_extensions import ParamSpec
 
-from .client import get_client
+from .context import get_client
 from .span import BrokleSpan, BrokleGeneration
 from .._utils.serialization import serialize
 

@@ -75,6 +75,10 @@ class AuthManager:
     def get_auth_headers(self) -> Dict[str, str]:
         """Get authentication headers."""
         return self.config.get_headers()
+
+    async def get_headers(self) -> Dict[str, str]:
+        """Get authentication headers (async version)."""
+        return self.config.get_headers()
     
     def clear_auth(self) -> None:
         """Clear authentication information."""

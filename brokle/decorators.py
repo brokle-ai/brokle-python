@@ -52,7 +52,7 @@ except ImportError:
     trace = None
     Span = None
 
-from .client import get_client
+from ._client.context import get_client
 from ._utils.telemetry import create_span, add_span_attributes, record_span_exception
 from ._utils.validation import validate_environment
 from .types.attributes import BrokleOtelSpanAttributes

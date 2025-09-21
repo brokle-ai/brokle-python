@@ -452,7 +452,7 @@ def get_telemetry_manager(config: Optional[Config] = None, telemetry_client=None
     with _lock:
         if _telemetry_manager is None:
             if config is None:
-                from .client import get_client
+                from .context import get_client
                 config = get_client().config.model_copy()
             _telemetry_manager = TelemetryManager(config, telemetry_client)
             _telemetry_manager.initialize()

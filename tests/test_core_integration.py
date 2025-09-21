@@ -4,7 +4,7 @@ import os
 import pytest
 from unittest.mock import patch
 
-import brokle._client.client as client_module
+# Note: Client management now handled by context manager
 
 from brokle import (
     Brokle, get_client, Config,
@@ -15,10 +15,11 @@ from pydantic import ValidationError
 
 @pytest.fixture(autouse=True)
 def clear_client_instances():
-    """Ensure singleton cache is reset across tests."""
-    client_module._instances.clear()
+    """Ensure context manager cache is reset across tests."""
+    from brokle._client.context import _context_manager
+    _context_manager._active_contexts.clear()
     yield
-    client_module._instances.clear()
+    _context_manager._active_contexts.clear()
 
 
 class TestSDKImports:

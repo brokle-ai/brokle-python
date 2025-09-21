@@ -150,13 +150,10 @@ class Brokle:
             # Mark as fully initialized before registration
             self._fully_initialized = True
 
-            # Auto-register in singleton cache (modern observability pattern) - only if requested
+            # Auto-register with context manager (modern observability pattern) - only if requested
             if _internal_register and self.config.api_key != "ak_fake":
-                with _instances_lock:
-                    if self.config.api_key:
-                        _instances[self.config.api_key] = self
-                    elif "__default__" not in _instances:
-                        _instances["__default__"] = self
+                from .context import _context_manager
+                _context_manager._register_client_context(self)
 
         except Exception:
             # CRITICAL: Force cleanup of partial resources
@@ -195,11 +192,15 @@ class Brokle:
                 # Set global tracer provider
                 trace.set_tracer_provider(self._tracer_provider)
 
-                # Get tracer
-                self._tracer = trace.get_tracer(
-                    "brokle-python-sdk",
-                    version="0.1.0",
-                )
+                # Get tracer (version parameter may not be supported in all OTEL versions)
+                try:
+                    self._tracer = trace.get_tracer(
+                        "brokle-python-sdk",
+                        version="0.1.0",
+                    )
+                except TypeError:
+                    # Fallback for older OTEL versions
+                    self._tracer = trace.get_tracer("brokle-python-sdk")
 
                 self._initialized = True
                 logger.info("Brokle OTEL integration initialized successfully")
@@ -357,90 +358,12 @@ class Brokle:
         """Shutdown the client and cleanup resources."""
         await self._async_cleanup()
 
+    def __repr__(self) -> str:
+        """String representation without exposing sensitive data."""
+        return f"Brokle(project_id={self.config.project_id}, host={self.config.host})"
 
-# Resource management for multiple clients
-_instances: Dict[str, Brokle] = {}
-_instances_lock = threading.Lock()
+
+# Note: Client management now handled by context manager in context.py
 
 
-def get_client(*, api_key: Optional[str] = None, **kwargs) -> Brokle:
-    """Get or create a Brokle client instance.
-
-    Returns an existing Brokle client or creates a new one if none exists. In multi-project setups,
-    providing an api_key is required. Multi-project support.
-
-    Behavior:
-    - Single project: Returns existing client or creates new one
-    - Multi-project: Requires api_key to return specific client
-    - No api_key in multi-project: Returns disabled client to prevent data leakage
-
-    The function uses a singleton pattern per api_key to conserve resources and maintain state.
-
-    Args:
-        api_key (Optional[str]): Project identifier
-            - With key: Returns client for that project
-            - Without key: Returns single client or disabled client if multiple exist
-        **kwargs: Additional configuration parameters
-
-    Returns:
-        Brokle: Client instance in one of three states:
-            1. Client for specified api_key
-            2. Default client for single-project setup
-            3. Disabled client when multiple projects exist without key
-
-    Security:
-        Disables tracing when multiple projects exist without explicit key to prevent
-        cross-project data leakage.
-
-    Example:
-        ```python
-        # Recommended patterns:
-
-        # 1. Direct instantiation (explicit configuration) - auto-registers for @observe
-        client = Brokle(api_key="ak_project_a", project_id="proj_123")
-
-        # 2. Environment variables (requires BROKLE_API_KEY, etc. set)
-        client = get_client()  # Creates or returns existing client
-
-        # Multi-project usage:
-        client_a = get_client(api_key="ak_project_a")  # Returns project A's client
-        client_b = get_client(api_key="ak_project_b")  # Returns project B's client
-        ```
-    """
-    # Resolve API key
-    if not api_key:
-        api_key = os.environ.get(BROKLE_API_KEY)
-
-    cache_key = api_key if api_key else "__default__"
-
-    # First check: fast path
-    with _instances_lock:
-        if cache_key in _instances:
-            return _instances[cache_key]
-
-        if not api_key and len(_instances) == 1:
-            return next(iter(_instances.values()))
-
-    # Create instance outside lock to avoid deadlock
-    new_instance = None
-    try:
-        new_instance = Brokle(api_key=api_key, _internal_register=False, **kwargs)
-
-        # Second check with race protection
-        with _instances_lock:
-            if cache_key in _instances:
-                # Someone beat us - cleanup our instance safely
-                if new_instance._fully_initialized:
-                    new_instance._cleanup_resources()
-                return _instances[cache_key]
-
-            # We won - register our instance
-            _instances[cache_key] = new_instance
-
-        return new_instance
-
-    except Exception:
-        # Cleanup failed instance if it was created
-        if new_instance:
-            new_instance._cleanup_resources(force=True)
-        raise
+# Note: get_client() function moved to context.py for context-aware client management

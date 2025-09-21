@@ -106,21 +106,27 @@ class TestTraceWorkflow:
 
     def test_trace_workflow_basic(self):
         """Test basic trace_workflow usage."""
-        with patch('brokle.decorators.create_span') as mock_create_span:
+        with patch('brokle._utils.telemetry.trace') as mock_trace:
+            mock_tracer = MagicMock()
             mock_span = MagicMock()
-            mock_create_span.return_value = mock_span
+            mock_tracer.start_span.return_value = mock_span
+            mock_trace.get_tracer.return_value = mock_tracer
 
             with trace_workflow("test-workflow") as span:
                 assert span == mock_span
 
-            mock_create_span.assert_called_once()
+            # Verify tracer methods were called
+            mock_trace.get_tracer.assert_called_once()
+            mock_tracer.start_span.assert_called_once()
             mock_span.end.assert_called_once()
 
     def test_trace_workflow_error_handling(self):
         """Test trace_workflow error handling."""
-        with patch('brokle.decorators.create_span') as mock_create_span:
+        with patch('brokle._utils.telemetry.trace') as mock_trace:
+            mock_tracer = MagicMock()
             mock_span = MagicMock()
-            mock_create_span.return_value = mock_span
+            mock_tracer.start_span.return_value = mock_span
+            mock_trace.get_tracer.return_value = mock_tracer
 
             with pytest.raises(ValueError, match="Test error"):
                 with trace_workflow("test-workflow"):

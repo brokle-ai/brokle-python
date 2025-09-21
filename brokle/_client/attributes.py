@@ -37,6 +37,32 @@ class BrokleOtelSpanAttributes:
     SPAN_METADATA = "brokle.span.metadata"
     SPAN_VERSION = "brokle.span.version"
     SPAN_RELEASE = "brokle.span.release"
+
+    # Operation-level attributes
+    OPERATION_TYPE = "brokle.operation.type"
+
+    # Function-level attributes
+    FUNCTION_NAME = "brokle.function.name"
+    FUNCTION_SIGNATURE = "brokle.function.signature"
+    FUNCTION_MODULE = "brokle.function.module"
+    FUNCTION_EXECUTED = "brokle.function.executed"
+
+    # Workflow-level attributes
+    WORKFLOW_NAME = "brokle.workflow.name"
+
+    # Timing attributes for requests/responses
+    REQUEST_START_TIME = "brokle.request.start_time"
+    REQUEST_DURATION = "brokle.request.duration"
+    RESPONSE_END_TIME = "brokle.response.end_time"
+
+    # Input/Output attributes
+    INPUT = "brokle.input"
+    OUTPUT = "brokle.output"
+    INPUT_TYPE = "brokle.input.type"
+    OUTPUT_TYPE = "brokle.output.type"
+
+    # Tag attributes
+    TAGS = "brokle.tags"
     
     # Generation-level attributes (LLM calls)
     GENERATION_TYPE = "brokle.generation.type"
@@ -44,6 +70,10 @@ class BrokleOtelSpanAttributes:
     GENERATION_MODEL = "brokle.generation.model"
     GENERATION_PROVIDER = "brokle.generation.provider"
     GENERATION_PROVIDER_MODEL_ID = "brokle.generation.provider_model_id"
+
+    # Backward compatibility aliases
+    PROVIDER = GENERATION_PROVIDER  # Alias for backward compatibility
+    MODEL_NAME = GENERATION_MODEL  # Alias for backward compatibility
     GENERATION_REQUEST_TYPE = "brokle.generation.request_type"
     GENERATION_INPUT = "brokle.generation.input"
     GENERATION_OUTPUT = "brokle.generation.output"
