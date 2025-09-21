@@ -4,7 +4,24 @@ from .client import Brokle, get_client
 from .config import Config
 from .auth import AuthManager
 from ._client.attributes import BrokleOtelSpanAttributes
-from .integrations import auto_instrument, print_status, get_status, get_registry
+from .integrations import (
+    # Manual wrapper functions
+    track_openai,
+    track_anthropic,
+    observe,
+
+    # Status and debugging
+    get_status,
+    list_providers,
+    debug_status,
+
+    # Runtime controls
+    disable_provider,
+    enable_provider,
+
+    # Advanced
+    auto_discover_providers
+)
 from ._version import __version__
 
 # Auto-instrumentation convenience imports
@@ -92,11 +109,22 @@ __all__ = [
     "ProviderError",
     "CacheError",
     "EvaluationError",
-    # Integrations
-    "auto_instrument",
-    "print_status",
+    # Manual wrapper functions
+    "track_openai",
+    "track_anthropic",
+    "observe",
+
+    # Status and debugging
     "get_status",
-    "get_registry",
+    "list_providers",
+    "debug_status",
+
+    # Runtime controls
+    "disable_provider",
+    "enable_provider",
+
+    # Advanced
+    "auto_discover_providers",
     # Evaluation framework
     "evaluate",
     "aevaluate",

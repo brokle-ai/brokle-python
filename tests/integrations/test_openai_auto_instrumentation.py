@@ -149,7 +149,7 @@ class TestOpenAIAutoInstrumentation:
 
     def test_instrumentation_status(self, mock_openai, mock_wrapt):
         """Test instrumentation status reporting."""
-        with patch('brokle.integrations.openai._get_brokle_client') as mock_get_client:
+        with patch('brokle.integrations._engine.InstrumentationEngine._get_brokle_client') as mock_get_client:
             mock_get_client.return_value = Mock()
 
             import brokle.integrations.openai as openai_auto
@@ -161,7 +161,6 @@ class TestOpenAIAutoInstrumentation:
             assert 'openai_available' in status
             assert 'wrapt_available' in status
             assert 'errors' in status
-            assert 'client_available' in status
 
     def test_missing_openai_library(self, mock_wrapt):
         """Test behavior when OpenAI library is not available."""
@@ -210,7 +209,7 @@ class TestOpenAIAutoInstrumentation:
         for module in expected_modules:
             assert any(module in wrapped for wrapped in modules_wrapped)
 
-    @patch('brokle.integrations.openai._get_brokle_client')
+    @patch('brokle.integrations._engine.InstrumentationEngine._get_brokle_client')
     def test_wrapper_execution_with_client(self, mock_get_client, mock_openai, mock_wrapt, stub_brokle_client):
         """Test wrapper execution when Brokle client is available."""
         mock_get_client.return_value = stub_brokle_client
@@ -271,7 +270,7 @@ class TestOpenAIAutoInstrumentation:
             assert metrics["cost_usd"] == pytest.approx(0.00004, rel=1e-6)
             assert metrics["latency_ms"] >= 0
 
-    @patch('brokle.integrations.openai._get_brokle_client')
+    @patch('brokle.integrations._engine.InstrumentationEngine._get_brokle_client')
     def test_wrapper_execution_without_client(self, mock_get_client, mock_openai, mock_wrapt):
         """Test wrapper execution when Brokle client is not available."""
         mock_get_client.return_value = None
@@ -304,7 +303,7 @@ class TestOpenAIAutoInstrumentation:
             # Should call the original wrapped function
             mock_wrapped.assert_called_once()
 
-    @patch('brokle.integrations.openai._get_brokle_client')
+    @patch('brokle.integrations._engine.InstrumentationEngine._get_brokle_client')
     def test_wrapper_handles_missing_usage(self, mock_get_client, mock_openai, mock_wrapt, stub_brokle_client):
         """Ensure instrumentation handles responses without usage data."""
         mock_get_client.return_value = stub_brokle_client
@@ -346,7 +345,7 @@ class TestOpenAIAutoInstrumentation:
     @pytest.mark.asyncio
     async def test_async_wrapper_records_latency(self, mock_openai, mock_wrapt, stub_brokle_client):
         """Async wrappers should finalize after the awaited call completes."""
-        with patch('brokle.integrations.openai._get_brokle_client') as mock_get_client:
+        with patch('brokle.integrations._engine.InstrumentationEngine._get_brokle_client') as mock_get_client:
             mock_get_client.return_value = stub_brokle_client
 
             import brokle.integrations.openai as openai_auto  # noqa: F401 - ensure instrumentation runs
@@ -460,7 +459,7 @@ class TestOpenAIAutoInstrumentation:
 
     def test_error_handling_in_wrapper(self, mock_openai, mock_wrapt, stub_brokle_client):
         """Test error handling when wrapped function raises exception."""
-        with patch('brokle.integrations.openai._get_brokle_client') as mock_get_client:
+        with patch('brokle.integrations._engine.InstrumentationEngine._get_brokle_client') as mock_get_client:
             mock_get_client.return_value = stub_brokle_client
 
             import brokle.integrations.openai as openai_auto

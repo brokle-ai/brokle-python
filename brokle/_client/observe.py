@@ -127,7 +127,7 @@ class BrokleDecorator:
 
             LLM generation tracking:
             ```python
-            @observe(as_type="generation", model="gpt-4", provider="openai")
+            @observe(as_type="generation", model="gpt-4")
             async def generate_text(prompt):
                 response = await openai.chat.completions.create(...)
                 return response.choices[0].message.content
