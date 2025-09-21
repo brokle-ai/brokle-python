@@ -252,9 +252,12 @@ class TestOpenAIAutoInstrumentation:
             # Successful completion should set status_message="success"
             assert observation.end_calls[-1].get("status_message") == "success"
 
-            # Request metadata should be captured
-            assert "request" in observation.metadata
-            assert observation.metadata["request"]["model"] == "gpt-3.5-turbo"
+            # Metadata should be captured in new API format
+            assert "auto_instrumented" in observation.metadata
+            assert observation.metadata["auto_instrumented"] is True
+            assert observation.metadata["library"] == "openai"
+            assert observation.metadata["model"] == "gpt-3.5-turbo"
+            assert "messages" in observation.metadata
 
             # Response metadata should be stored
             assert "response" in observation.metadata
@@ -388,10 +391,13 @@ class TestOpenAIAutoInstrumentation:
 
     def test_request_data_extraction(self, mock_openai, mock_wrapt):
         """Test request data extraction function."""
-        import brokle.integrations.openai as openai_auto
+        from brokle.integrations.openai.instrumentation import OpenAIInstrumentation
+
+        # Create instrumentation instance
+        instrumentation = OpenAIInstrumentation()
 
         # Test with typical chat completion args
-        args = (Mock(), "gpt-4", [{"role": "user", "content": "test"}])
+        args = ("gpt-4", [{"role": "user", "content": "test"}])
         kwargs = {
             "model": "gpt-3.5-turbo",
             "messages": [{"role": "user", "content": "Hello"}],
@@ -399,7 +405,7 @@ class TestOpenAIAutoInstrumentation:
             "max_tokens": 100
         }
 
-        result = openai_auto._extract_request_data(args, kwargs)
+        result = instrumentation.extract_request_metadata(args, kwargs)
 
         assert isinstance(result, dict)
         assert "model" in result
@@ -412,7 +418,10 @@ class TestOpenAIAutoInstrumentation:
 
     def test_response_data_extraction(self, mock_openai, mock_wrapt):
         """Test response data extraction function."""
-        import brokle.integrations.openai as openai_auto
+        from brokle.integrations.openai.instrumentation import OpenAIInstrumentation
+
+        # Create instrumentation instance
+        instrumentation = OpenAIInstrumentation()
 
         # Mock OpenAI response object
         mock_response = Mock()
@@ -423,7 +432,7 @@ class TestOpenAIAutoInstrumentation:
             "usage": {"prompt_tokens": 5, "completion_tokens": 2, "total_tokens": 7}
         }
 
-        result = openai_auto._extract_response_data(mock_response)
+        result = instrumentation.extract_response_metadata(mock_response)
 
         assert isinstance(result, dict)
         assert "id" in result
@@ -433,7 +442,10 @@ class TestOpenAIAutoInstrumentation:
 
     def test_cost_calculation(self, mock_openai, mock_wrapt):
         """Test cost calculation function."""
-        import brokle.integrations.openai as openai_auto
+        from brokle.integrations.openai.instrumentation import OpenAIInstrumentation
+
+        # Create instrumentation instance
+        instrumentation = OpenAIInstrumentation()
 
         # Test with known model and usage
         usage = {
@@ -443,17 +455,17 @@ class TestOpenAIAutoInstrumentation:
         }
 
         # Test with gpt-3.5-turbo
-        cost = openai_auto._calculate_cost("gpt-3.5-turbo", usage)
+        cost = instrumentation.calculate_cost("gpt-3.5-turbo", usage)
         assert isinstance(cost, float)
         assert cost > 0
 
         # Test with gpt-4
-        cost_gpt4 = openai_auto._calculate_cost("gpt-4", usage)
+        cost_gpt4 = instrumentation.calculate_cost("gpt-4", usage)
         assert isinstance(cost_gpt4, float)
         assert cost_gpt4 > cost  # GPT-4 should be more expensive
 
         # Test with unknown model (should use fallback pricing)
-        cost_unknown = openai_auto._calculate_cost("unknown-model", usage)
+        cost_unknown = instrumentation.calculate_cost("unknown-model", usage)
         assert isinstance(cost_unknown, float)
         assert cost_unknown > 0
 
