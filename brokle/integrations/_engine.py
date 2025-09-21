@@ -23,7 +23,7 @@ import time
 from typing import Any, Callable, Dict, Optional
 from functools import wraps
 
-from ._base import BaseInstrumentation, InstrumentationConfig, StandardMetadata, ManualInstrumentationOptions
+from ._base import BaseInstrumentation, InstrumentationConfig, StandardMetadata, ManualInstrumentationOptions, _normalize_token_usage
 
 logger = logging.getLogger(__name__)
 
@@ -255,10 +255,13 @@ class InstrumentationEngine:
         try:
             # Update metrics if observation supports it
             if hasattr(observation, "update_metrics") and callable(getattr(observation, "update_metrics")):
+                # Normalize token usage to preserve zero counts and handle field name variations
+                normalized_usage = _normalize_token_usage(metadata.usage or {})
+
                 observation.update_metrics(
-                    input_tokens=metadata.usage.get("prompt_tokens") or metadata.usage.get("input_tokens"),
-                    output_tokens=metadata.usage.get("completion_tokens") or metadata.usage.get("output_tokens"),
-                    total_tokens=metadata.usage.get("total_tokens"),
+                    input_tokens=normalized_usage.get("input_tokens"),
+                    output_tokens=normalized_usage.get("output_tokens"),
+                    total_tokens=normalized_usage.get("total_tokens"),
                     cost_usd=metadata.cost_usd,
                     latency_ms=metadata.latency_ms
                 )
