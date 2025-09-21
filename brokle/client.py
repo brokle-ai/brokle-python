@@ -2,7 +2,7 @@
 Main client for Brokle SDK.
 
 This module provides the main client interface with context-aware management
-following LangFuse's pattern for multi-project safety and thread isolation.
+following industry-standard patterns for multi-project safety and thread isolation.
 """
 
 # Import the OTEL-based client class

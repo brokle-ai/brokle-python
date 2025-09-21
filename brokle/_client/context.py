@@ -1,7 +1,7 @@
 """
 Context-Aware Client Management - Brokle SDK
 
-This module provides LangFuse-style context-aware client management using ContextVar
+This module provides industry-standard context-aware client management using ContextVar
 for thread-safe, multi-project client isolation. Prevents data leakage between
 different projects and environments in multi-tenant applications.
 
@@ -12,7 +12,8 @@ Key Features:
 - Context inheritance for nested operations
 - Production-safe with comprehensive validation
 
-Based on LangFuse's get_client() pattern but enhanced for Brokle's multi-environment needs.
+Follows modern observability patterns for context-aware client management with
+Brokle-specific enhancements for multi-environment support.
 """
 
 import logging
@@ -64,8 +65,8 @@ class ContextAwareClientManager:
     """
     Manages Brokle clients with context awareness and multi-project safety.
 
-    Implements LangFuse's pattern of context-aware client management while
-    adding Brokle-specific features like environment tags and project isolation.
+    Implements industry-standard context-aware client management patterns with
+    Brokle-specific features like environment tags and project isolation.
     """
 
     def __init__(self):

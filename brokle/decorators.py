@@ -2,7 +2,7 @@
 Universal Decorator Pattern - Brokle SDK
 
 This module provides the @observe() decorator for comprehensive observability
-of any function or workflow. Follows LangFuse's universal decorator approach
+of any function or workflow. Follows modern universal decorator patterns
 for framework-agnostic tracing and evaluation.
 
 Key Features:

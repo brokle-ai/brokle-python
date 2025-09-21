@@ -2,7 +2,7 @@
 OpenAI Drop-in Replacement - Brokle SDK
 
 This module provides a true drop-in replacement for the OpenAI SDK with
-comprehensive observability. Follows LangFuse's pattern of method-specific
+comprehensive observability. Follows industry-standard method-specific
 wrapping using wrapt for minimal overhead and maximum compatibility.
 
 Key Features:
@@ -217,7 +217,7 @@ def _instrument_openai():
     Instrument OpenAI SDK methods with observability.
 
     Uses wrapt to wrap specific methods that we want to track,
-    following LangFuse's approach of selective method wrapping.
+    following modern observability patterns of selective method wrapping.
     """
     if not HAS_OPENAI or not wrapt:
         return

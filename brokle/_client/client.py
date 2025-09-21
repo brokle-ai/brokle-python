@@ -150,7 +150,7 @@ class Brokle:
             # Mark as fully initialized before registration
             self._fully_initialized = True
 
-            # Auto-register in singleton cache (Langfuse pattern) - only if requested
+            # Auto-register in singleton cache (modern observability pattern) - only if requested
             if _internal_register and self.config.api_key != "ak_fake":
                 with _instances_lock:
                     if self.config.api_key:
