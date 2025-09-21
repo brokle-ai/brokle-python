@@ -1,0 +1,235 @@
+{
+  "summary": {
+    "total_tests": 20,
+    "successful": 17,
+    "failed": 3,
+    "success_rate": 85.0,
+    "total_duration_ms": 1200.2577781677246,
+    "average_duration_ms": 60.01288890838623
+  },
+  "tests": [
+    {
+      "name": "Core imports",
+      "success": true,
+      "duration_ms": 936.8972778320312,
+      "message": "All core imports successful",
+      "details": {},
+      "error": null
+    },
+    {
+      "name": "Client creation",
+      "success": true,
+      "duration_ms": 145.46871185302734,
+      "message": "Client created successfully: Brokle",
+      "details": {},
+      "error": null
+    },
+    {
+      "name": "Configuration system",
+      "success": true,
+      "duration_ms": 0.13375282287597656,
+      "message": "Configuration validation works",
+      "details": {},
+      "error": null
+    },
+    {
+      "name": "Context management",
+      "success": false,
+      "duration_ms": 0.41866302490234375,
+      "message": "Client creation failed: 1 validation error for Config\nhost\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.11/v/string_type",
+      "details": {},
+      "error": "Client creation failed: 1 validation error for Config\nhost\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.11/v/string_type"
+    },
+    {
+      "name": "Multi-project safety",
+      "success": false,
+      "duration_ms": 0.2338886260986328,
+      "message": "Client creation failed: 1 validation error for Config\nhost\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.11/v/string_type",
+      "details": {},
+      "error": "Client creation failed: 1 validation error for Config\nhost\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.11/v/string_type"
+    },
+    {
+      "name": "OpenAI drop-in import",
+      "success": true,
+      "duration_ms": 0.010967254638671875,
+      "message": "OpenAI drop-in replacement import successful",
+      "details": {},
+      "error": null
+    },
+    {
+      "name": "Anthropic drop-in import",
+      "success": true,
+      "duration_ms": 0.01239776611328125,
+      "message": "Anthropic drop-in replacement import successful",
+      "details": {},
+      "error": null
+    },
+    {
+      "name": "SDK availability detection",
+      "success": true,
+      "duration_ms": 0.008344650268554688,
+      "message": "SDK detection working: {'openai_available': False, 'anthropic_available': False}",
+      "details": {
+        "openai_available": false,
+        "anthropic_available": false
+      },
+      "error": null
+    },
+    {
+      "name": "Attribute passthrough",
+      "success": true,
+      "duration_ms": 0.036716461181640625,
+      "message": "Passthrough working, version: unknown",
+      "details": {},
+      "error": null
+    },
+    {
+      "name": "Basic decorator",
+      "success": true,
+      "duration_ms": 0.31113624572753906,
+      "message": "Decorator works, result: 10",
+      "details": {
+        "result": 10
+      },
+      "error": null
+    },
+    {
+      "name": "Async decorator",
+      "success": true,
+      "duration_ms": 3.6423206329345703,
+      "message": "Async decorator works, result: 12",
+      "details": {
+        "result": 12
+      },
+      "error": null
+    },
+    {
+      "name": "Privacy controls",
+      "success": true,
+      "duration_ms": 0.2853870391845703,
+      "message": "Privacy controls work, result: processed-test-data",
+      "details": {
+        "result": "processed-test-data"
+      },
+      "error": null
+    },
+    {
+      "name": "Workflow tracing",
+      "success": false,
+      "duration_ms": 0.04839897155761719,
+      "message": "type object 'BrokleOtelSpanAttributes' has no attribute 'OPERATION_TYPE'",
+      "details": {},
+      "error": "type object 'BrokleOtelSpanAttributes' has no attribute 'OPERATION_TYPE'"
+    },
+    {
+      "name": "LangChain handler import",
+      "success": true,
+      "duration_ms": 14.406204223632812,
+      "message": "LangChain callback handler import successful",
+      "details": {},
+      "error": null
+    },
+    {
+      "name": "LangChain handler creation",
+      "success": true,
+      "duration_ms": 0.0064373016357421875,
+      "message": "LangChain not available - skipped",
+      "details": {},
+      "error": null
+    },
+    {
+      "name": "Exception hierarchy",
+      "success": true,
+      "duration_ms": 0.05507469177246094,
+      "message": "All 5 exception types work",
+      "details": {},
+      "error": null
+    },
+    {
+      "name": "Graceful fallback",
+      "success": true,
+      "duration_ms": 0.30612945556640625,
+      "message": "Function works with fallback: success",
+      "details": {},
+      "error": null
+    },
+    {
+      "name": "Decorator performance",
+      "success": true,
+      "duration_ms": 97.90682792663574,
+      "message": "Overhead: 0.097ms per call (target: <1ms)",
+      "details": {
+        "overhead_ms": 0.09746336936950684,
+        "iterations": 1000
+      },
+      "error": null
+    },
+    {
+      "name": "Original imports",
+      "success": true,
+      "duration_ms": 0.019311904907226562,
+      "message": "All original imports work. Version: 0.1.0",
+      "details": {},
+      "error": null
+    },
+    {
+      "name": "Configuration compatibility",
+      "success": true,
+      "duration_ms": 0.04982948303222656,
+      "message": "Configuration and auth manager work",
+      "details": {},
+      "error": null
+    }
+  ],
+  "failed_tests": [
+    {
+      "name": "Context management",
+      "message": "Client creation failed: 1 validation error for Config\nhost\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.11/v/string_type",
+      "error": "Client creation failed: 1 validation error for Config\nhost\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.11/v/string_type",
+      "traceback": [
+        "Traceback (most recent call last):\n",
+        "  File \"/home/hashir/Development/Projects/Personal/Brokle/brokle-platform/brokle/sdk/python/brokle/_client/context.py\", line 194, in _create_context_client\n    client_config = Config(\n                    ^^^^^^^\n",
+        "  File \"/home/hashir/.pyenv/versions/3.12.0/lib/python3.12/site-packages/pydantic/main.py\", line 253, in __init__\n    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+        "pydantic_core._pydantic_core.ValidationError: 1 validation error for Config\nhost\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.11/v/string_type\n",
+        "\nDuring handling of the above exception, another exception occurred:\n\n",
+        "Traceback (most recent call last):\n",
+        "  File \"/home/hashir/Development/Projects/Personal/Brokle/brokle-platform/brokle/sdk/python/scripts/final_validation.py\", line 143, in _test_context_management\n    client1 = get_client(\n              ^^^^^^^^^^^\n",
+        "  File \"/home/hashir/Development/Projects/Personal/Brokle/brokle-platform/brokle/sdk/python/brokle/_client/context.py\", line 372, in get_client\n    return _context_manager.get_client(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+        "  File \"/home/hashir/Development/Projects/Personal/Brokle/brokle-platform/brokle/sdk/python/brokle/_client/context.py\", line 120, in get_client\n    new_client = self._create_context_client(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+        "  File \"/home/hashir/Development/Projects/Personal/Brokle/brokle-platform/brokle/sdk/python/brokle/_client/context.py\", line 217, in _create_context_client\n    raise ConfigurationError(f\"Client creation failed: {e}\")\n",
+        "brokle.exceptions.ConfigurationError: Client creation failed: 1 validation error for Config\nhost\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.11/v/string_type\n"
+      ]
+    },
+    {
+      "name": "Multi-project safety",
+      "message": "Client creation failed: 1 validation error for Config\nhost\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.11/v/string_type",
+      "error": "Client creation failed: 1 validation error for Config\nhost\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.11/v/string_type",
+      "traceback": [
+        "Traceback (most recent call last):\n",
+        "  File \"/home/hashir/Development/Projects/Personal/Brokle/brokle-platform/brokle/sdk/python/brokle/_client/context.py\", line 194, in _create_context_client\n    client_config = Config(\n                    ^^^^^^^\n",
+        "  File \"/home/hashir/.pyenv/versions/3.12.0/lib/python3.12/site-packages/pydantic/main.py\", line 253, in __init__\n    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+        "pydantic_core._pydantic_core.ValidationError: 1 validation error for Config\nhost\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.11/v/string_type\n",
+        "\nDuring handling of the above exception, another exception occurred:\n\n",
+        "Traceback (most recent call last):\n",
+        "  File \"/home/hashir/Development/Projects/Personal/Brokle/brokle-platform/brokle/sdk/python/scripts/final_validation.py\", line 169, in _test_context_management\n    client1 = get_client(\n              ^^^^^^^^^^^\n",
+        "  File \"/home/hashir/Development/Projects/Personal/Brokle/brokle-platform/brokle/sdk/python/brokle/_client/context.py\", line 372, in get_client\n    return _context_manager.get_client(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+        "  File \"/home/hashir/Development/Projects/Personal/Brokle/brokle-platform/brokle/sdk/python/brokle/_client/context.py\", line 120, in get_client\n    new_client = self._create_context_client(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+        "  File \"/home/hashir/Development/Projects/Personal/Brokle/brokle-platform/brokle/sdk/python/brokle/_client/context.py\", line 217, in _create_context_client\n    raise ConfigurationError(f\"Client creation failed: {e}\")\n",
+        "brokle.exceptions.ConfigurationError: Client creation failed: 1 validation error for Config\nhost\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.11/v/string_type\n"
+      ]
+    },
+    {
+      "name": "Workflow tracing",
+      "message": "type object 'BrokleOtelSpanAttributes' has no attribute 'OPERATION_TYPE'",
+      "error": "type object 'BrokleOtelSpanAttributes' has no attribute 'OPERATION_TYPE'",
+      "traceback": [
+        "Traceback (most recent call last):\n",
+        "  File \"/home/hashir/Development/Projects/Personal/Brokle/brokle-platform/brokle/sdk/python/scripts/final_validation.py\", line 347, in _test_universal_decorator\n    result = test_workflow()\n             ^^^^^^^^^^^^^^^\n",
+        "  File \"/home/hashir/Development/Projects/Personal/Brokle/brokle-platform/brokle/sdk/python/scripts/final_validation.py\", line 344, in test_workflow\n    with trace_workflow(\"test-workflow\", metadata={\"version\": \"1.0\"}):\n",
+        "  File \"/home/hashir/.pyenv/versions/3.12.0/lib/python3.12/contextlib.py\", line 137, in __enter__\n    return next(self.gen)\n           ^^^^^^^^^^^^^^\n",
+        "  File \"/home/hashir/Development/Projects/Personal/Brokle/brokle-platform/brokle/sdk/python/brokle/decorators.py\", line 441, in trace_workflow\n    BrokleOtelSpanAttributes.OPERATION_TYPE: \"workflow\",\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+        "AttributeError: type object 'BrokleOtelSpanAttributes' has no attribute 'OPERATION_TYPE'. Did you mean: 'GENERATION_TYPE'?\n"
+      ]
+    }
+  ]
+}

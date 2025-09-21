@@ -1,12 +1,15 @@
 """
 Main client for Brokle SDK.
 
-This module provides backwards compatibility with the existing client interface
-while delegating to the OTEL client.
+This module provides the main client interface with context-aware management
+following LangFuse's pattern for multi-project safety and thread isolation.
 """
 
-# Import the new OTEL-based client
-from ._client import Brokle, get_client
+# Import the OTEL-based client class
+from ._client import Brokle
 
-# Export for backwards compatibility
+# Import context-aware client management
+from ._client.context import get_client
+
+# Export public API
 __all__ = ["Brokle", "get_client"]
