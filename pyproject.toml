@@ -14,7 +14,7 @@ authors = [
 maintainers = [
     {name = "Brokle Platform", email = "support@brokle.com"}
 ]
-keywords = ["ai", "llm", "brokle", "openai", "observability", "telemetry", "opentelemetry"]
+keywords = ["ai", "llm", "brokle", "openai", "observability", "routing", "caching", "drop-in", "decorator", "patterns"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",

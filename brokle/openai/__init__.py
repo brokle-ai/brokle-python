@@ -1,27 +1,24 @@
 """
-OpenAI Drop-in Replacement - Brokle SDK
+Pattern 1: Drop-in Replacement - Brokle SDK
 
-This module provides a true drop-in replacement for the OpenAI SDK with
-comprehensive observability. Follows industry-standard method-specific
-wrapping using wrapt for minimal overhead and maximum compatibility.
+Perfect drop-in replacement for OpenAI SDK with instant observability.
+Part of Brokle's 3-pattern integration system.
 
-Key Features:
+Pattern 1 Features:
+- Zero code changes beyond import
 - 100% OpenAI SDK compatibility
-- Zero-code changes beyond import
-- Comprehensive observability with OpenTelemetry
-- Graceful fallback if OpenAI SDK not available
-- Performance overhead < 3ms per request
+- Instant observability and cost tracking
+- <3ms performance overhead
+- Perfect for existing codebases
 
 Usage:
-    # Instead of:
-    # from openai import OpenAI
+    # Pattern 1: Drop-in Replacement
+    from brokle.openai import OpenAI  # Only change needed
 
-    # Use:
-    from brokle.openai import OpenAI
-
-    # Everything else stays exactly the same
-    client = OpenAI(api_key="sk-...")
+    client = OpenAI()  # Everything else identical
     response = client.chat.completions.create(...)
+
+    # Ready to upgrade to Pattern 2 (@observe) or Pattern 3 (Native SDK)
 """
 
 import warnings

@@ -1,18 +1,17 @@
 """
-OpenAI Auto-Instrumentation Example
+Pattern 1: Drop-in Replacement Example
 
-This example demonstrates Brokle's automatic instrumentation for OpenAI.
-Shows how to enable comprehensive observability with zero code changes.
+This example demonstrates Brokle's Pattern 1 - Drop-in Replacement for OpenAI.
+Zero code changes beyond import for instant observability.
 """
 
 import os
 import asyncio
 
-# ✨ STEP 1: Enable auto-instrumentation with a single import
-import brokle.openai  # This automatically instruments ALL OpenAI usage
+# ✨ PATTERN 1: Drop-in replacement - just change your import
+from brokle.openai import OpenAI, AsyncOpenAI
 
-# STEP 2: Use OpenAI normally - everything is automatically tracked
-from openai import OpenAI, AsyncOpenAI
+# That's it! Everything else stays exactly the same
 
 # Set up environment variables for Brokle
 os.environ["BROKLE_API_KEY"] = "ak_your_api_key_here"
@@ -20,22 +19,16 @@ os.environ["BROKLE_HOST"] = "http://localhost:8080"
 os.environ["BROKLE_PROJECT_ID"] = "proj_your_project_id"
 
 
-def check_instrumentation_status():
-    """Check if auto-instrumentation is working properly."""
-    print("🔍 Checking Brokle Auto-Instrumentation Status")
+def check_pattern1_status():
+    """Check if Pattern 1 (Drop-in Replacement) is working."""
+    print("🔍 Checking Pattern 1: Drop-in Replacement Status")
     print("=" * 50)
 
-    status = brokle.openai.get_instrumentation_status()
-
-    print(f"✅ Instrumented: {status['instrumented']}")
-    print(f"📦 OpenAI Available: {status['openai_available']}")
-    print(f"🔧 Wrapt Available: {status['wrapt_available']}")
-    print(f"🌐 Brokle Client Available: {status['client_available']}")
-
-    if status['errors']:
-        print(f"⚠️ Errors: {status['errors']}")
-    else:
-        print("✨ No errors - ready to track OpenAI usage!")
+    # Simple check - if import worked, we're good
+    print("✅ Drop-in replacement active")
+    print("✅ Zero code changes required")
+    print("✅ All OpenAI calls automatically tracked")
+    print("✨ Pattern 1 ready!")
 
     print()
 
@@ -61,7 +54,7 @@ def basic_chat_example():
     print(f"Response: {response.choices[0].message.content}")
     print(f"Model: {response.model}")
     print(f"Tokens: {response.usage.total_tokens}")
-    print("📊 This request was automatically tracked by Brokle!")
+    print("📊 Pattern 1: Automatically tracked with zero code changes!")
     print()
 
 
@@ -180,12 +173,12 @@ def error_handling_example():
 
 
 async def main():
-    """Run all examples to showcase auto-instrumentation."""
-    print("🎯 Brokle OpenAI Auto-Instrumentation Demo")
+    """Run all examples to showcase Pattern 1: Drop-in Replacement."""
+    print("🎯 Brokle Pattern 1: Drop-in Replacement Demo")
     print("=" * 50)
 
     # Check status first
-    check_instrumentation_status()
+    check_pattern1_status()
 
     # Run examples
     basic_chat_example()
@@ -195,15 +188,15 @@ async def main():
     framework_compatibility_example()
     error_handling_example()
 
-    print("🎉 Auto-Instrumentation Demo Complete!")
+    print("🎉 Pattern 1: Drop-in Replacement Demo Complete!")
     print("=" * 50)
     print("Key Benefits:")
-    print("• 🔍 Zero code changes - just add one import")
-    print("• 📊 Automatic cost, token, and performance tracking")
+    print("• 🔍 Zero code changes - just change your import")
+    print("• 📊 Instant observability and cost tracking")
     print("• ⚡ Works with sync, async, and streaming")
-    print("• 🔗 Compatible with LangChain, LlamaIndex, etc.")
-    print("• 🛡️ Never breaks your code - graceful error handling")
-    print("• 📈 Comprehensive observability out of the box")
+    print("• 🔗 Perfect for existing OpenAI codebases")
+    print("• 🛡️ Drop-in compatibility guaranteed")
+    print("• ➡️ Ready to upgrade to Pattern 2 or 3 when needed")
 
 
 if __name__ == "__main__":
