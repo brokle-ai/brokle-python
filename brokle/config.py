@@ -69,7 +69,7 @@ class Config(BaseModel):
     
     # Core configuration
     api_key: Optional[str] = Field(default=None, description="Brokle API key")
-    host: str = Field(default="http://localhost:8000", description="Brokle host URL")
+    host: str = Field(default="http://localhost:8080", description="Brokle host URL")
     project_id: Optional[str] = Field(default=None, description="Project ID")
     environment: str = Field(default="default", description="Environment name")
     
@@ -129,7 +129,7 @@ class Config(BaseModel):
         
         return cls(
             api_key=os.getenv('BROKLE_API_KEY'),
-            host=os.getenv('BROKLE_HOST', 'http://localhost:8000'),
+            host=os.getenv('BROKLE_HOST', 'http://localhost:8080'),
             project_id=os.getenv('BROKLE_PROJECT_ID'),
             environment=os.getenv('BROKLE_ENVIRONMENT', 'default'),
             

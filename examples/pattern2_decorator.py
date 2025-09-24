@@ -15,7 +15,7 @@ from openai import OpenAI
 # Initialize Brokle client (auto-registers for @observe decorators)
 client = Brokle(
     api_key="ak_your_api_key_here",
-    host="http://localhost:8000",
+    host="http://localhost:8080",
     project_id="proj_your_project_id",
 )
 

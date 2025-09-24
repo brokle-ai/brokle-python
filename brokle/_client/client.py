@@ -84,7 +84,7 @@ class Brokle:
                 # Create config with parameter and environment variable fallback
                 api_key = api_key or os.environ.get(BROKLE_API_KEY)
                 project_id = project_id or os.environ.get(BROKLE_PROJECT_ID)
-                host = host or os.environ.get(BROKLE_HOST, "http://localhost:8000")
+                host = host or os.environ.get(BROKLE_HOST, "http://localhost:8080")
                 environment = environment or os.environ.get(BROKLE_ENVIRONMENT, "default")
 
                 # Handle boolean environment variables

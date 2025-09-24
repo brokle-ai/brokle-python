@@ -58,8 +58,8 @@ class TestConfig:
     def test_host_validation(self):
         """Test host URL validation."""
         # Valid hosts
-        config = Config(host='http://localhost:8000')
-        assert config.host == 'http://localhost:8000'
+        config = Config(host='http://localhost:8080')
+        assert config.host == 'http://localhost:8080'
         
         config = Config(host='https://example.com/')
         assert config.host == 'https://example.com'  # Trailing slash removed
