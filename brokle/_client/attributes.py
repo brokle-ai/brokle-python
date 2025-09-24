@@ -107,6 +107,52 @@ class BrokleOtelSpanAttributes:
     ROUTING_DECISION = "brokle.routing.decision"
     ROUTING_COST_FACTOR = "brokle.routing.cost_factor"
     ROUTING_LATENCY_FACTOR = "brokle.routing.latency_factor"
+
+    # AI Wrapper-specific attributes (for Pattern 1 - unified with existing system)
+    METHOD_PATH = "brokle.method.path"                    # SDK method path (chat.completions.create)
+    IS_ASYNC = "brokle.method.async"                      # Whether method is async
+    STREAM_SUPPORT = "brokle.method.stream_support"       # Whether method supports streaming
+    STREAM_ENABLED = "llm.request.stream"                 # Whether streaming is enabled
+
+    # LLM Request Parameters (unified naming with existing generation attributes)
+    MAX_TOKENS = "llm.request.max_tokens"                 # Maximum tokens requested
+    TEMPERATURE = "llm.request.temperature"               # Temperature parameter
+    TOP_P = "llm.request.top_p"                          # Top-p parameter
+    FREQUENCY_PENALTY = "llm.request.frequency_penalty"   # Frequency penalty
+    PRESENCE_PENALTY = "llm.request.presence_penalty"     # Presence penalty
+    N_COMPLETIONS = "llm.request.n"                      # Number of completions
+
+    # Chat/Messages Specific
+    MESSAGE_COUNT = "llm.input.message_count"             # Number of messages in chat
+    MESSAGE_ROLES = "llm.input.message_roles"             # Comma-separated roles
+    SYSTEM_MESSAGE = "llm.input.system_message"           # Whether system message present
+
+    # Legacy Completion Specific
+    PROMPT_LENGTH = "llm.input.prompt_length"             # Length of prompt string
+    PROMPT_COUNT = "llm.input.prompt_count"               # Number of prompts (batch)
+
+    # Response Attributes
+    RESPONSE_CONTENT_LENGTH = "llm.response.content_length" # Length of response content
+    FINISH_REASON = "llm.response.finish_reason"           # Completion finish reason
+    STOP_REASON = "llm.response.stop_reason"               # Stop reason (Anthropic)
+
+    # Tool/Function Calls
+    FUNCTION_CALL_NAME = "llm.response.function_call.name"      # Function call name
+    FUNCTION_CALL_ARGUMENTS = "llm.response.function_call.args" # Function call arguments
+    TOOL_CALL_COUNT = "llm.response.tool_calls.count"           # Number of tool calls
+    TOOL_CALL_NAMES = "llm.response.tool_calls"                 # Tool calls in response
+
+    # Backwards compatibility aliases for wrapper system
+    PROVIDER = GENERATION_PROVIDER                        # Alias for provider name
+    INPUT_TOKENS = TOKENS_INPUT                          # Alias for input tokens
+    OUTPUT_TOKENS = TOKENS_OUTPUT                        # Alias for output tokens
+    TOTAL_TOKENS = TOKENS_TOTAL                          # Alias for total tokens
+
+    # Model name variations
+    MODEL_NAME_NORMALIZED = "llm.model.normalized"       # Normalized model name
+    MODEL_NAME_RESPONSE = "llm.model.response"           # Model name from response
+
+    # Additional routing attributes
     ROUTING_QUALITY_FACTOR = "brokle.routing.quality_factor"
     ROUTING_LOAD_FACTOR = "brokle.routing.load_factor"
     ROUTING_CONFIDENCE = "brokle.routing.confidence"

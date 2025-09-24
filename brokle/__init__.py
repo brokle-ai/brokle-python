@@ -1,12 +1,38 @@
 """
-Brokle SDK - The Open-Source AI Control Plane
+Brokle SDK 2.0 - The Open-Source AI Control Plane
 
-Comprehensive Python SDK providing intelligent routing, cost optimization,
-semantic caching, and observability for AI applications.
+BREAKING CHANGES in v2.0.0:
+- Removed drop-in replacements (brokle.openai.OpenAI, brokle.anthropic.Anthropic)
+- Added explicit wrapper functions (wrap_openai, wrap_anthropic)
+- Enhanced 3-pattern integration system
+
+Migration Guide:
+1.x: from brokle.openai import OpenAI
+2.x: from openai import OpenAI; from brokle import wrap_openai; client = wrap_openai(OpenAI())
 
 Three Integration Patterns:
 
-1. **Native SDK** (Full AI Platform Features):
+1. **Wrapper Functions** (LangSmith/Optik Style):
+   ```python
+   from openai import OpenAI
+   from anthropic import Anthropic
+   from brokle import wrap_openai, wrap_anthropic
+
+   openai_client = wrap_openai(OpenAI(api_key="sk-..."))
+   anthropic_client = wrap_anthropic(Anthropic(api_key="sk-ant-..."))
+   response = openai_client.chat.completions.create(...)
+   ```
+
+2. **Universal Decorator** (Framework-Agnostic):
+   ```python
+   from brokle import observe
+
+   @observe()
+   def my_ai_workflow(user_query: str) -> str:
+       return llm.generate(user_query)
+   ```
+
+3. **Native SDK** (Full AI Platform Features):
    ```python
    from brokle import Brokle, get_client
 
@@ -16,33 +42,17 @@ Three Integration Patterns:
        messages=[{"role": "user", "content": "Hello!"}]
    )
    ```
-
-2. **Drop-in Replacement** (Pure Observability):
-   ```python
-   # Instead of: from openai import OpenAI
-   from brokle.openai import OpenAI
-
-   client = OpenAI(api_key="sk-...")
-   response = client.chat.completions.create(...)
-   ```
-
-3. **Universal Decorator** (Framework-Agnostic):
-   ```python
-   from brokle import observe
-
-   @observe()
-   def my_ai_workflow(user_query: str) -> str:
-       return llm.generate(user_query)
-   ```
 """
 
-# Core client and configuration
-from .client import Brokle, get_client
-from .config import Config
-from .auth import AuthManager
-from ._client.attributes import BrokleOtelSpanAttributes
+# === PATTERN 1: WRAPPER FUNCTIONS (NEW IN 2.0) ===
+from .wrappers import (
+    wrap_openai,
+    wrap_anthropic,
+    wrap_google,    # Future
+    wrap_cohere,    # Future
+)
 
-# Universal decorator pattern
+# === PATTERN 2: UNIVERSAL DECORATOR (UNCHANGED) ===
 from .decorators import (
     observe,
     trace_workflow,
@@ -50,6 +60,12 @@ from .decorators import (
     observe_retrieval,
     ObserveConfig,
 )
+
+# === PATTERN 3: NATIVE SDK (UNCHANGED) ===
+from .client import Brokle, get_client
+from .config import Config
+from .auth import AuthManager
+from ._client.attributes import BrokleOtelSpanAttributes
 
 from ._version import __version__
 
@@ -110,14 +126,13 @@ from .ai_platform import (
     get_healthy_providers, get_provider_rankings,
 )
 
-# Main exports - Clean 3-Pattern Architecture
+# Main exports - Clean 3-Pattern Architecture (v2.0.0)
 __all__ = [
-    # === PATTERN 1: NATIVE SDK (Full AI Platform Features) ===
-    "Brokle",                    # Main client class
-    "get_client",                # Singleton client accessor
-    "Config",                    # Configuration management
-    "AuthManager",               # Authentication handling
-    "BrokleOtelSpanAttributes",  # Telemetry attributes
+    # === PATTERN 1: WRAPPER FUNCTIONS (LangSmith/Optik Style) ===
+    "wrap_openai",               # OpenAI client wrapper
+    "wrap_anthropic",            # Anthropic client wrapper
+    "wrap_google",               # Google AI wrapper (future)
+    "wrap_cohere",               # Cohere wrapper (future)
 
     # === PATTERN 2: UNIVERSAL DECORATOR (Framework-Agnostic) ===
     "observe",                   # Universal @observe() decorator
@@ -126,9 +141,12 @@ __all__ = [
     "observe_retrieval",         # Retrieval-specific decorator
     "ObserveConfig",             # Decorator configuration
 
-    # === PATTERN 3: DROP-IN REPLACEMENTS (Pure Observability) ===
-    # Note: Import separately from brokle.openai, brokle.anthropic, etc.
-    # Example: from brokle.openai import OpenAI
+    # === PATTERN 3: NATIVE SDK (Full AI Platform Features) ===
+    "Brokle",                    # Main client class
+    "get_client",                # Singleton client accessor
+    "Config",                    # Configuration management
+    "AuthManager",               # Authentication handling
+    "BrokleOtelSpanAttributes",  # Telemetry attributes
 
     # === SHARED: EXCEPTION CLASSES ===
     "BrokleError",
@@ -199,3 +217,25 @@ __all__ = [
     # === METADATA ===
     "__version__",
 ]
+
+
+# Deprecation warnings for old imports (BREAKING CHANGE)
+def __getattr__(name: str):
+    """Handle deprecated imports with helpful error messages."""
+    deprecated_imports = {
+        'openai': (
+            'BREAKING CHANGE in Brokle 2.0: brokle.openai is deprecated.\n'
+            'Migration: from openai import OpenAI; from brokle import wrap_openai; client = wrap_openai(OpenAI())\n'
+            'See migration guide: https://docs.brokle.ai/migration/v2'
+        ),
+        'anthropic': (
+            'BREAKING CHANGE in Brokle 2.0: brokle.anthropic is deprecated.\n'
+            'Migration: from anthropic import Anthropic; from brokle import wrap_anthropic; client = wrap_anthropic(Anthropic())\n'
+            'See migration guide: https://docs.brokle.ai/migration/v2'
+        ),
+    }
+
+    if name in deprecated_imports:
+        raise ImportError(deprecated_imports[name])
+
+    raise AttributeError(f"module 'brokle' has no attribute '{name}'")
