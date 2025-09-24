@@ -1,7 +1,7 @@
 """
 Wrapper Functions - Pattern 1 Implementation
 
-Explicit wrapper functions following LangSmith/Optik patterns.
+Explicit wrapper functions for client instrumentation.
 Each function wraps the original provider SDK with Brokle observability.
 
 Usage:

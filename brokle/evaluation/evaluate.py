@@ -1,7 +1,7 @@
 """
 Core evaluation functions for Brokle SDK.
 
-LangSmith-inspired evaluate() and aevaluate() functions with Brokle enhancements.
+Core evaluate() and aevaluate() functions with Brokle enhancements.
 """
 
 import asyncio
@@ -25,7 +25,7 @@ def evaluate(
     """
     Evaluate a function against a dataset using multiple evaluators.
 
-    This follows LangSmith's evaluate() pattern with Brokle enhancements
+    This provides comprehensive evaluation capabilities with Brokle enhancements
     for AI platform metrics and observability.
 
     Args:

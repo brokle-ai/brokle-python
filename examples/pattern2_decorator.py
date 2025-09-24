@@ -8,9 +8,7 @@ comprehensive observability and tracing.
 import asyncio
 from typing import List, Dict, Any
 
-# Import auto-instrumentation (automatically instruments all OpenAI usage)
-import brokle.openai
-
+# ✨ PATTERN 2: Universal Decorator - AI-aware observability
 from brokle import observe, Brokle
 from openai import OpenAI
 
@@ -21,7 +19,7 @@ client = Brokle(
     project_id="proj_your_project_id",
 )
 
-# Initialize standard OpenAI client (automatically instrumented)
+# Initialize standard OpenAI client (will be auto-detected by @observe decorator)
 openai = OpenAI()
 
 

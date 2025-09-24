@@ -4,7 +4,7 @@ Brokle SDK 2.0 - The Open-Source AI Control Plane
 BREAKING CHANGES in v2.0.0:
 - Removed drop-in replacements (brokle.openai.OpenAI, brokle.anthropic.Anthropic)
 - Added explicit wrapper functions (wrap_openai, wrap_anthropic)
-- Enhanced 3-pattern integration system
+- Enhanced 3-pattern integration system with shared providers
 
 Migration Guide:
 1.x: from brokle.openai import OpenAI
@@ -12,14 +12,21 @@ Migration Guide:
 
 Three Integration Patterns:
 
-1. **Wrapper Functions** (LangSmith/Optik Style):
+1. **Wrapper Functions**:
    ```python
    from openai import OpenAI
    from anthropic import Anthropic
    from brokle import wrap_openai, wrap_anthropic
 
-   openai_client = wrap_openai(OpenAI(api_key="sk-..."))
-   anthropic_client = wrap_anthropic(Anthropic(api_key="sk-ant-..."))
+   openai_client = wrap_openai(
+       OpenAI(api_key="sk-..."),
+       tags=["production"],
+       session_id="user_session_123"
+   )
+   anthropic_client = wrap_anthropic(
+       Anthropic(api_key="sk-ant-..."),
+       tags=["claude", "analysis"]
+   )
    response = openai_client.chat.completions.create(...)
    ```
 
@@ -128,7 +135,7 @@ from .ai_platform import (
 
 # Main exports - Clean 3-Pattern Architecture (v2.0.0)
 __all__ = [
-    # === PATTERN 1: WRAPPER FUNCTIONS (LangSmith/Optik Style) ===
+    # === PATTERN 1: WRAPPER FUNCTIONS ===
     "wrap_openai",               # OpenAI client wrapper
     "wrap_anthropic",            # Anthropic client wrapper
     "wrap_google",               # Google AI wrapper (future)

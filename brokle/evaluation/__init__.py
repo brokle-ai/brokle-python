@@ -1,8 +1,8 @@
 """
-LangSmith-inspired evaluation framework for Brokle SDK.
+Comprehensive evaluation framework for Brokle SDK.
 
-This module provides comprehensive evaluation capabilities for AI applications,
-following LangSmith patterns with Brokle-specific enhancements.
+This module provides comprehensive evaluation capabilities for AI applications
+with Brokle-specific enhancements.
 """
 
 from .base import BaseEvaluator, EvaluationResult, EvaluationConfig

@@ -6,8 +6,8 @@ The Brokle Python SDK provides intelligent routing across 250+ LLM providers, se
 
 ## 🎯 Three Patterns
 
-**Pattern 1: Drop-in Replacement**
-Zero code changes beyond import. Perfect for existing OpenAI codebases.
+**Pattern 1: Wrapper Functions**
+Explicit wrapping for observability.
 
 **Pattern 2: Universal Decorator**
 Framework-agnostic `@observe()` decorator. Works with any AI library.
@@ -31,13 +31,14 @@ export BROKLE_HOST="http://localhost:8080"
 
 ## Quick Start
 
-### Pattern 1: Drop-in Replacement
+### Pattern 1: Wrapper Functions
 
 ```python
-# Zero code changes beyond import
-from brokle.openai import OpenAI
+# Explicit wrapping for observability
+from openai import OpenAI
+from brokle import wrap_openai
 
-client = OpenAI()
+client = wrap_openai(OpenAI(), tags=["production"])
 response = client.chat.completions.create(
     model="gpt-4",
     messages=[{"role": "user", "content": "Hello!"}]
@@ -97,7 +98,7 @@ asyncio.run(main())
 ## Examples
 
 Check the `examples/` directory:
-- [`pattern1_openai_dropin.py`](examples/pattern1_openai_dropin.py) - Drop-in replacement
+- [`pattern1_wrapper_functions.py`](examples/pattern1_wrapper_functions.py) - Wrapper functions
 - [`pattern2_decorator.py`](examples/pattern2_decorator.py) - Universal decorator
 - [`pattern3_native_sdk.py`](examples/pattern3_native_sdk.py) - Native SDK features
 

@@ -1,7 +1,7 @@
 """
 Built-in evaluators for Brokle evaluation framework.
 
-LangSmith-inspired metrics with Brokle-specific enhancements for AI platform features.
+Comprehensive metrics with Brokle-specific enhancements for AI platform features.
 """
 
 from .accuracy import AccuracyEvaluator

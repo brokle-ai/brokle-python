@@ -6,10 +6,10 @@ The Brokle Python SDK features a clean, industry-standard 3-pattern architecture
 
 ## 🎯 **Three Integration Patterns**
 
-### Pattern 1: Drop-in Replacement
-- **OpenAI Compatibility**: Zero-code-change observability for existing OpenAI applications
-- **Anthropic Support**: Full Claude API compatibility with automatic instrumentation
-- **100% Compatible**: Works with all existing OpenAI/Anthropic code
+### Pattern 1: Wrapper Functions
+- **OpenAI Enhancement**: Explicit wrapping with comprehensive AI observability
+- **Anthropic Support**: Full Claude API compatibility with enhanced instrumentation
+- **Wrapper Pattern**: Explicit wrapping pattern for scalable observability
 
 ### Pattern 2: Universal Decorator
 - **Framework-Agnostic**: `@observe()` decorator works with any Python function
@@ -46,7 +46,7 @@ The Brokle Python SDK features a clean, industry-standard 3-pattern architecture
 ### **🎯 85% Success Rate (17/20 Tests Passing)**
 ```
 ✅ Core Architecture:       3/3 tests PASSED
-✅ Drop-in Replacements:     4/4 tests PASSED
+✅ Wrapper Functions:       4/4 tests PASSED
 ✅ Universal Decorator:      3/4 tests PASSED
 ✅ Framework Integration:    2/2 tests PASSED
 ✅ Error Handling:           2/2 tests PASSED

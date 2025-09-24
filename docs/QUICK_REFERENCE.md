@@ -2,13 +2,13 @@
 
 ## 🎯 Three Patterns
 
-### Pattern 1: Drop-in Replacement (Zero Code Changes)
+### Pattern 1: Wrapper Functions (Explicit Enhancement)
 ```python
-# Instead of: from openai import OpenAI
-from brokle.openai import OpenAI  # Instant observability
+from openai import OpenAI
+from brokle import wrap_openai  # Explicit wrapping
 
-client = OpenAI()
-response = client.chat.completions.create(...)  # Automatically tracked
+client = wrap_openai(OpenAI(), tags=["production"])
+response = client.chat.completions.create(...)  # Enhanced tracking
 ```
 
 ### Pattern 2: Universal Decorator (Framework-Agnostic)

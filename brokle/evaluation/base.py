@@ -1,7 +1,7 @@
 """
 Base evaluation classes and types for Brokle evaluation framework.
 
-Following LangSmith patterns with Brokle-specific enhancements.
+Comprehensive evaluation framework with Brokle-specific enhancements.
 """
 
 import asyncio
@@ -29,7 +29,7 @@ class EvaluationResult:
     """
     Result of a single evaluation.
 
-    This follows LangSmith's evaluation result pattern but with
+    Comprehensive evaluation result structure with
     Brokle-specific enhancements for AI platform metrics.
     """
     key: str
@@ -131,7 +131,7 @@ class BaseEvaluator(ABC):
     """
     Base class for all evaluators.
 
-    Following LangSmith's evaluator pattern with Brokle enhancements.
+    Comprehensive evaluator framework with Brokle enhancements.
     """
 
     def __init__(

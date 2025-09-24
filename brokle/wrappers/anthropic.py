@@ -1,13 +1,12 @@
 """
 Anthropic Wrapper Function - Pattern 1 Implementation
 
-Provides wrap_anthropic() function following LangSmith/Optik patterns.
+Provides wrap_anthropic() function for explicit client wrapping.
 Wraps existing Anthropic client instances with Brokle observability.
 """
 
 import logging
-from typing import Any, Optional, TypeVar, cast, Union
-import time
+from typing import Optional, TypeVar, cast, Union
 import warnings
 
 try:
@@ -196,94 +195,7 @@ def wrap_anthropic(
 
 
 
-# Convenience function for Optik-style usage
-def track_anthropic(
-    *,
-    capture_content: bool = True,
-    capture_metadata: bool = True,
-    tags: Optional[list] = None,
-    session_id: Optional[str] = None,
-    user_id: Optional[str] = None,
-    **config
-):
-    """
-    Function-based Anthropic tracking following Optik patterns.
-
-    Returns a context manager that automatically wraps
-    Anthropic clients found in the execution context.
-
-    Usage:
-        # As context manager
-        with track_anthropic(tags=["production"]):
-            client = Anthropic()
-            response = client.messages.create(...)
-
-        # As decorator (future implementation)
-        @track_anthropic(session_id="session_123")
-        def my_ai_function():
-            client = Anthropic()
-            return client.messages.create(...)
-    """
-    # This is a simplified implementation
-    # Full implementation would require more sophisticated client detection
-    class AnthropicTracker:
-        def __init__(self, **tracking_config):
-            self.config = tracking_config
-            self._original_anthropic = None
-            self._original_async_anthropic = None
-
-        def __enter__(self):
-            if not HAS_ANTHROPIC:
-                logger.warning("Anthropic SDK not available for tracking")
-                return self
-
-            # Store original Anthropic classes
-            self._original_anthropic = _Anthropic
-            self._original_async_anthropic = _AsyncAnthropic
-
-            # Create wrapper classes that auto-instrument
-            class BrokleAnthropic(_Anthropic):
-                def __init__(self, **kwargs):
-                    super().__init__(**kwargs)
-                    # Auto-wrap after initialization
-                    wrapped = wrap_anthropic(self, **tracking_config)
-                    # Copy wrapped attributes back to self
-                    self.__dict__.update(wrapped.__dict__)
-
-            class BrokleAsyncAnthropic(_AsyncAnthropic):
-                def __init__(self, **kwargs):
-                    super().__init__(**kwargs)
-                    # Auto-wrap after initialization
-                    wrapped = wrap_anthropic(self, **tracking_config)
-                    # Copy wrapped attributes back to self
-                    self.__dict__.update(wrapped.__dict__)
-
-            # Monkey patch Anthropic classes
-            anthropic.Anthropic = BrokleAnthropic
-            anthropic.AsyncAnthropic = BrokleAsyncAnthropic
-
-            return self
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            if not HAS_ANTHROPIC:
-                return
-
-            # Restore original classes
-            anthropic.Anthropic = self._original_anthropic
-            anthropic.AsyncAnthropic = self._original_async_anthropic
-
-    return AnthropicTracker(
-        capture_content=capture_content,
-        capture_metadata=capture_metadata,
-        tags=tags,
-        session_id=session_id,
-        user_id=user_id,
-        **config
-    )
-
-
 # Export public API
 __all__ = [
     "wrap_anthropic",
-    "track_anthropic",
 ]

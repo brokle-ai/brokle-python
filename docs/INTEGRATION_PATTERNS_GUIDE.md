@@ -4,26 +4,34 @@ The Brokle SDK provides three elegant patterns for adding observability to your 
 
 ## 🎯 Three Integration Patterns
 
-### Pattern 1: Drop-in Replacement (Recommended for Existing Code)
+### Pattern 1: Wrapper Functions
 
-Zero code changes - just swap your imports:
+Explicit wrapping for enhanced AI observability:
 
 ```python
-# Before
+# Explicit wrapping approach
 from openai import OpenAI
 from anthropic import Anthropic
+from brokle import wrap_openai, wrap_anthropic
 
-# After - automatic observability
-from brokle.openai import OpenAI
-from brokle.anthropic import Anthropic
+# Wrap your AI clients for enhanced observability
+openai_client = wrap_openai(
+    OpenAI(api_key="sk-..."),
+    tags=["production"],
+    session_id="user_session_123"
+)
 
-# Your existing code works unchanged
-client = OpenAI(api_key="sk-...")
-response = client.chat.completions.create(
+anthropic_client = wrap_anthropic(
+    Anthropic(api_key="sk-ant-..."),
+    tags=["claude", "analysis"]
+)
+
+# Use wrapped clients exactly like normal
+response = openai_client.chat.completions.create(
     model="gpt-4",
     messages=[{"role": "user", "content": "Hello!"}]
 )
-# ✨ Automatically instrumented with full observability
+# ✨ Enhanced with comprehensive AI-specific observability
 ```
 
 ### Pattern 2: Universal Decorator (Framework-Agnostic)

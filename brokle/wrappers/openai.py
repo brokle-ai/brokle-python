@@ -1,13 +1,12 @@
 """
 OpenAI Wrapper Function - Pattern 1 Implementation
 
-Provides wrap_openai() function following LangSmith/Optik patterns.
+Provides wrap_openai() function for explicit client wrapping.
 Wraps existing OpenAI client instances with Brokle observability.
 """
 
 import logging
-from typing import Any, Optional, TypeVar, cast, Union
-import time
+from typing import Optional, TypeVar, cast, Union
 import warnings
 
 try:
@@ -193,94 +192,7 @@ def wrap_openai(
         raise ProviderError(f"Failed to instrument OpenAI client: {e}")
 
 
-# Convenience function for Optik-style usage
-def track_openai(
-    *,
-    capture_content: bool = True,
-    capture_metadata: bool = True,
-    tags: Optional[list] = None,
-    session_id: Optional[str] = None,
-    user_id: Optional[str] = None,
-    **config
-):
-    """
-    Function-based OpenAI tracking following Optik patterns.
-
-    Returns a context manager that automatically wraps
-    OpenAI clients found in the execution context.
-
-    Usage:
-        # As context manager
-        with track_openai(tags=["production"]):
-            client = OpenAI()
-            response = client.chat.completions.create(...)
-
-        # As decorator (future implementation)
-        @track_openai(session_id="session_123")
-        def my_ai_function():
-            client = OpenAI()
-            return client.chat.completions.create(...)
-    """
-    # This is a simplified implementation
-    # Full implementation would require more sophisticated client detection
-    class OpenAITracker:
-        def __init__(self, **tracking_config):
-            self.config = tracking_config
-            self._original_openai = None
-            self._original_async_openai = None
-
-        def __enter__(self):
-            if not HAS_OPENAI:
-                logger.warning("OpenAI SDK not available for tracking")
-                return self
-
-            # Store original OpenAI classes
-            self._original_openai = _OpenAI
-            self._original_async_openai = _AsyncOpenAI
-
-            # Create wrapper classes that auto-instrument
-            class BrokleOpenAI(_OpenAI):
-                def __init__(self, **kwargs):
-                    super().__init__(**kwargs)
-                    # Auto-wrap after initialization
-                    wrapped = wrap_openai(self, **tracking_config)
-                    # Copy wrapped attributes back to self
-                    self.__dict__.update(wrapped.__dict__)
-
-            class BrokleAsyncOpenAI(_AsyncOpenAI):
-                def __init__(self, **kwargs):
-                    super().__init__(**kwargs)
-                    # Auto-wrap after initialization
-                    wrapped = wrap_openai(self, **tracking_config)
-                    # Copy wrapped attributes back to self
-                    self.__dict__.update(wrapped.__dict__)
-
-            # Monkey patch OpenAI classes
-            openai.OpenAI = BrokleOpenAI
-            openai.AsyncOpenAI = BrokleAsyncOpenAI
-
-            return self
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            if not HAS_OPENAI:
-                return
-
-            # Restore original classes
-            openai.OpenAI = self._original_openai
-            openai.AsyncOpenAI = self._original_async_openai
-
-    return OpenAITracker(
-        capture_content=capture_content,
-        capture_metadata=capture_metadata,
-        tags=tags,
-        session_id=session_id,
-        user_id=user_id,
-        **config
-    )
-
-
 # Export public API
 __all__ = [
     "wrap_openai",
-    "track_openai",
 ]
