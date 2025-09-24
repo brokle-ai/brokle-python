@@ -49,7 +49,7 @@ class TestWrapOpenAI:
     @patch('brokle.wrappers.openai._OpenAI')
     @patch('brokle.wrappers.openai._AsyncOpenAI')
     @patch('brokle.wrappers.openai.UniversalInstrumentation')
-    @patch('brokle.wrappers.openai.OpenAIProvider')
+    @patch('brokle.wrappers.openai.get_provider')
     def test_wrap_openai_basic_success(self, mock_provider_class, mock_instrumentation_class, mock_async_openai_class, mock_openai_class):
         """Test successful wrapping of OpenAI client."""
         # Setup mocks
@@ -151,7 +151,7 @@ class TestWrapAnthropic:
     @patch('brokle.wrappers.anthropic._Anthropic')
     @patch('brokle.wrappers.anthropic._AsyncAnthropic')
     @patch('brokle.wrappers.anthropic.UniversalInstrumentation')
-    @patch('brokle.wrappers.anthropic.AnthropicProvider')
+    @patch('brokle.wrappers.anthropic.get_provider')
     def test_wrap_anthropic_basic_success(self, mock_provider_class, mock_instrumentation_class, mock_async_anthropic_class, mock_anthropic_class):
         """Test successful wrapping of Anthropic client."""
         # Setup mocks

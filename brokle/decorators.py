@@ -57,6 +57,7 @@ from ._utils.telemetry import create_span, add_span_attributes, record_span_exce
 from ._utils.validation import validate_environment
 from .types.attributes import BrokleOtelSpanAttributes
 from .exceptions import BrokleError
+from .providers import get_provider
 
 logger = logging.getLogger(__name__)
 
@@ -196,6 +197,10 @@ class SpanContext:
         for key, value in self.config.metadata.items():
             attributes[f"metadata.{key}"] = str(value)
 
+        # Enhance with AI provider attributes if AI usage is detected
+        ai_attributes = self._extract_ai_attributes()
+        attributes.update(ai_attributes)
+
         return attributes
 
     def _capture_inputs(self):
@@ -287,6 +292,148 @@ class SpanContext:
         """Record function result for output capture"""
         self.result = result
 
+        # Extract AI response attributes if result contains AI response
+        if self.span:
+            ai_response_attributes = self._extract_ai_response_attributes(result)
+            if ai_response_attributes:
+                add_span_attributes(self.span, ai_response_attributes)
+
+    def _extract_ai_attributes(self) -> Dict[str, Any]:
+        """Extract AI-specific attributes from function arguments"""
+        ai_attributes = {}
+
+        try:
+            # Detect AI provider clients in arguments
+            provider_name = None
+            client_instance = None
+
+            # Check args for AI clients
+            for arg in self.args:
+                if self._is_openai_client(arg):
+                    provider_name = "openai"
+                    client_instance = arg
+                    break
+                elif self._is_anthropic_client(arg):
+                    provider_name = "anthropic"
+                    client_instance = arg
+                    break
+
+            # Check kwargs for AI clients (common in async calls)
+            if not provider_name:
+                for key, value in self.kwargs.items():
+                    if self._is_openai_client(value):
+                        provider_name = "openai"
+                        client_instance = value
+                        break
+                    elif self._is_anthropic_client(value):
+                        provider_name = "anthropic"
+                        client_instance = value
+                        break
+
+            # If AI provider detected, extract request attributes
+            if provider_name:
+                try:
+                    provider = get_provider(provider_name)
+
+                    # Convert args and kwargs to provider-compatible format
+                    request_kwargs = {}
+
+                    # Try to extract common AI parameters from function kwargs
+                    ai_params = ['model', 'messages', 'prompt', 'temperature', 'max_tokens',
+                                'top_p', 'frequency_penalty', 'presence_penalty', 'stream',
+                                'tools', 'functions', 'system']
+
+                    for param in ai_params:
+                        if param in self.kwargs:
+                            request_kwargs[param] = self.kwargs[param]
+
+                    # Extract provider-specific attributes if we have request parameters
+                    if request_kwargs:
+                        provider_attributes = provider.extract_request_attributes(request_kwargs)
+                        ai_attributes.update(provider_attributes)
+
+                        # Mark as AI operation
+                        ai_attributes[BrokleOtelSpanAttributes.OPERATION_TYPE] = "ai_call"
+                        ai_attributes[BrokleOtelSpanAttributes.PROVIDER] = provider_name
+
+                except Exception as e:
+                    logger.debug(f"Failed to extract AI attributes for {provider_name}: {e}")
+
+        except Exception as e:
+            logger.debug(f"Failed to detect AI usage in decorator: {e}")
+
+        return ai_attributes
+
+    def _extract_ai_response_attributes(self, result: Any) -> Dict[str, Any]:
+        """Extract AI-specific attributes from function result"""
+        ai_attributes = {}
+
+        try:
+            # Detect AI provider from result type
+            provider_name = None
+
+            if self._is_openai_response(result):
+                provider_name = "openai"
+            elif self._is_anthropic_response(result):
+                provider_name = "anthropic"
+
+            # If AI response detected, extract response attributes
+            if provider_name:
+                try:
+                    provider = get_provider(provider_name)
+                    response_attributes = provider.extract_response_attributes(result)
+                    ai_attributes.update(response_attributes)
+
+                except Exception as e:
+                    logger.debug(f"Failed to extract AI response attributes for {provider_name}: {e}")
+
+        except Exception as e:
+            logger.debug(f"Failed to extract AI response attributes: {e}")
+
+        return ai_attributes
+
+    def _is_openai_client(self, obj: Any) -> bool:
+        """Check if object is an OpenAI client instance"""
+        try:
+            type_name = type(obj).__name__
+            module_name = getattr(type(obj), '__module__', '')
+            return (type_name in ['OpenAI', 'AsyncOpenAI'] and
+                    'openai' in module_name)
+        except:
+            return False
+
+    def _is_anthropic_client(self, obj: Any) -> bool:
+        """Check if object is an Anthropic client instance"""
+        try:
+            type_name = type(obj).__name__
+            module_name = getattr(type(obj), '__module__', '')
+            return (type_name in ['Anthropic', 'AsyncAnthropic'] and
+                    'anthropic' in module_name)
+        except:
+            return False
+
+    def _is_openai_response(self, obj: Any) -> bool:
+        """Check if object is an OpenAI response"""
+        try:
+            type_name = type(obj).__name__
+            module_name = getattr(type(obj), '__module__', '')
+            return ('openai' in module_name and
+                    any(keyword in type_name.lower() for keyword in
+                        ['completion', 'response', 'message', 'embedding', 'image']))
+        except:
+            return False
+
+    def _is_anthropic_response(self, obj: Any) -> bool:
+        """Check if object is an Anthropic response"""
+        try:
+            type_name = type(obj).__name__
+            module_name = getattr(type(obj), '__module__', '')
+            return ('anthropic' in module_name and
+                    any(keyword in type_name.lower() for keyword in
+                        ['message', 'completion', 'response']))
+        except:
+            return False
+
 
 def observe(
     name: Optional[str] = None,
@@ -302,10 +449,16 @@ def observe(
     max_output_length: int = 10000,
 ) -> Callable:
     """
-    Universal decorator for function observability.
+    Universal decorator for function observability with AI-aware intelligence.
 
     Provides comprehensive tracing and observability for any Python function
-    with configurable input/output capture and privacy controls.
+    with configurable input/output capture, privacy controls, and automatic
+    AI provider detection for enhanced telemetry.
+
+    **AI-Aware Features:**
+    - Automatic detection of OpenAI and Anthropic client usage
+    - AI-specific attribute extraction (model, tokens, costs, etc.)
+    - Enhanced observability for AI workflows and function calling
 
     Args:
         name: Custom span name (defaults to function name)
@@ -321,12 +474,25 @@ def observe(
         max_output_length: Maximum length for output serialization
 
     Returns:
-        Decorated function with observability
+        Decorated function with comprehensive observability and AI intelligence
 
     Example:
         @observe(name="ai-workflow", tags=["ai", "production"])
-        def process_user_query(query: str) -> str:
-            return llm.generate(query)
+        def process_user_query(client: OpenAI, query: str) -> str:
+            # Automatically detects OpenAI usage and extracts AI metrics
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": query}]
+            )
+            return response.choices[0].message.content
+
+        @observe(capture_inputs=False)  # For sensitive data
+        def analyze_document(client: Anthropic, document: str) -> dict:
+            # Automatically detects Anthropic usage with privacy controls
+            return client.messages.create(
+                model="claude-3-opus-20240229",
+                messages=[{"role": "user", "content": document}]
+            )
     """
 
     def decorator(func: Callable) -> Callable:

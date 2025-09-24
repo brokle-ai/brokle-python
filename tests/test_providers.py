@@ -7,8 +7,8 @@ Tests the provider-specific logic for OpenAI and Anthropic.
 import pytest
 from unittest.mock import Mock
 
-from brokle.integrations.providers.openai import OpenAIProvider
-from brokle.integrations.providers.anthropic import AnthropicProvider
+from brokle.providers.openai import OpenAIProvider
+from brokle.providers.anthropic import AnthropicProvider
 from brokle._client.attributes import BrokleOtelSpanAttributes as BrokleInstrumentationAttributes
 
 

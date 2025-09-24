@@ -21,6 +21,14 @@ from .attributes import BrokleOtelSpanAttributes
 if TYPE_CHECKING:
     from .client import Brokle
 
+# Import shared providers for enhanced AI attribute extraction
+try:
+    from ..providers import get_provider
+    HAS_PROVIDERS = True
+except ImportError:
+    HAS_PROVIDERS = False
+    get_provider = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -179,10 +187,40 @@ class BrokleSpan:
 
 class BrokleGeneration(BrokleSpan):
     """
-    Brokle generation span for LLM operations.
+    Brokle generation span for LLM operations with AI-aware intelligence.
 
-    This class extends BrokleSpan with LLM-specific functionality
-    and attributes for comprehensive LLM observability.
+    This class extends BrokleSpan with LLM-specific functionality, comprehensive
+    AI observability, and automatic provider-aware attribute extraction using
+    shared providers for enhanced AI telemetry.
+
+    **Enhanced AI Features:**
+    - Provider-aware attribute extraction for OpenAI, Anthropic, and future providers
+    - Automatic cost calculation and token usage tracking
+    - Comprehensive AI-specific telemetry with 40+ attributes
+    - Factory method for seamless AI request integration
+
+    Example:
+        # Basic usage with manual metrics
+        with client.generation("llm-call", provider="openai", model="gpt-4") as gen:
+            response = openai_client.chat.completions.create(...)
+            gen.update_metrics(
+                input_tokens=response.usage.prompt_tokens,
+                output_tokens=response.usage.completion_tokens,
+                cost_usd=0.06
+            )
+
+        # Enhanced usage with provider integration
+        request_params = {
+            "model": "gpt-4",
+            "messages": [{"role": "user", "content": "Hello"}],
+            "temperature": 0.7
+        }
+        gen = BrokleGeneration.create_from_ai_request(
+            client, "ai-workflow", request_params, "openai"
+        )
+        response = openai_client.chat.completions.create(**request_params)
+        gen.update_with_response_attributes(response, "openai")
+        gen.end()
     """
 
     def __init__(
@@ -322,3 +360,128 @@ class BrokleGeneration(BrokleSpan):
             logger.error(f"Failed to update Brokle metrics: {e}")
 
         return self
+
+    def update_with_request_attributes(
+        self,
+        request_params: Dict[str, Any],
+        provider: Optional[str] = None
+    ) -> 'BrokleGeneration':
+        """Update span with AI request attributes using shared providers."""
+        if not HAS_PROVIDERS or not get_provider:
+            logger.debug("Shared providers not available for request attribute extraction")
+            return self
+
+        try:
+            # Use provided provider or detect from existing span attributes
+            provider_name = provider or self.provider
+            if not provider_name:
+                logger.debug("No provider specified for request attribute extraction")
+                return self
+
+            # Get provider and extract attributes
+            provider_instance = get_provider(provider_name)
+            provider_attributes = provider_instance.extract_request_attributes(request_params)
+
+            # Apply provider-specific attributes to span
+            if self._otel_span and provider_attributes:
+                for key, value in provider_attributes.items():
+                    if value is not None:  # Only set non-null values
+                        self._otel_span.set_attribute(key, value)
+
+                logger.debug(f"Applied {len(provider_attributes)} request attributes from {provider_name} provider")
+
+        except Exception as e:
+            logger.error(f"Failed to extract request attributes using provider {provider}: {e}")
+
+        return self
+
+    def update_with_response_attributes(
+        self,
+        response: Any,
+        provider: Optional[str] = None
+    ) -> 'BrokleGeneration':
+        """Update span with AI response attributes using shared providers."""
+        if not HAS_PROVIDERS or not get_provider:
+            logger.debug("Shared providers not available for response attribute extraction")
+            return self
+
+        try:
+            # Use provided provider or detect from existing span attributes
+            provider_name = provider or self.provider
+            if not provider_name:
+                logger.debug("No provider specified for response attribute extraction")
+                return self
+
+            # Get provider and extract attributes
+            provider_instance = get_provider(provider_name)
+            provider_attributes = provider_instance.extract_response_attributes(response)
+
+            # Apply provider-specific attributes to span
+            if self._otel_span and provider_attributes:
+                for key, value in provider_attributes.items():
+                    if value is not None:  # Only set non-null values
+                        self._otel_span.set_attribute(key, value)
+
+                # Update local metrics if available
+                self._update_local_metrics_from_attributes(provider_attributes)
+
+                logger.debug(f"Applied {len(provider_attributes)} response attributes from {provider_name} provider")
+
+        except Exception as e:
+            logger.error(f"Failed to extract response attributes using provider {provider}: {e}")
+
+        return self
+
+    def _update_local_metrics_from_attributes(self, provider_attributes: Dict[str, Any]) -> None:
+        """Update local metric properties from provider attributes."""
+        try:
+            # Map provider attributes to local properties
+            if BrokleOtelSpanAttributes.INPUT_TOKENS in provider_attributes:
+                self.input_tokens = provider_attributes[BrokleOtelSpanAttributes.INPUT_TOKENS]
+
+            if BrokleOtelSpanAttributes.OUTPUT_TOKENS in provider_attributes:
+                self.output_tokens = provider_attributes[BrokleOtelSpanAttributes.OUTPUT_TOKENS]
+
+            if BrokleOtelSpanAttributes.TOTAL_TOKENS in provider_attributes:
+                self.total_tokens = provider_attributes[BrokleOtelSpanAttributes.TOTAL_TOKENS]
+
+            if BrokleOtelSpanAttributes.COST_USD in provider_attributes:
+                self.cost_usd = provider_attributes[BrokleOtelSpanAttributes.COST_USD]
+
+        except Exception as e:
+            logger.debug(f"Failed to update local metrics from provider attributes: {e}")
+
+    @classmethod
+    def create_from_ai_request(
+        cls,
+        client: 'Brokle',
+        name: str,
+        request_params: Dict[str, Any],
+        provider: str,
+        **kwargs
+    ) -> 'BrokleGeneration':
+        """
+        Create a BrokleGeneration span from AI request parameters using shared providers.
+
+        This method combines span creation with provider-aware attribute extraction
+        for comprehensive AI observability.
+        """
+        # Extract model and provider from request params
+        model = request_params.get('model')
+
+        # Create the generation span
+        generation = cls(
+            client=client,
+            name=name,
+            model=model,
+            provider=provider,
+            **kwargs
+        )
+
+        # Start the span to initialize OTEL span
+        generation.start()
+
+        # Use shared provider to extract and apply request attributes
+        generation.update_with_request_attributes(request_params, provider)
+
+        return generation

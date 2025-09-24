@@ -21,7 +21,7 @@ except ImportError:
     HAS_ANTHROPIC = False
 
 from ..integrations.instrumentation import UniversalInstrumentation
-from ..integrations.providers.anthropic import AnthropicProvider
+from ..providers import get_provider
 from ..exceptions import ProviderError, ValidationError
 from .._utils.validation import validate_environment
 from .._utils.wrapper_validation import validate_wrapper_config
@@ -170,7 +170,7 @@ def wrap_anthropic(
 
     # Create provider and instrumentation
     try:
-        provider = AnthropicProvider(**provider_config)
+        provider = get_provider("anthropic", **provider_config)
         instrumentation = UniversalInstrumentation(provider)
 
         # Apply instrumentation to client

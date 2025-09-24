@@ -26,7 +26,7 @@ from .._utils.telemetry import create_span, add_span_attributes, record_span_exc
 from .._utils.error_handling import handle_provider_error
 from .._client.attributes import BrokleOtelSpanAttributes as BrokleInstrumentationAttributes
 from .validators import AttributeValidator
-from .providers.base import BaseProvider
+from ..providers.base import BaseProvider
 from ..exceptions import ProviderError, BrokleError
 
 logger = logging.getLogger(__name__)

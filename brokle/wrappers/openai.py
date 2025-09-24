@@ -21,7 +21,7 @@ except ImportError:
     HAS_OPENAI = False
 
 from ..integrations.instrumentation import UniversalInstrumentation
-from ..integrations.providers.openai import OpenAIProvider
+from ..providers import get_provider
 from ..exceptions import ProviderError, ValidationError
 from .._utils.validation import validate_environment
 from .._utils.wrapper_validation import validate_wrapper_config
@@ -169,7 +169,7 @@ def wrap_openai(
 
     # Create provider and instrumentation
     try:
-        provider = OpenAIProvider(**provider_config)
+        provider = get_provider("openai", **provider_config)
         instrumentation = UniversalInstrumentation(provider)
 
         # Apply instrumentation to client
