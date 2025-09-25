@@ -19,11 +19,11 @@ from .anthropic import wrap_anthropic
 # Future providers - stubs for now
 def wrap_google(*args, **kwargs):
     """Google AI wrapper - not yet implemented"""
-    raise ImportError("Google AI wrapper not yet implemented.")
+    raise NotImplementedError("Google AI wrapper not yet implemented.")
 
 def wrap_cohere(*args, **kwargs):
     """Cohere wrapper - not yet implemented"""
-    raise ImportError("Cohere wrapper not yet implemented.")
+    raise NotImplementedError("Cohere wrapper not yet implemented.")
 
 __all__ = [
     "wrap_openai",
