@@ -120,9 +120,9 @@ class TestComprehensiveIntegration:
         assert callable(register_provider)
 
     def test_sdk_version_updated(self):
-        """Test that SDK version was updated for 2.0 release."""
+        """Test that SDK version is properly set."""
         from brokle._version import __version__
-        assert __version__ == "2.0.0", f"Expected version 2.0.0, got {__version__}"
+        assert __version__ == "0.1.0", f"Expected version 0.1.0, got {__version__}"
 
     def test_clean_public_api(self):
         """Test that public API exports are clean and complete."""

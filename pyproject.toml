@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "brokle"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Brokle Platform Python SDK for intelligent LLM routing, caching, and observability"
 readme = "README.md"
 license = {text = "MIT"}
@@ -95,6 +95,9 @@ Documentation = "https://docs.brokle.com/sdk/python"
 Repository = "https://github.com/brokle-ai/brokle-python"
 "Bug Tracker" = "https://github.com/brokle-ai/brokle-python/issues"
 Changelog = "https://github.com/brokle-ai/brokle-python/blob/main/CHANGELOG.md"
+
+[tool.setuptools.dynamic]
+version = {attr = "brokle._version.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["."]
