@@ -9,7 +9,7 @@ observability system using OpenTelemetry and wrapt.
 """
 
 from .instrumentation import UniversalInstrumentation, InstrumentationContext
-from .._client.attributes import BrokleOtelSpanAttributes as BrokleInstrumentationAttributes
+from ..observability.attributes import BrokleOtelSpanAttributes as BrokleInstrumentationAttributes
 
 __all__ = [
     "UniversalInstrumentation",

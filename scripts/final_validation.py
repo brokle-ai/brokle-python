@@ -134,13 +134,13 @@ class BrokleSDKValidator:
         start_time = time.time()
         try:
             from brokle import get_client
-            from brokle._client.context import clear_context, get_context_info
+            from brokle.observability import clear_context, get_context_info
 
             # Clear any existing context
             clear_context()
 
-            # Test client creation with explicit parameters
-            client1 = get_client(
+            # Test client creation with explicit parameters (v2.0 pattern)
+            client1 = Brokle(
                 api_key="ak_test_1",
                 project_id="proj_test_1",
                 environment="test1"
@@ -160,23 +160,23 @@ class BrokleSDKValidator:
         # Test 2: Multi-project safety
         start_time = time.time()
         try:
-            from brokle._client.context import clear_context
+            from brokle.observability import clear_context
 
             # Clear context
             clear_context()
 
-            # Create client for project 1
-            client1 = get_client(
+            # Create client for project 1 (v2.0 pattern)
+            client1 = Brokle(
                 api_key="ak_test_1",
                 project_id="proj_1",
                 environment="prod"
             )
 
-            # Try to get client for different project (should create new)
+            # Create client for different project (v2.0 pattern - distinct instances)
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
 
-                client2 = get_client(
+                client2 = Brokle(
                     api_key="ak_test_2",
                     project_id="proj_2",
                     environment="prod"

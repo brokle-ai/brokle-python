@@ -9,7 +9,7 @@ from unittest.mock import Mock
 
 from brokle.providers.openai import OpenAIProvider
 from brokle.providers.anthropic import AnthropicProvider
-from brokle._client.attributes import BrokleOtelSpanAttributes as BrokleInstrumentationAttributes
+from brokle.observability.attributes import BrokleOtelSpanAttributes as BrokleInstrumentationAttributes
 
 
 class TestOpenAIProvider:

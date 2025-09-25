@@ -1,534 +1,652 @@
-# Auto-Instrumentation API Reference
+# Brokle Python SDK v2.0 - Complete API Reference
 
-Complete API reference for Brokle's Auto-Instrumentation system.
+The Brokle Python SDK provides three integration patterns for adding AI observability, routing, and optimization to your applications.
 
-## Core Functions
+## 🎯 Three Integration Patterns Overview
 
-### `auto_instrument(libraries=None, exclude=None) -> Dict[str, bool]`
+- **Pattern 1: Wrapper Functions** - Explicit wrapping of existing AI clients
+- **Pattern 2: Universal Decorator** - Framework-agnostic `@observe()` decorator
+- **Pattern 3: Native SDK** - Full platform features with OpenAI-compatible interface
 
-Automatically instrument available LLM libraries.
+---
 
-**Parameters:**
-- `libraries` (Optional[List[str]]): Specific libraries to instrument. If None, instruments all available.
-- `exclude` (Optional[List[str]]): Libraries to exclude from instrumentation.
+# Pattern 1: Wrapper Functions API
 
-**Returns:**
-- `Dict[str, bool]`: Mapping of library names to instrumentation success status.
+## `wrap_openai(client, **config) -> OpenAIType`
 
-**Example:**
-```python
-# Instrument all available libraries
-results = brokle_ai.auto_instrument()
-
-# Instrument specific libraries only
-results = brokle_ai.auto_instrument(libraries=["openai", "anthropic"])
-
-# Instrument all except specific libraries
-results = brokle_ai.auto_instrument(exclude=["langchain"])
-```
-
-### `instrument(library: str) -> bool`
-
-Instrument a specific library.
+Wrap an existing OpenAI client with Brokle observability and platform features.
 
 **Parameters:**
-- `library` (str): Name of the library to instrument ("openai", "anthropic", "langchain").
+- `client` (OpenAI | AsyncOpenAI): The OpenAI client instance to wrap
+- `capture_content` (bool, default=True): Whether to capture request/response content
+- `capture_metadata` (bool, default=True): Whether to capture metadata like model, tokens
+- `tags` (List[str], optional): List of tags to add to all traces from this client
+- `session_id` (str, optional): Session identifier for grouping related calls
+- `user_id` (str, optional): User identifier for user-scoped analytics
+- `**config`: Additional Brokle configuration options
 
 **Returns:**
-- `bool`: True if instrumentation succeeded, False otherwise.
+- Enhanced client with identical interface but comprehensive observability
+
+**Raises:**
+- `ProviderError`: If OpenAI SDK not installed or client is invalid
+- `ValidationError`: If configuration is invalid
 
 **Example:**
 ```python
-success = brokle_ai.instrument("openai")
-if success:
-    print("OpenAI instrumentation enabled")
-```
-
-### `uninstrument(library: str) -> bool`
-
-Remove instrumentation from a specific library.
-
-**Parameters:**
-- `library` (str): Name of the library to uninstrument.
-
-**Returns:**
-- `bool`: True if uninstrumentation succeeded, False otherwise.
-
-**Example:**
-```python
-success = brokle_ai.uninstrument("openai")
-```
-
-## Status & Health Functions
-
-### `print_status() -> None`
-
-Print visual instrumentation status for all libraries.
-
-**Example:**
-```python
-brokle_ai.print_status()
-"""
-=== Brokle Auto-Instrumentation Status ===
-✅ openai (auto): instrumented
-⚪ anthropic (auto): available
-❌ langchain (auto): not_available
-
-📊 Health Summary:
-   Overall Health: 100%
-   Libraries: 1/2 instrumented, 3/3 healthy
-"""
-```
-
-### `get_status() -> Dict[str, InstrumentationStatus]`
-
-Get programmatic instrumentation status.
-
-**Returns:**
-- `Dict[str, InstrumentationStatus]`: Mapping of library names to their status.
-
-**Status Values:**
-- `InstrumentationStatus.INSTRUMENTED`: Library is actively instrumented
-- `InstrumentationStatus.AVAILABLE`: Library is available but not instrumented
-- `InstrumentationStatus.NOT_AVAILABLE`: Library is not installed
-- `InstrumentationStatus.FAILED`: Instrumentation failed
-
-**Example:**
-```python
-status = brokle_ai.get_status()
-for library, lib_status in status.items():
-    print(f"{library}: {lib_status.value}")
-```
-
-### `print_health_report() -> None`
-
-Print detailed health report with error information and circuit breaker states.
-
-**Example:**
-```python
-brokle_ai.print_health_report()
-"""
-=== Brokle Auto-Instrumentation Health Report ===
-
-🏥 Overall Health Score: 85%
-   📊 Libraries: 3 total, 2 available
-   ✅ Status: 2 instrumented, 2 healthy
-
-⚡ Circuit Breaker Status:
-   🟢 openai: closed
-   🔴 anthropic: open
-   🟢 langchain: closed
-
-❗ Recent Errors:
-   anthropic.instrument: 3 errors
-"""
-```
-
-### `get_health_report() -> Dict[str, Any]`
-
-Get comprehensive health report programmatically.
-
-**Returns:**
-- `Dict[str, Any]`: Health report with overall metrics, library details, and error summary.
-
-**Report Structure:**
-```python
-{
-    "overall_health": {
-        "score": float,  # 0-100 health score
-        "total_libraries": int,
-        "healthy_libraries": int,
-        "instrumented_libraries": int,
-        "available_libraries": int
-    },
-    "library_details": {
-        "library_name": {
-            "status": str,
-            "description": str,
-            "auto_instrument": bool,
-            "available": bool,
-            "instrumented": bool,
-            "healthy": bool,
-            "error_summary": dict
-        }
-    },
-    "error_summary": {
-        "error_counts": dict,
-        "circuit_breaker_states": dict,
-        "last_errors": dict
-    },
-    "circuit_breaker_states": dict
-}
-```
-
-**Example:**
-```python
-health = brokle_ai.get_health_report()
-print(f"Overall health: {health['overall_health']['score']}%")
-
-for lib, details in health['library_details'].items():
-    if not details['healthy']:
-        print(f"⚠️ {lib} has issues")
-```
-
-## Error Management Functions
-
-### `reset_all_errors() -> None`
-
-Reset all error tracking and circuit breakers.
-
-**Example:**
-```python
-# Reset all errors to clean state
-brokle_ai.reset_all_errors()
-
-# Verify health improved
-health = brokle_ai.get_health_report()
-print(f"Health after reset: {health['overall_health']['score']}%")
-```
-
-### `get_error_handler() -> InstrumentationErrorHandler`
-
-Get the global error handler for advanced error management.
-
-**Returns:**
-- `InstrumentationErrorHandler`: Error handler instance for advanced operations.
-
-**Example:**
-```python
-error_handler = brokle_ai.get_error_handler()
-
-# Check if specific operation is healthy
-is_healthy = error_handler.is_operation_healthy("openai", "instrument")
-
-# Get detailed error summary
-error_summary = error_handler.get_error_summary()
-
-# Reset specific library errors
-error_handler.reset_errors("openai")
-```
-
-## Registry Functions
-
-### `get_registry() -> InstrumentationRegistry`
-
-Get the global instrumentation registry.
-
-**Returns:**
-- `InstrumentationRegistry`: Registry instance for advanced operations.
-
-**Example:**
-```python
-registry = brokle_ai.get_registry()
-
-# Get available libraries
-available = registry.get_available_libraries()
-print(f"Available libraries: {available}")
-
-# Get instrumented libraries
-instrumented = registry.get_instrumented_libraries()
-print(f"Instrumented libraries: {instrumented}")
-```
-
-## Classes
-
-### `InstrumentationRegistry`
-
-Central registry for managing library instrumentation.
-
-#### Methods
-
-##### `list_libraries() -> List[str]`
-List all registered library names.
-
-##### `get_available_libraries() -> List[str]`
-Get list of available (installed) libraries.
-
-##### `get_instrumented_libraries() -> List[str]`
-Get list of currently instrumented libraries.
-
-##### `instrument_library(name: str) -> bool`
-Instrument a specific library by name.
-
-##### `uninstrument_library(name: str) -> bool`
-Remove instrumentation from a library by name.
-
-##### `get_instrumentation_summary() -> Dict[str, Dict[str, Any]]`
-Get detailed summary of all library instrumentation states.
-
-**Example:**
-```python
-registry = brokle_ai.get_registry()
-
-# List all libraries
-all_libs = registry.list_libraries()
-
-# Get summary
-summary = registry.get_instrumentation_summary()
-for lib, details in summary.items():
-    print(f"{lib}: {details['status']} - {details['description']}")
-```
-
-### `InstrumentationErrorHandler`
-
-Handles errors and circuit breaker functionality.
-
-#### Methods
-
-##### `is_operation_healthy(library: str, operation: str) -> bool`
-Check if a specific operation is healthy (circuit breaker not open).
-
-##### `get_error_summary(library: Optional[str] = None) -> Dict[str, Any]`
-Get error summary for all operations or specific library.
-
-##### `reset_errors(library: str, operation: Optional[str] = None) -> None`
-Reset error tracking for library or specific operation.
-
-##### `get_circuit_breaker(operation: str) -> CircuitBreaker`
-Get circuit breaker instance for an operation.
-
-**Example:**
-```python
-error_handler = brokle_ai.get_error_handler()
-
-# Check health
-if error_handler.is_operation_healthy("openai", "instrument"):
-    print("OpenAI instrumentation is healthy")
-
-# Get circuit breaker
-cb = error_handler.get_circuit_breaker("openai.instrument")
-print(f"Circuit breaker state: {cb.state}")
-```
-
-## Error Classes
-
-### `InstrumentationError`
-
-Base exception for instrumentation-related errors.
-
-**Attributes:**
-- `message` (str): Error message
-- `severity` (ErrorSeverity): Error severity level
-- `library` (Optional[str]): Library name
-- `operation` (Optional[str]): Operation name
-- `original_error` (Optional[Exception]): Original exception that caused this error
-- `timestamp` (datetime): When the error occurred
-
-### `LibraryNotAvailableError`
-
-Raised when a library is not available for instrumentation.
-
-### `ObservabilityError`
-
-Raised when observability operations fail.
-
-### `ConfigurationError`
-
-Raised when configuration is invalid.
-
-### `ErrorSeverity`
-
-Enumeration of error severity levels.
-
-**Values:**
-- `ErrorSeverity.CRITICAL`: Complete instrumentation failure
-- `ErrorSeverity.HIGH`: Partial failure, fallback to basic instrumentation
-- `ErrorSeverity.MEDIUM`: Recoverable error, retry with exponential backoff
-- `ErrorSeverity.LOW`: Minor issue, log and continue
-- `ErrorSeverity.DEBUG`: Development/debugging information
-
-**Example:**
-```python
-from brokle.auto_instrumentation import InstrumentationError, ErrorSeverity
-
-try:
-    brokle_ai.instrument("nonexistent_library")
-except InstrumentationError as e:
-    print(f"Error: {e.message}")
-    print(f"Severity: {e.severity.value}")
-    print(f"Library: {e.library}")
-    print(f"Operation: {e.operation}")
-    print(f"Timestamp: {e.timestamp}")
-```
-
-## Decorators
-
-### `@safe_operation(library: str, operation: str, severity: ErrorSeverity = ErrorSeverity.MEDIUM)`
-
-Decorator for safe instrumentation operations with error handling and circuit breaker protection.
-
-**Parameters:**
-- `library` (str): Library name for error tracking
-- `operation` (str): Operation name for error tracking
-- `severity` (ErrorSeverity): Error severity level
-
-**Example:**
-```python
-from brokle.auto_instrumentation.error_handlers import safe_operation, ErrorSeverity
-
-@safe_operation("my_lib", "custom_operation", ErrorSeverity.LOW)
-def my_instrumentation_function():
-    # Your instrumentation code here
-    # Errors will be handled gracefully
-    return True
-```
-
-### `@safe_async_operation(library: str, operation: str, severity: ErrorSeverity = ErrorSeverity.MEDIUM)`
-
-Async version of `@safe_operation`.
-
-**Example:**
-```python
-from brokle.auto_instrumentation.error_handlers import safe_async_operation
-
-@safe_async_operation("my_lib", "async_operation")
-async def my_async_function():
-    # Async instrumentation code
-    await some_async_operation()
-    return True
-```
-
-## Context Managers
-
-### `instrumentation_context(library: str, operation: str, severity: ErrorSeverity = ErrorSeverity.MEDIUM)`
-
-Context manager for safe instrumentation operations.
-
-**Parameters:**
-- `library` (str): Library name
-- `operation` (str): Operation name
-- `severity` (ErrorSeverity): Error severity level
-
-**Example:**
-```python
-from brokle.auto_instrumentation.error_handlers import instrumentation_context, ErrorSeverity
-
-with instrumentation_context("openai", "setup", ErrorSeverity.HIGH):
-    # Setup code that might fail
-    setup_openai_instrumentation()
-    # Errors are handled based on severity level
-```
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `BROKLE_API_KEY` | Brokle API key | None | Yes |
-| `BROKLE_BASE_URL` | API base URL | `https://api.brokle.ai` | No |
-| `BROKLE_ORGANIZATION_ID` | Organization ID | None | Yes |
-| `BROKLE_PROJECT_ID` | Project ID | None | Yes |
-| `BROKLE_ENVIRONMENT` | Environment name | `production` | No |
-| `BROKLE_AUTO_INSTRUMENT` | Auto-instrument on import | `true` | No |
-| `BROKLE_CIRCUIT_BREAKER_ENABLED` | Enable circuit breakers | `true` | No |
-
-### Programmatic Configuration
-
-```python
-from brokle import get_client
-
-client = get_client(
-    api_key="your-api-key",
-    project_id="proj_456",
-    host="https://api.brokle.ai",
+from openai import OpenAI
+from brokle import wrap_openai
+
+# Basic usage
+client = wrap_openai(OpenAI(api_key="sk-..."))
+
+# With configuration
+client = wrap_openai(
+    OpenAI(),
+    capture_content=True,
+    tags=["production", "chatbot"],
+    session_id="session_123",
+    user_id="user_456"
 )
 
-import brokle.integrations.auto_instrumentation as brokle_ai
-brokle_ai.enable_auto_instrumentation()
+# Use exactly like normal OpenAI client
+response = client.chat.completions.create(
+    model="gpt-4",
+    messages=[{"role": "user", "content": "Hello"}]
+)
 ```
 
-## Constants
+## `wrap_anthropic(client, **config) -> AnthropicType`
 
-### Library Names
+Wrap an existing Anthropic client with Brokle observability and platform features.
+
+**Parameters:**
+- `client` (Anthropic | AsyncAnthropic): The Anthropic client instance to wrap
+- `capture_content` (bool, default=True): Whether to capture request/response content
+- `capture_metadata` (bool, default=True): Whether to capture metadata like model, tokens
+- `tags` (List[str], optional): List of tags to add to all traces
+- `session_id` (str, optional): Session identifier
+- `user_id` (str, optional): User identifier
+- `**config`: Additional configuration options
+
+**Returns:**
+- Enhanced Anthropic client with observability
+
+**Example:**
 ```python
-SUPPORTED_LIBRARIES = [
-    "openai",      # OpenAI Python library
-    "anthropic",   # Anthropic Python library
-    "langchain"    # LangChain framework
-]
-```
+from anthropic import Anthropic
+from brokle import wrap_anthropic
 
-### Default Settings
-```python
-DEFAULT_CIRCUIT_BREAKER_FAILURE_THRESHOLD = 3
-DEFAULT_CIRCUIT_BREAKER_RECOVERY_TIMEOUT = 30  # seconds
-DEFAULT_RETRY_MAX_ATTEMPTS = 2
-DEFAULT_RETRY_BASE_DELAY = 1.0  # seconds
-DEFAULT_RETRY_MAX_DELAY = 10.0  # seconds
-```
+client = wrap_anthropic(
+    Anthropic(api_key="sk-ant-..."),
+    tags=["claude", "analysis"],
+    capture_content=True
+)
 
-## Type Hints
-
-```python
-from typing import Dict, List, Optional, Any, Union
-from enum import Enum
-from datetime import datetime
-
-# Status type
-class InstrumentationStatus(Enum):
-    NOT_AVAILABLE = "not_available"
-    AVAILABLE = "available"
-    INSTRUMENTED = "instrumented"
-    FAILED = "failed"
-
-# Function signatures
-def auto_instrument(
-    libraries: Optional[List[str]] = None,
-    exclude: Optional[List[str]] = None
-) -> Dict[str, bool]: ...
-
-def get_status() -> Dict[str, InstrumentationStatus]: ...
-
-def get_health_report() -> Dict[str, Any]: ...
-```
-
-## Best Practices
-
-### 1. **Initialize Early**
-```python
-# At the top of your main application file
-import brokle.auto_instrumentation as brokle_ai
-brokle_ai.auto_instrument()
-
-# Then import your LLM libraries
-import openai
-import anthropic
-```
-
-### 2. **Check Health Regularly**
-```python
-def periodic_health_check():
-    health = brokle_ai.get_health_report()
-    if health["overall_health"]["score"] < 80:
-        logger.warning(f"Instrumentation health degraded: {health}")
-        # Consider alerting or recovery actions
-```
-
-### 3. **Handle Errors Gracefully**
-```python
-try:
-    results = brokle_ai.auto_instrument()
-    failed_libraries = [lib for lib, success in results.items() if not success]
-    if failed_libraries:
-        logger.warning(f"Failed to instrument: {failed_libraries}")
-except Exception as e:
-    logger.error(f"Auto-instrumentation failed: {e}")
-    # Application continues without instrumentation
-```
-
-### 4. **Use Appropriate Error Handling**
-```python
-from brokle.auto_instrumentation import LibraryNotAvailableError
-
-try:
-    brokle_ai.instrument("optional_library")
-except LibraryNotAvailableError:
-    logger.info("Optional library not available, continuing...")
-except Exception as e:
-    logger.error(f"Unexpected instrumentation error: {e}")
+message = client.messages.create(
+    model="claude-3-opus-20240229",
+    messages=[{"role": "user", "content": "Hello"}]
+)
 ```
 
 ---
 
-*Complete API reference for Brokle Auto-Instrumentation v1.0+*
+# Pattern 2: Universal Decorator API
+
+## `@observe(**kwargs) -> Callable`
+
+Universal decorator for function observability with AI-aware intelligence.
+
+**Parameters:**
+- `name` (str, optional): Custom span name (defaults to function name)
+- `capture_inputs` (bool, default=True): Whether to capture function inputs
+- `capture_outputs` (bool, default=True): Whether to capture function outputs
+- `capture_errors` (bool, default=True): Whether to capture exceptions
+- `session_id` (str, optional): Session identifier for grouping related calls
+- `user_id` (str, optional): User identifier for user-scoped analytics
+- `tags` (List[str], optional): List of tags for categorization
+- `metadata` (Dict[str, Any], optional): Custom metadata dictionary
+- `evaluation_enabled` (bool, default=True): Whether to enable automatic evaluation
+- `max_input_length` (int, default=10000): Maximum length for input serialization
+- `max_output_length` (int, default=10000): Maximum length for output serialization
+
+**Returns:**
+- Decorated function with comprehensive observability and AI intelligence
+
+**Features:**
+- **Automatic hierarchical tracing**: Nested function calls create proper span hierarchy
+- **AI provider detection**: Automatically detects OpenAI/Anthropic usage in functions
+- **Privacy controls**: Sensitive parameter redaction and length limits
+- **Performance**: <1ms overhead per function call
+- **Framework agnostic**: Works with any Python function
+
+**Example:**
+```python
+from brokle import observe
+
+@observe(name="ai-workflow", tags=["ai", "production"])
+def process_user_query(client: OpenAI, query: str) -> str:
+    # Automatically detects OpenAI usage and extracts AI metrics
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": query}]
+    )
+    return response.choices[0].message.content
+
+@observe(capture_inputs=False)  # For sensitive data
+def analyze_document(client: Anthropic, document: str) -> dict:
+    # Privacy controls prevent input capture
+    return client.messages.create(
+        model="claude-3-opus-20240229",
+        messages=[{"role": "user", "content": document}]
+    )
+
+# Automatic hierarchical tracing
+@observe(name="parent-workflow")
+def complex_workflow(data: str) -> str:
+    # Parent span created automatically
+    step1 = process_step_one(data)  # Child span
+    step2 = process_step_two(step1)  # Child span
+    return step2
+
+@observe(name="step-one")
+def process_step_one(data: str) -> str:
+    # Automatically becomes child of parent-workflow
+    return f"processed: {data}"
+
+@observe(name="step-two")
+def process_step_two(data: str) -> str:
+    # Automatically becomes child of parent-workflow
+    return f"final: {data}"
+```
+
+## `trace_workflow(name, session_id=None, user_id=None, metadata=None)`
+
+Context manager for tracing complex workflows.
+
+**Parameters:**
+- `name` (str): Workflow name
+- `session_id` (str, optional): Session identifier
+- `user_id` (str, optional): User identifier
+- `metadata` (Dict[str, Any], optional): Custom metadata
+
+**Example:**
+```python
+from brokle import trace_workflow
+
+with trace_workflow("user-onboarding", user_id="user123"):
+    step1_result = process_signup(user_data)
+    step2_result = send_welcome_email(step1_result)
+    return step2_result
+```
+
+## Specialized Decorators
+
+### `observe_llm(name=None, model=None, **kwargs) -> Callable`
+
+Specialized decorator for LLM function calls with LLM-specific metadata.
+
+**Example:**
+```python
+from brokle import observe_llm
+
+@observe_llm(name="story-generation", model="gpt-4")
+def generate_story(prompt: str) -> str:
+    # LLM-specific observability
+    return llm_call(prompt)
+```
+
+### `observe_retrieval(name=None, index_name=None, **kwargs) -> Callable`
+
+Specialized decorator for retrieval/search operations.
+
+**Example:**
+```python
+from brokle import observe_retrieval
+
+@observe_retrieval(name="vector-search", index_name="documents")
+def search_documents(query: str) -> List[str]:
+    # Retrieval-specific observability
+    return vector_db.search(query)
+```
+
+---
+
+# Pattern 3: Native SDK API
+
+## Core Client Classes
+
+### `class Brokle(HTTPBase)`
+
+Synchronous Brokle client with OpenAI-compatible interface and advanced platform features.
+
+**Constructor Parameters:**
+- `api_key` (str, optional): Brokle API key (or use BROKLE_API_KEY env var)
+- `host` (str, optional): Brokle host URL (default: http://localhost:8080)
+- `project_id` (str, optional): Project ID (or use BROKLE_PROJECT_ID env var)
+- `environment` (str, optional): Environment name (or use BROKLE_ENVIRONMENT env var)
+- `timeout` (float, optional): Request timeout in seconds (default: 60)
+- `**kwargs`: Additional configuration options
+
+**Usage:**
+```python
+from brokle import Brokle
+
+# Explicit configuration
+with Brokle(
+    api_key="ak_...",
+    host="http://localhost:8080",
+    project_id="proj_...",
+    environment="production"
+) as client:
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": "Hello!"}],
+        routing_strategy="cost_optimized"  # Brokle extension
+    )
+```
+
+### `class AsyncBrokle(HTTPBase)`
+
+Asynchronous Brokle client with identical interface to sync client.
+
+**Usage:**
+```python
+from brokle import AsyncBrokle
+
+async with AsyncBrokle(api_key="ak_...") as client:
+    response = await client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": "Hello!"}],
+        routing_strategy="cost_optimized",
+        cache_strategy="semantic"
+    )
+```
+
+### `get_client() -> Brokle`
+
+Get or create a singleton Brokle client instance from environment variables.
+
+**Environment Variables:**
+- `BROKLE_API_KEY`: API key
+- `BROKLE_HOST`: Host URL
+- `BROKLE_PROJECT_ID`: Project ID
+- `BROKLE_ENVIRONMENT`: Environment name
+- `BROKLE_OTEL_ENABLED`: Enable OpenTelemetry
+- `BROKLE_TELEMETRY_ENABLED`: Enable telemetry
+- `BROKLE_CACHE_ENABLED`: Enable caching
+
+**Example:**
+```python
+from brokle import get_client
+
+# Uses environment variables for configuration
+client = get_client()
+response = client.chat.completions.create(...)
+```
+
+## Resource APIs
+
+### Chat Completions API
+
+#### `client.chat.completions.create(**kwargs) -> ChatCompletionResponse`
+
+Create chat completion with OpenAI-compatible interface plus Brokle extensions.
+
+**Standard OpenAI Parameters:**
+- `model` (str): Model name
+- `messages` (List[Dict[str, str]]): List of messages
+- `temperature` (float, optional): Sampling temperature (0-2)
+- `max_tokens` (int, optional): Maximum tokens to generate
+- `top_p` (float, optional): Nucleus sampling parameter (0-1)
+- `frequency_penalty` (float, optional): Frequency penalty (-2 to 2)
+- `presence_penalty` (float, optional): Presence penalty (-2 to 2)
+- `stop` (Union[str, List[str]], optional): Stop sequences
+- `stream` (bool, optional): Whether to stream response
+
+**Brokle Extensions:**
+- `routing_strategy` (str, optional): Routing strategy
+  - `"cost_optimized"`: Minimize cost
+  - `"latency_optimized"`: Minimize latency
+  - `"quality_optimized"`: Maximize quality
+  - `"balanced"`: Balance cost, latency, quality
+- `cache_strategy` (str, optional): Cache strategy
+  - `"semantic"`: Semantic similarity caching
+  - `"exact"`: Exact match caching
+  - `"disabled"`: Disable caching
+- `environment` (str, optional): Environment override
+- `tags` (List[str], optional): Request tags for analytics
+- `**kwargs`: Additional parameters
+
+**Response Object:**
+```python
+class ChatCompletionResponse(BaseModel):
+    # Standard OpenAI fields
+    id: str
+    object: str = "chat.completion"
+    created: int
+    model: str
+    choices: List[Choice]
+    usage: Usage
+
+    # Brokle metadata
+    brokle_metadata: BrokleMetadata
+
+class BrokleMetadata(BaseModel):
+    provider: str                    # Actual provider used
+    request_id: str                 # Unique request ID
+    latency_ms: int                 # Response latency
+    cost_usd: Optional[float]       # Estimated cost
+    tokens_used: Optional[int]      # Total tokens used
+    cache_hit: bool                 # Whether cache was hit
+    cache_key: Optional[str]        # Cache key used
+    routing_strategy: Optional[str] # Routing strategy used
+    quality_score: Optional[float]  # Quality score (0-1)
+```
+
+**Example:**
+```python
+response = client.chat.completions.create(
+    model="gpt-4",
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Hello!"}
+    ],
+    temperature=0.7,
+    max_tokens=150,
+    routing_strategy="cost_optimized",
+    cache_strategy="semantic",
+    tags=["chatbot", "production"]
+)
+
+print(f"Response: {response.choices[0].message.content}")
+print(f"Provider: {response.brokle_metadata.provider}")
+print(f"Cost: ${response.brokle_metadata.cost_usd}")
+print(f"Cache hit: {response.brokle_metadata.cache_hit}")
+```
+
+### Embeddings API
+
+#### `client.embeddings.create(**kwargs) -> EmbeddingResponse`
+
+Create embeddings with OpenAI-compatible interface.
+
+**Parameters:**
+- `input` (Union[str, List[str]]): Input text(s) to embed
+- `model` (str): Embedding model name
+- `routing_strategy` (str, optional): Brokle routing strategy
+- `**kwargs`: Additional parameters
+
+**Example:**
+```python
+response = client.embeddings.create(
+    input=["Hello world", "How are you?"],
+    model="text-embedding-ada-002",
+    routing_strategy="cost_optimized"
+)
+
+embeddings = response.data[0].embedding
+```
+
+### Models API
+
+#### `client.models.list() -> ModelListResponse`
+
+List available models across all providers.
+
+**Example:**
+```python
+models = client.models.list()
+for model in models.data:
+    print(f"Model: {model.id}, Provider: {model.owned_by}")
+```
+
+## Configuration Management
+
+### `class Config`
+
+Configuration management with validation and environment variable support.
+
+**Attributes:**
+- `api_key` (str): API key
+- `host` (str): Host URL
+- `project_id` (str): Project ID
+- `environment` (str): Environment name
+- `timeout` (float): Request timeout
+- `telemetry_enabled` (bool): Telemetry enabled
+- `otel_enabled` (bool): OpenTelemetry enabled
+- `cache_enabled` (bool): Caching enabled
+
+**Example:**
+```python
+from brokle import Config
+
+config = Config(
+    api_key="ak_...",
+    project_id="proj_...",
+    environment="production",
+    telemetry_enabled=True
+)
+```
+
+### `class AuthManager`
+
+Authentication and API key management.
+
+**Methods:**
+- `validate_api_key() -> bool`: Validate API key with backend
+- `get_project_info() -> dict`: Get project information
+- `refresh_token()`: Refresh authentication token
+
+---
+
+# Evaluation Framework API
+
+## Core Functions
+
+### `evaluate(data, evaluators, **kwargs) -> EvaluationResult`
+
+Synchronous evaluation of AI responses.
+
+**Parameters:**
+- `data` (List[Dict]): Evaluation data with inputs, outputs, and expected results
+- `evaluators` (List[BaseEvaluator]): List of evaluator instances
+- `**kwargs`: Additional evaluation options
+
+**Example:**
+```python
+from brokle import evaluate, AccuracyEvaluator, RelevanceEvaluator
+
+data = [
+    {
+        "input": "What is the capital of France?",
+        "output": "Paris",
+        "expected": "Paris"
+    }
+]
+
+result = evaluate(
+    data=data,
+    evaluators=[
+        AccuracyEvaluator(),
+        RelevanceEvaluator()
+    ]
+)
+
+print(f"Accuracy: {result.metrics['accuracy']}")
+print(f"Relevance: {result.metrics['relevance']}")
+```
+
+### `aevaluate(data, evaluators, **kwargs) -> EvaluationResult`
+
+Asynchronous evaluation of AI responses.
+
+**Example:**
+```python
+result = await aevaluate(
+    data=data,
+    evaluators=[AccuracyEvaluator(), RelevanceEvaluator()]
+)
+```
+
+## Evaluator Classes
+
+### `class AccuracyEvaluator(BaseEvaluator)`
+
+Evaluate response accuracy against expected outputs.
+
+### `class RelevanceEvaluator(BaseEvaluator)`
+
+Evaluate response relevance to input queries.
+
+### `class CostEfficiencyEvaluator(BaseEvaluator)`
+
+Evaluate cost efficiency of AI responses.
+
+### `class LatencyEvaluator(BaseEvaluator)`
+
+Evaluate response latency performance.
+
+### `class QualityEvaluator(BaseEvaluator)`
+
+Comprehensive quality evaluation.
+
+---
+
+# Error Handling
+
+## Exception Classes
+
+### `class BrokleError(Exception)`
+
+Base exception for all Brokle SDK errors.
+
+### `class AuthenticationError(BrokleError)`
+
+Raised for authentication failures.
+
+### `class ValidationError(BrokleError)`
+
+Raised for input validation errors.
+
+### `class NetworkError(BrokleError)`
+
+Raised for network connectivity issues.
+
+### `class RateLimitError(BrokleError)`
+
+Raised when rate limits are exceeded.
+
+### `class ProviderError(BrokleError)`
+
+Raised for AI provider-specific errors.
+
+### `class CacheError(BrokleError)`
+
+Raised for caching-related errors.
+
+### `class EvaluationError(BrokleError)`
+
+Raised for evaluation framework errors.
+
+**Example Error Handling:**
+```python
+from brokle import Brokle, AuthenticationError, RateLimitError
+
+try:
+    with Brokle(api_key="invalid") as client:
+        response = client.chat.completions.create(...)
+except AuthenticationError as e:
+    print(f"Authentication failed: {e}")
+except RateLimitError as e:
+    print(f"Rate limit exceeded: {e}")
+except Exception as e:
+    print(f"Unexpected error: {e}")
+```
+
+---
+
+# Environment Configuration
+
+## Required Environment Variables
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `BROKLE_API_KEY` | API key for authentication | Yes | None |
+| `BROKLE_PROJECT_ID` | Project identifier | Yes | None |
+
+## Optional Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BROKLE_HOST` | Backend host URL | `http://localhost:8080` |
+| `BROKLE_ENVIRONMENT` | Environment tag | `default` |
+| `BROKLE_TELEMETRY_ENABLED` | Enable telemetry | `true` |
+| `BROKLE_OTEL_ENABLED` | Enable OpenTelemetry | `true` |
+| `BROKLE_CACHE_ENABLED` | Enable caching | `true` |
+| `BROKLE_TIMEOUT` | Request timeout (seconds) | `60` |
+
+## Environment Setup Example
+
+```bash
+# Required
+export BROKLE_API_KEY="ak_your_api_key_here"
+export BROKLE_PROJECT_ID="proj_your_project_id"
+
+# Optional
+export BROKLE_HOST="https://api.brokle.com"
+export BROKLE_ENVIRONMENT="production"
+export BROKLE_TELEMETRY_ENABLED="true"
+export BROKLE_CACHE_ENABLED="true"
+```
+
+---
+
+# Performance and Best Practices
+
+## Performance Characteristics
+
+- **Wrapper Functions**: <3ms overhead, maintains original client performance
+- **Universal Decorator**: <1ms overhead per function call with comprehensive tracing
+- **Native SDK**: Sub-100ms response times, 30-50% cost reduction through optimization
+
+## Best Practices
+
+### Pattern Selection
+- **Start with Pattern 1**: Easy migration, zero code changes beyond imports
+- **Add Pattern 2**: Enhanced observability for custom workflows
+- **Scale with Pattern 3**: Full platform features for production systems
+
+### Configuration
+```python
+# Production configuration
+client = Brokle(
+    api_key=os.getenv("BROKLE_API_KEY"),
+    project_id=os.getenv("BROKLE_PROJECT_ID"),
+    environment="production",
+    timeout=30,  # Shorter timeout for production
+)
+
+# Always use context managers for proper cleanup
+async with AsyncBrokle() as client:
+    response = await client.chat.completions.create(...)
+```
+
+### Error Handling
+```python
+from brokle import Brokle, BrokleError
+import backoff
+
+@backoff.on_exception(backoff.expo, BrokleError, max_tries=3)
+async def robust_ai_call():
+    async with AsyncBrokle() as client:
+        return await client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": "Hello"}],
+            routing_strategy="quality_optimized"
+        )
+```
+
+---
+
+*Complete API Reference for Brokle Python SDK v2.0*

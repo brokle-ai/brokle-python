@@ -1,15 +1,18 @@
 """
-Main client for Brokle SDK.
+Main client for Brokle SDK v2.0.
 
-This module provides the main client interface with context-aware management
-following industry-standard patterns for multi-project safety and thread isolation.
+This module provides the main client interface with OpenAI-compatible design
+and clean resource management.
+
+v2.0 Changes:
+- Clean OpenAI-compatible interface
+- Proper resource management with context managers
+- Sync and async client variants
+- Brokle extensions (routing, caching, tags)
 """
 
-# Import the OTEL-based client class
-from ._client import Brokle
-
-# Import context-aware client management
-from ._client.context import get_client
+# Import new architecture clients
+from .new_client import Brokle, AsyncBrokle, get_client
 
 # Export public API
-__all__ = ["Brokle", "get_client"]
+__all__ = ["Brokle", "AsyncBrokle", "get_client"]

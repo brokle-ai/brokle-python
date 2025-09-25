@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import re
 
 from .base import BaseProvider
-from .._client.attributes import BrokleOtelSpanAttributes as BrokleInstrumentationAttributes
+from ..observability.attributes import BrokleOtelSpanAttributes as BrokleInstrumentationAttributes
 from ..exceptions import ProviderError, ValidationError
 
 logger = logging.getLogger(__name__)

@@ -9,7 +9,7 @@ import logging
 from typing import Any, Dict, List, Optional, Union, Callable, Awaitable
 
 from .base import BaseEvaluator, EvaluationResult, EvaluationConfig
-from .._client import get_client
+from ..observability import get_client
 
 logger = logging.getLogger(__name__)
 

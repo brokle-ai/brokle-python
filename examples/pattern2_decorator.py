@@ -9,18 +9,16 @@ import asyncio
 from typing import List, Dict, Any
 
 # ✨ PATTERN 2: Universal Decorator - AI-aware observability
-from brokle import observe, Brokle
-from openai import OpenAI
-
-# Initialize Brokle client (auto-registers for @observe decorators)
-client = Brokle(
-    api_key="ak_your_api_key_here",
-    host="http://localhost:8080",
-    project_id="proj_your_project_id",
-)
+from brokle import observe
+import openai
 
 # Initialize standard OpenAI client (will be auto-detected by @observe decorator)
-openai = OpenAI()
+client = openai.OpenAI()
+
+# Environment variables for Brokle configuration:
+# BROKLE_API_KEY="ak_your_api_key_here"
+# BROKLE_PROJECT_ID="proj_your_project_id"
+# BROKLE_HOST="http://localhost:8080"
 
 
 @observe()
@@ -37,27 +35,26 @@ def custom_named_function():
 
 @observe(
     name="llm-generation",
-    as_type="generation",
-    capture_input=True,
-    capture_output=True
+    tags=["generation", "story"],
+    capture_inputs=True,
+    capture_outputs=True
 )
 def generate_story(prompt: str) -> str:
-    """Generate a story using LLM with generation-type observation."""
-    response = openai.chat.completions.create(
+    """Generate a story using LLM with enhanced observation."""
+    response = client.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a creative storyteller."},
             {"role": "user", "content": prompt}
         ],
-        max_tokens=200,
-        routing_strategy="quality_optimized",
-        custom_tags={"type": "story", "genre": "any"}
+        max_tokens=200
     )
     
     return response.choices[0].message.content
 
 
 @observe(
+    name="text-translation",
     user_id="user123",
     session_id="session456",
     tags=["translation", "api-call"],
@@ -65,28 +62,32 @@ def generate_story(prompt: str) -> str:
 )
 def translate_text(text: str, target_language: str) -> str:
     """Translate text with user and session tracking."""
-    response = openai.chat.completions.create(
+    response = client.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": f"Translate the following text to {target_language}."},
             {"role": "user", "content": text}
-        ],
-        routing_strategy="cost_optimized",
-        custom_tags={"operation": "translation", "target_lang": target_language}
+        ]
     )
     
     return response.choices[0].message.content
 
 
-@observe(capture_input=True, capture_output=True)
+@observe(name="document-processing", capture_inputs=True, capture_outputs=True)
 def process_documents(documents: List[str]) -> Dict[str, Any]:
-    """Process multiple documents with input/output capture."""
+    """Process multiple documents with input/output capture.
+
+    Demonstrates automatic hierarchical tracing:
+    - Each call to summarize_document() will create child spans
+    - Child spans automatically linked to this parent span
+    """
     summaries = []
-    
+
     for doc in documents:
+        # Each call creates a child span automatically
         summary = summarize_document(doc)
         summaries.append(summary)
-    
+
     return {
         "total_documents": len(documents),
         "summaries": summaries,
@@ -94,18 +95,16 @@ def process_documents(documents: List[str]) -> Dict[str, Any]:
     }
 
 
-@observe(name="document-summarization", as_type="generation")
+@observe(name="document-summarization", tags=["generation", "summarization"])
 def summarize_document(document: str) -> str:
     """Summarize a document - nested observation."""
-    response = openai.chat.completions.create(
+    response = client.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "Summarize the following document concisely."},
             {"role": "user", "content": document}
         ],
-        max_tokens=150,
-        routing_strategy="balanced",
-        custom_tags={"operation": "summarization"}
+        max_tokens=150
     )
     
     return response.choices[0].message.content
@@ -118,27 +117,25 @@ async def async_function():
     return "Async result"
 
 
-@observe(as_type="generation")
+@observe(name="async-code-generation", tags=["generation", "coding", "async"])
 async def async_generate_code(requirement: str) -> str:
     """Generate code asynchronously with generation tracking."""
     from openai import AsyncOpenAI
-    async_openai = AsyncOpenAI()
+    async_client = AsyncOpenAI()
 
-    response = await async_openai.chat.completions.create(
+    response = await async_client.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are an expert programmer. Write clean, well-documented code."},
             {"role": "user", "content": f"Write Python code for: {requirement}"}
         ],
-        max_tokens=500,
-        routing_strategy="quality_optimized",
-        custom_tags={"operation": "code_generation", "language": "python"}
+        max_tokens=500
     )
     
     return response.choices[0].message.content
 
 
-@observe(capture_input=False, capture_output=True)
+@observe(name="sensitive-operation", capture_inputs=False, capture_outputs=True)
 def sensitive_operation(api_key: str, user_data: Dict[str, Any]) -> str:
     """Operation with sensitive input - don't capture input."""
     # Process sensitive data
@@ -160,17 +157,23 @@ def error_prone_function():
     metadata={"complexity": "high", "steps": 3}
 )
 def complex_workflow(input_data: str) -> Dict[str, Any]:
-    """Complex workflow with multiple steps and comprehensive tracking."""
-    
-    # Step 1: Process input
+    """Complex workflow with multiple steps and comprehensive tracking.
+
+    Demonstrates automatic hierarchical tracing:
+    - This parent span will automatically be linked to all child spans
+    - Child functions with @observe() will automatically nest under this parent
+    - No manual workflow management needed!
+    """
+
+    # Step 1: Process input (automatically creates child span)
     processed = process_input(input_data)
-    
-    # Step 2: Generate content
+
+    # Step 2: Generate content (automatically creates child span)
     content = generate_content(processed)
-    
-    # Step 3: Validate and format
+
+    # Step 3: Validate and format (automatically creates child span)
     result = validate_and_format(content)
-    
+
     return {
         "input": input_data,
         "processed": processed,
@@ -186,18 +189,16 @@ def process_input(data: str) -> str:
     return data.upper().strip()
 
 
-@observe(name="content-generation", as_type="generation")
+@observe(name="content-generation", tags=["generation", "workflow"])
 def generate_content(processed_data: str) -> str:
     """Generate content based on processed data - step 2 of workflow."""
-    response = openai.chat.completions.create(
+    response = client.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "Generate creative content based on the input."},
             {"role": "user", "content": processed_data}
         ],
-        max_tokens=100,
-        routing_strategy="balanced",
-        custom_tags={"step": "content_generation"}
+        max_tokens=100
     )
     
     return response.choices[0].message.content

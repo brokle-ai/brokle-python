@@ -1,11 +1,11 @@
 """
 OpenTelemetry span attributes for Brokle SDK.
 
-Re-exports attributes from _client module for backward compatibility.
+Re-exports attributes from observability module for backward compatibility.
 """
 
-# Import from the actual location
-from .._client.attributes import BrokleOtelSpanAttributes
+# Import from the new observability module
+from ..observability.attributes import BrokleOtelSpanAttributes
 
 # Export for compatibility
 __all__ = ["BrokleOtelSpanAttributes"]

@@ -4,16 +4,16 @@
 
 The Brokle Python SDK provides intelligent routing across 250+ LLM providers, semantic caching (30-50% cost reduction), and comprehensive observability. Choose your integration level:
 
-## 🎯 Three Patterns
+## 🎯 Three Integration Patterns
 
 **Pattern 1: Wrapper Functions**
-Explicit wrapping for observability.
+Wrap existing SDK clients (OpenAI, Anthropic) for automatic observability and platform features.
 
 **Pattern 2: Universal Decorator**
-Framework-agnostic `@observe()` decorator. Works with any AI library.
+Framework-agnostic `@observe()` decorator with automatic hierarchical tracing. Works with any AI library.
 
-**Pattern 3: Native SDK**
-Full platform capabilities: intelligent routing, semantic caching, cost optimization.
+**Pattern 3: Native SDK (Sync & Async)**
+Full platform capabilities: intelligent routing, semantic caching, cost optimization. OpenAI-compatible interface with Brokle extensions.
 
 ## Installation
 
@@ -34,47 +34,109 @@ export BROKLE_HOST="http://localhost:8080"
 ### Pattern 1: Wrapper Functions
 
 ```python
-# Explicit wrapping for observability
+# Wrap existing SDK clients for automatic observability
 from openai import OpenAI
-from brokle import wrap_openai
+from anthropic import Anthropic
+from brokle import wrap_openai, wrap_anthropic
 
-client = wrap_openai(OpenAI(), tags=["production"])
-response = client.chat.completions.create(
+# OpenAI wrapper
+openai_client = wrap_openai(
+    OpenAI(api_key="sk-..."),
+    tags=["production"],
+    session_id="user_session_123"
+)
+
+# Anthropic wrapper
+anthropic_client = wrap_anthropic(
+    Anthropic(api_key="sk-ant-..."),
+    tags=["claude", "analysis"]
+)
+
+response = openai_client.chat.completions.create(
     model="gpt-4",
     messages=[{"role": "user", "content": "Hello!"}]
 )
-# Automatically tracked: cost, tokens, performance
+# ✅ Automatic Brokle observability, routing, caching, optimization
 ```
 
 ### Pattern 2: Universal Decorator
 
 ```python
+# Automatic hierarchical tracing with just @observe()
 from brokle import observe
+import openai
 
-@observe()
-def ai_workflow(prompt: str):
-    # Any AI library call gets tracked
-    return some_llm_call(prompt)
+client = openai.OpenAI()
 
-result = ai_workflow("Analyze this data")
-# Complete workflow observability
+@observe(name="parent-workflow")
+def main_workflow(data: str):
+    # Parent span automatically created
+    result1 = analyze_data(data)
+    result2 = summarize_findings(result1)
+    return f"Final result: {result1} -> {result2}"
+
+@observe(name="data-analysis")
+def analyze_data(data: str):
+    # Child span automatically linked to parent
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": f"Analyze: {data}"}]
+    )
+    return response.choices[0].message.content
+
+@observe(name="summarization")
+def summarize_findings(analysis: str):
+    # Another child span automatically linked to parent
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": f"Summarize: {analysis}"}]
+    )
+    return response.choices[0].message.content
+
+# Automatic hierarchical tracing - no manual workflow management needed
+result = main_workflow("User behavior data from Q4 2024")
+# ✅ Complete span hierarchy: parent -> analyze_data + summarize_findings
 ```
 
 ### Pattern 3: Native SDK
 
+**Sync Client:**
 ```python
 from brokle import Brokle
+
+# Context manager (recommended)
+with Brokle(
+    api_key="ak_...",
+    project_id="proj_...",
+    host="http://localhost:8080"
+) as client:
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": "Hello!"}],
+        routing_strategy="cost_optimized",  # Brokle extension
+        cache_strategy="semantic"           # Brokle extension
+    )
+    print(f"Response: {response.choices[0].message.content}")
+```
+
+**Async Client:**
+```python
+from brokle import AsyncBrokle
 import asyncio
 
 async def main():
-    async with Brokle() as client:
-        response = await client.chat.create(
+    async with AsyncBrokle(
+        api_key="ak_...",
+        project_id="proj_..."
+    ) as client:
+        response = await client.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": "Hello!"}],
             routing_strategy="cost_optimized",  # Smart routing
-            cache_strategy="semantic"           # 30-50% savings
+            cache_strategy="semantic",          # Semantic caching
+            tags=["async", "production"]       # Analytics tags
         )
-        print(f"Cost: ${response.cost_usd:.4f}")
+        print(f"Response: {response.choices[0].message.content}")
 
 asyncio.run(main())
 ```

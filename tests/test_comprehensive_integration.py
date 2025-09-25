@@ -75,7 +75,7 @@ class TestComprehensiveIntegration:
     def test_pattern_3_native_sdk_with_enhanced_capabilities(self):
         """Test Pattern 3 native SDK has enhanced generation capabilities."""
         # Test that enhanced generation methods exist
-        from brokle._client.span import BrokleGeneration
+        from brokle.observability import BrokleGeneration
 
         # Test that enhanced methods exist
         assert hasattr(BrokleGeneration, 'update_with_request_attributes')
@@ -103,7 +103,7 @@ class TestComprehensiveIntegration:
 
         openai_attrs = openai_provider.extract_request_attributes(sample_request)
         assert len(openai_attrs) > 0
-        assert 'brokle.generation.model' in openai_attrs or 'brokle.generation.model_normalized' in openai_attrs
+        assert 'llm.model' in openai_attrs or 'llm.model.normalized' in openai_attrs
 
     def test_architecture_scalability(self):
         """Test that the architecture is ready for new providers."""

@@ -21,10 +21,9 @@ except ImportError:
     wrapt = None
     HAS_WRAPT = False
 
-from ..client import get_client
-from .._utils.telemetry import create_span, add_span_attributes, record_span_exception
+from ..observability import get_client, create_span
 from .._utils.error_handling import handle_provider_error
-from .._client.attributes import BrokleOtelSpanAttributes as BrokleInstrumentationAttributes
+from ..observability.attributes import BrokleOtelSpanAttributes as BrokleInstrumentationAttributes
 from .validators import AttributeValidator
 from ..providers.base import BaseProvider
 from ..exceptions import ProviderError, BrokleError

@@ -209,11 +209,20 @@ def generate_test_metadata():
 # Cleanup fixtures
 @pytest.fixture(autouse=True)
 def reset_client_state():
-    """Reset context manager client cache before and after each test."""
-    from brokle._client.context import _context_manager
-    _context_manager._active_contexts.clear()
+    """Reset client state for v2.0 architecture before and after each test."""
+    # Clear singleton instance
+    import brokle.new_client
+    brokle.new_client._client_singleton = None
+
+    # Clear observability context
+    from brokle.observability.context import clear_context
+    clear_context()
+
     yield
-    _context_manager._active_contexts.clear()
+
+    # Cleanup after test
+    brokle.new_client._client_singleton = None
+    clear_context()
 
 
 @pytest.fixture(autouse=True)

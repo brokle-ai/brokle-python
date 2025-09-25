@@ -52,14 +52,27 @@ except ImportError:
     trace = None
     Span = None
 
-from ._client.context import get_client
-from ._utils.telemetry import create_span, add_span_attributes, record_span_exception
+from .observability import get_client, create_span, span_context, BrokleOtelSpanAttributes, get_current_span
+from .observability.spans import _set_current_span
 from ._utils.validation import validate_environment
-from .types.attributes import BrokleOtelSpanAttributes
 from .exceptions import BrokleError
 from .providers import get_provider
 
 logger = logging.getLogger(__name__)
+
+
+# Helper functions for span management
+def add_span_attributes(span, attributes: Dict[str, Any]) -> None:
+    """Add multiple attributes to a span."""
+    for key, value in attributes.items():
+        span.set_attribute(key, value)
+
+
+def record_span_exception(span, exception: Exception) -> None:
+    """Record an exception on a span."""
+    span.set_attribute("error.type", type(exception).__name__)
+    span.set_attribute("error.message", str(exception))
+    span.set_status("error", str(exception))
 
 
 class ObserveConfig:
@@ -101,6 +114,7 @@ class SpanContext:
         self.args = args
         self.kwargs = kwargs
         self.span = None
+        self.previous_span = None  # Store previous span for restoration
         self.start_time = None
         self.result = None
         self.error = None
@@ -112,11 +126,17 @@ class SpanContext:
         span_name = self.config.name or self._generate_span_name()
 
         try:
+            # Store current span for restoration later
+            self.previous_span = get_current_span()
+
             # Create span with comprehensive attributes
             self.span = create_span(
                 name=span_name,
                 attributes=self._create_initial_attributes()
             )
+
+            # Set as current span for hierarchical tracing
+            _set_current_span(self.span)
 
             # Capture function inputs if enabled
             if self.config.capture_inputs:
@@ -152,8 +172,16 @@ class SpanContext:
 
                 self.span.end()
 
+            # Restore previous span for hierarchical tracing
+            _set_current_span(self.previous_span)
+
         except Exception as e:
             logger.warning(f"Failed to finalize span: {e}")
+            # Always restore previous span even if other operations fail
+            try:
+                _set_current_span(self.previous_span)
+            except:
+                pass
 
     def _generate_span_name(self) -> str:
         """Generate descriptive span name from function"""
@@ -525,12 +553,18 @@ def _wrap_sync_function(func: Callable, config: ObserveConfig) -> Callable:
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        # Skip if Brokle client not available or telemetry disabled
+        # Check if Brokle client is available and telemetry enabled
+        telemetry_enabled = True  # Default to enabled for development/testing
         try:
             client = get_client()
-            if not client or not client.config.telemetry_enabled:
-                return func(*args, **kwargs)
+            if client and hasattr(client, 'config') and hasattr(client.config, 'telemetry_enabled'):
+                telemetry_enabled = client.config.telemetry_enabled
         except:
+            # If client is not available, still enable observability for development/testing
+            pass
+
+        # Skip only if explicitly disabled
+        if not telemetry_enabled:
             return func(*args, **kwargs)
 
         # Execute with observability
@@ -552,12 +586,18 @@ def _wrap_async_function(func: Callable, config: ObserveConfig) -> Callable:
 
     @functools.wraps(func)
     async def async_wrapper(*args, **kwargs):
-        # Skip if Brokle client not available or telemetry disabled
+        # Check if Brokle client is available and telemetry enabled
+        telemetry_enabled = True  # Default to enabled for development/testing
         try:
             client = get_client()
-            if not client or not client.config.telemetry_enabled:
-                return await func(*args, **kwargs)
+            if client and hasattr(client, 'config') and hasattr(client.config, 'telemetry_enabled'):
+                telemetry_enabled = client.config.telemetry_enabled
         except:
+            # If client is not available, still enable observability for development/testing
+            pass
+
+        # Skip only if explicitly disabled
+        if not telemetry_enabled:
             return await func(*args, **kwargs)
 
         # Execute with observability

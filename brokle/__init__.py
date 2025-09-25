@@ -68,11 +68,11 @@ from .decorators import (
     ObserveConfig,
 )
 
-# === PATTERN 3: NATIVE SDK (UNCHANGED) ===
-from .client import Brokle, get_client
+# === PATTERN 3: NATIVE SDK (NEW v2.0 ARCHITECTURE) ===
+from .client import Brokle, AsyncBrokle, get_client
 from .config import Config
 from .auth import AuthManager
-from ._client.attributes import BrokleOtelSpanAttributes
+from .observability.attributes import BrokleOtelSpanAttributes
 
 from ._version import __version__
 
@@ -107,31 +107,8 @@ from .evaluation import (
     QualityEvaluator,
 )
 
-# AI Platform exports (Native SDK with full features)
-from .ai_platform import (
-    # Core AI client
-    AIClient, get_ai_client, configure_ai_platform, generate, generate_stream,
-
-    # Routing
-    RoutingStrategy, RoutingConfig, ProviderConfig, ProviderTier,
-    create_cost_optimized_routing, create_quality_optimized_routing,
-
-    # Caching
-    CacheStrategy, CacheConfig, SemanticCacheConfig,
-    create_semantic_cache_config, get_cache_stats,
-
-    # Quality
-    QualityMetric, QualityConfig, QualityScore,
-    create_comprehensive_quality, evaluate_quality,
-
-    # Optimization
-    OptimizationStrategy, CostOptimizationConfig, BudgetConfig,
-    create_balanced_optimization, get_cost_breakdown,
-
-    # Providers
-    ProviderStatus, ProviderHealth, get_provider_health,
-    get_healthy_providers, get_provider_rankings,
-)
+# NOTE: AI Platform features are now integrated into the main Brokle client
+# These advanced features are available through the Native SDK Pattern 3
 
 # Main exports - Clean 3-Pattern Architecture (v2.0.0)
 __all__ = [
@@ -148,9 +125,10 @@ __all__ = [
     "observe_retrieval",         # Retrieval-specific decorator
     "ObserveConfig",             # Decorator configuration
 
-    # === PATTERN 3: NATIVE SDK (Full AI Platform Features) ===
-    "Brokle",                    # Main client class
-    "get_client",                # Singleton client accessor
+    # === PATTERN 3: NATIVE SDK (v2.0 - OpenAI-Compatible + Brokle Features) ===
+    "Brokle",                    # Main sync client class
+    "AsyncBrokle",               # Async client class
+    "get_client",                # Client accessor
     "Config",                    # Configuration management
     "AuthManager",               # Authentication handling
     "BrokleOtelSpanAttributes",  # Telemetry attributes
@@ -182,44 +160,9 @@ __all__ = [
     "LatencyEvaluator",
     "QualityEvaluator",
 
-    # === NATIVE SDK: AI PLATFORM FEATURES ===
-    # Core
-    "AIClient",
-    "get_ai_client",
-    "configure_ai_platform",
-    "generate",
-    "generate_stream",
-    # Routing
-    "RoutingStrategy",
-    "RoutingConfig",
-    "ProviderConfig",
-    "ProviderTier",
-    "create_cost_optimized_routing",
-    "create_quality_optimized_routing",
-    # Caching
-    "CacheStrategy",
-    "CacheConfig",
-    "SemanticCacheConfig",
-    "create_semantic_cache_config",
-    "get_cache_stats",
-    # Quality
-    "QualityMetric",
-    "QualityConfig",
-    "QualityScore",
-    "create_comprehensive_quality",
-    "evaluate_quality",
-    # Optimization
-    "OptimizationStrategy",
-    "CostOptimizationConfig",
-    "BudgetConfig",
-    "create_balanced_optimization",
-    "get_cost_breakdown",
-    # Providers
-    "ProviderStatus",
-    "ProviderHealth",
-    "get_provider_health",
-    "get_healthy_providers",
-    "get_provider_rankings",
+    # === NATIVE SDK: ADVANCED FEATURES (Integrated into main client) ===
+    # Advanced features are available through Brokle() and AsyncBrokle() clients
+    # No separate exports needed - clean architecture with unified interface
 
     # === METADATA ===
     "__version__",
