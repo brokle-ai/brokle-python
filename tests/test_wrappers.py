@@ -195,20 +195,6 @@ class TestDeprecationWarnings:
         # Module was deleted, so Python raises standard ModuleNotFoundError
         assert "No module named 'brokle.anthropic'" in str(exc_info.value)
 
-    def test_getattr_deprecation_openai(self):
-        """Test __getattr__ deprecation for openai."""
-        import brokle
-        with pytest.raises(ImportError) as exc_info:
-            _ = brokle.openai
-        assert "BREAKING CHANGE" in str(exc_info.value)
-
-    def test_getattr_deprecation_anthropic(self):
-        """Test __getattr__ deprecation for anthropic."""
-        import brokle
-        with pytest.raises(ImportError) as exc_info:
-            _ = brokle.anthropic
-        assert "BREAKING CHANGE" in str(exc_info.value)
-
     def test_getattr_unknown_attribute(self):
         """Test __getattr__ for unknown attributes."""
         import brokle

@@ -1,16 +1,19 @@
-"""Comprehensive integration tests for Brokle SDK."""
+"""
+Clean Integration Tests
+
+Tests the actual public API without deprecated internal methods.
+"""
 
 import pytest
-from unittest.mock import patch, MagicMock
-import asyncio
+import os
 
-from brokle import Brokle
-from brokle.decorators import observe, trace_workflow
+from brokle import Brokle, get_client
 from brokle.config import Config
+from brokle.exceptions import AuthenticationError
 
 
-class TestBrokleIntegration:
-    """Test integration between SDK components."""
+class TestV2Integration:
+    """Test integration patterns."""
 
     @pytest.fixture
     def config(self):
@@ -18,143 +21,123 @@ class TestBrokleIntegration:
         return Config(
             api_key="ak_test_key",
             project_id="proj_test",
-            host="https://test.example.com",
+            host="https://api.brokle.ai",
             otel_enabled=False
         )
 
-    def test_end_to_end_workflow(self, config):
-        """Test complete workflow: client → decorator → OpenAI integration."""
-        with patch('brokle.client.get_client') as mock_get_client:
-            mock_client = MagicMock()
-            mock_client.config.telemetry_enabled = True
-            mock_get_client.return_value = mock_client
-
-            # Create client
-            client = Brokle(config=config)
-
-            # Use decorator in workflow
-            @observe(name="llm-call")
-            def make_llm_call(prompt):
-                return f"Response to: {prompt}"
-
-            # Execute workflow
-            with trace_workflow("test-integration"):
-                result = make_llm_call("Hello AI")
-
-            assert result == "Response to: Hello AI"
-
-    def test_openai_integration_with_instrumentation(self):
-        """Test OpenAI drop-in replacement with instrumentation."""
-        try:
-            from brokle.openai import OpenAI
-        except ImportError:
-            pytest.skip("OpenAI integration not available")
-
-        # Simplified test: just verify that the OpenAI client can be created with Brokle
-        with patch('brokle.client.get_client') as mock_get_client:
-            mock_brokle_client = MagicMock()
-            mock_brokle_client.config.telemetry_enabled = True
-            mock_get_client.return_value = mock_brokle_client
-
-            with patch.dict('os.environ', {'BROKLE_API_KEY': 'ak_test', 'BROKLE_PROJECT_ID': 'proj_test'}):
-                client = OpenAI(api_key="sk-test")
-
-                # Just verify client creation and interface
-                assert client is not None
-                assert hasattr(client, 'chat')
-                assert hasattr(client.chat, 'completions')
-                assert hasattr(client.chat.completions, 'create')
-
-    @pytest.mark.asyncio
-    async def test_async_workflow_integration(self, config):
-        """Test async workflow with decorators and client."""
-        with patch('brokle.client.get_client') as mock_get_client:
-            mock_client = MagicMock()
-            mock_client.config.telemetry_enabled = True
-            mock_get_client.return_value = mock_client
-
-            @observe()
-            async def async_step(step_name):
-                await asyncio.sleep(0.01)
-                return f"Completed {step_name}"
-
-            with patch('brokle._utils.telemetry.trace') as mock_trace:
-                mock_tracer = MagicMock()
-                mock_span = MagicMock()
-                mock_tracer.start_span.return_value = mock_span
-                mock_trace.get_tracer.return_value = mock_tracer
-
-                with trace_workflow("async-workflow"):
-                    result1 = await async_step("step1")
-                    result2 = await async_step("step2")
-
-                assert result1 == "Completed step1"
-                assert result2 == "Completed step2"
-
-    def test_error_handling_across_components(self, config):
-        """Test error handling across SDK components."""
-        with patch('brokle.client.get_client') as mock_get_client:
-            mock_client = MagicMock()
-            mock_client.config.telemetry_enabled = True
-            mock_get_client.return_value = mock_client
-
-            # Test that client creation and basic operations work even with errors
-            client = Brokle(config=config)
-
-            # Verify client can handle operations gracefully
-            span = client.span("test-error-span")
-            assert span is not None
-
-            # Test that errors don't break the client
-            try:
-                raise ValueError("Test error")
-            except ValueError:
-                pass  # Should not affect client functionality
-
-            # Client should still work after error
-            assert client.config is not None
-
-    def test_configuration_propagation(self):
-        """Test configuration propagation across SDK components."""
-        config = Config(
-            api_key="ak_integration_test",
-            project_id="proj_integration",
-            environment="test",
-            telemetry_enabled=True,
-            otel_enabled=False
-        )
-
+    def test_pattern_3_native_sdk(self, config):
+        """Test Pattern 3: Native SDK usage."""
+        # Direct instantiation with config
         client = Brokle(config=config)
 
-        assert client.config.api_key == "ak_integration_test"
-        assert client.config.project_id == "proj_integration"
-        assert client.config.environment == "test"
-        assert client.config.telemetry_enabled is True
+        # Verify client has expected resources
+        assert hasattr(client, 'chat')
+        assert hasattr(client, 'embeddings')
+        assert hasattr(client, 'models')
 
-    def test_multi_pattern_usage(self, config):
-        """Test using multiple SDK patterns together."""
-        with patch('brokle.client.get_client') as mock_get_client:
-            mock_client = MagicMock()
-            mock_client.config.telemetry_enabled = True
-            mock_get_client.return_value = mock_client
+        # Verify configuration
+        assert client.config.api_key == "ak_test_key"
+        assert client.config.project_id == "proj_test"
 
-            # Native SDK usage
-            client = Brokle(config=config)
-            span = client.span("native-span")
+    def test_pattern_3_with_kwargs(self):
+        """Test Pattern 3: Native SDK with kwargs."""
+        client = Brokle(
+            api_key="ak_kwargs_key",
+            project_id="proj_kwargs",
+            environment="staging",
+            otel_enabled=False
+        )
 
-            # Decorator usage
-            @observe()
-            def decorated_function():
-                return "decorated result"
+        assert client.config.api_key == "ak_kwargs_key"
+        assert client.config.project_id == "proj_kwargs"
+        assert client.config.environment == "staging"
 
-            # Context manager usage
-            with patch('brokle._utils.telemetry.trace') as mock_trace:
-                mock_tracer = MagicMock()
-                mock_workflow_span = MagicMock()
-                mock_tracer.start_span.return_value = mock_workflow_span
-                mock_trace.get_tracer.return_value = mock_tracer
+    def test_pattern_1_2_get_client(self, monkeypatch):
+        """Test Pattern 1/2: get_client() from environment."""
+        # Set environment variables
+        monkeypatch.setenv("BROKLE_API_KEY", "ak_env_key")
+        monkeypatch.setenv("BROKLE_PROJECT_ID", "proj_env")
+        monkeypatch.setenv("BROKLE_HOST", "https://api.brokle.ai")
 
-                with trace_workflow("multi-pattern-workflow"):
-                    result = decorated_function()
+        # get_client() should use environment variables
+        client = get_client()
 
-                assert result == "decorated result"
+        assert client.config.api_key == "ak_env_key"
+        assert client.config.project_id == "proj_env"
+        assert client.config.host == "https://api.brokle.ai"
+
+    def test_client_lifecycle(self, config):
+        """Test client lifecycle operations."""
+        client = Brokle(config=config)
+
+        # Context manager usage
+        with client:
+            assert isinstance(client, Brokle)
+
+        # Explicit close (should not raise errors)
+        client.close()
+
+    def test_client_http_preparation(self, config):
+        """Test client HTTP preparation (public interface only)."""
+        client = Brokle(config=config)
+
+        # Test URL preparation (if it's a public method)
+        if hasattr(client, '_prepare_url'):
+            url = client._prepare_url('/v1/chat/completions')
+            assert url.endswith('/v1/chat/completions')
+
+    def test_environment_configuration_handling(self):
+        """Test various environment configurations."""
+        # Test with environment name
+        client = Brokle(
+            api_key="ak_test",
+            project_id="proj_test",
+            environment="production",
+            otel_enabled=False
+        )
+
+        assert client.config.environment == "production"
+
+        # Test with custom host
+        client2 = Brokle(
+            api_key="ak_test",
+            project_id="proj_test",
+            host="https://custom.brokle.ai",
+            otel_enabled=False
+        )
+
+        assert client2.config.host == "https://custom.brokle.ai"
+
+    def test_error_handling_patterns(self, monkeypatch):
+        """Test error handling patterns."""
+        # Clear environment variables
+        monkeypatch.delenv("BROKLE_API_KEY", raising=False)
+        monkeypatch.delenv("BROKLE_PROJECT_ID", raising=False)
+
+        # Should raise AuthenticationError when no credentials
+        with pytest.raises(AuthenticationError, match="API key is required"):
+            Brokle(otel_enabled=False)
+
+    def test_configuration_precedence(self, monkeypatch):
+        """Test configuration precedence (explicit > env vars)."""
+        # Set environment variables
+        monkeypatch.setenv("BROKLE_API_KEY", "ak_env_key")
+        monkeypatch.setenv("BROKLE_PROJECT_ID", "proj_env")
+
+        # Explicit parameters should override environment
+        client = Brokle(
+            api_key="ak_explicit_key",
+            project_id="proj_explicit",
+            otel_enabled=False
+        )
+
+        assert client.config.api_key == "ak_explicit_key"
+        assert client.config.project_id == "proj_explicit"
+
+    def test_client_string_representation(self, config):
+        """Test client has reasonable string representation."""
+        client = Brokle(config=config)
+        repr_str = repr(client)
+
+        # Should contain some identifying information
+        assert "Brokle" in repr_str or "brokle" in repr_str.lower()

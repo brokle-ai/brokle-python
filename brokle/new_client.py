@@ -231,14 +231,14 @@ class AsyncBrokle(HTTPBase):
         await self.close()
 
 
-# Global singleton for clean v2.0 architecture
+# Global singleton for clean architecture
 _client_singleton: Optional[Brokle] = None
 
 def get_client() -> Brokle:
     """
     Get or create a singleton Brokle client instance from environment variables.
 
-    This is the clean v2.0 API for Pattern 1/2/3 integration:
+    This is the clean API for Pattern 1/2/3 integration:
     - Pattern 1 (Wrappers): Use this for observability context
     - Pattern 2 (Decorator): Use this for telemetry
     - Pattern 3 (Native): Use Brokle() for explicit config, get_client() for env config

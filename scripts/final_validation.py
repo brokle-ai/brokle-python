@@ -139,7 +139,7 @@ class BrokleSDKValidator:
             # Clear any existing context
             clear_context()
 
-            # Test client creation with explicit parameters (v2.0 pattern)
+            # Test client creation with explicit parameters
             client1 = Brokle(
                 api_key="ak_test_1",
                 project_id="proj_test_1",
@@ -165,14 +165,14 @@ class BrokleSDKValidator:
             # Clear context
             clear_context()
 
-            # Create client for project 1 (v2.0 pattern)
+            # Create client for project 1
             client1 = Brokle(
                 api_key="ak_test_1",
                 project_id="proj_1",
                 environment="prod"
             )
 
-            # Create client for different project (v2.0 pattern - distinct instances)
+            # Create client for different project (distinct instances)
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
 

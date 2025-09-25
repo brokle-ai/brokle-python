@@ -1,4 +1,4 @@
-# Brokle Python SDK v2.0 - Complete API Reference
+# Brokle Python SDK - Complete API Reference
 
 The Brokle Python SDK provides three integration patterns for adding AI observability, routing, and optimization to your applications.
 
@@ -649,4 +649,4 @@ async def robust_ai_call():
 
 ---
 
-*Complete API Reference for Brokle Python SDK v2.0*
+*Complete API Reference for Brokle Python SDK*

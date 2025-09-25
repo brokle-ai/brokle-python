@@ -84,7 +84,7 @@ class TestBrokleClient:
                 project_id="proj_test",
                 otel_enabled=False
             )
-            # If no validation, that's also valid for v2.0
+            # If no validation, that's also valid for the current API
             assert client.config.api_key == "invalid_key_format"
         except Exception:
             # Validation exists, which is also valid

@@ -1,7 +1,7 @@
 """
-Clean v2.0 Decorator Tests
+Clean Decorator Tests
 
-Tests the actual @observe decorator functionality without deprecated v1.0 mocking patterns.
+Tests the actual @observe decorator functionality without deprecated mocking patterns.
 """
 
 import pytest
@@ -83,7 +83,7 @@ class TestTraceWorkflow:
 
 
 class TestPatternIntegration:
-    """Test decorator patterns with real v2.0 functionality."""
+    """Test decorator patterns with real functionality."""
 
     def test_decorator_with_client_creation(self):
         """Test decorator works with client creation."""

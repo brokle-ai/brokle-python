@@ -1,4 +1,4 @@
-# Brokle Platform Python SDK
+# Brokle Python SDK
 
 **Three integration patterns. One powerful platform.**
 

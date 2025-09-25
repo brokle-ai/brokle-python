@@ -1,4 +1,4 @@
-# Integration Patterns Guide - Brokle SDK v2.0
+# Integration Patterns Guide - Brokle SDK
 
 The Brokle Python SDK provides three elegant patterns for adding AI observability, routing, and optimization to your applications. Choose the pattern that best fits your use case and scale as needed.
 
@@ -1076,132 +1076,6 @@ async def main():
 asyncio.run(main())
 ```
 
----
-
-# Migration from v1.x
-
-## Breaking Changes in v2.0
-
-### Old Drop-in Replacements (Removed)
-```python
-# ❌ OLD v1.x (no longer works)
-from brokle.openai import OpenAI
-from brokle.anthropic import Anthropic
-
-client = OpenAI()  # This was a drop-in replacement
-```
-
-### New Wrapper Functions (v2.0)
-```python
-# ✅ NEW v2.0
-from openai import OpenAI        # Use original imports
-from brokle import wrap_openai   # Import wrapper function
-
-client = wrap_openai(OpenAI())   # Explicit wrapping
-```
-
-## Migration Steps
-
-### Step 1: Update Imports
-```python
-# Before (v1.x)
-from brokle.openai import OpenAI as BrokleOpenAI
-
-# After (v2.0)
-from openai import OpenAI
-from brokle import wrap_openai
-```
-
-### Step 2: Wrap Existing Clients
-```python
-# Before (v1.x)
-client = BrokleOpenAI(api_key="sk-...")
-
-# After (v2.0)
-original_client = OpenAI(api_key="sk-...")
-client = wrap_openai(original_client)
-```
-
-### Step 3: Update Configuration
-```python
-# Before (v1.x) - configuration via client constructor
-client = BrokleOpenAI(
-    api_key="sk-...",
-    brokle_api_key="ak-...",
-    capture_content=True
-)
-
-# After (v2.0) - configuration via wrapper
-client = wrap_openai(
-    OpenAI(api_key="sk-..."),     # Original client config
-    capture_content=True,          # Brokle config
-    tags=["production"]
-)
-```
-
-## Complete Migration Example
-
-### Before (v1.x)
-```python
-# v1.x code
-from brokle.openai import OpenAI as BrokleOpenAI
-from brokle.anthropic import Anthropic as BrokleAnthropic
-
-openai_client = BrokleOpenAI(
-    api_key="sk-...",
-    brokle_api_key="ak-...",
-    capture_content=True
-)
-
-anthropic_client = BrokleAnthropic(
-    api_key="sk-ant-...",
-    brokle_api_key="ak-..."
-)
-
-def generate_content(prompt: str) -> str:
-    response = openai_client.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response.choices[0].message.content
-```
-
-### After (v2.0)
-```python
-# v2.0 code
-from openai import OpenAI
-from anthropic import Anthropic
-from brokle import wrap_openai, wrap_anthropic, observe
-
-# Environment variables for Brokle configuration
-# BROKLE_API_KEY="ak_..."
-# BROKLE_PROJECT_ID="proj_..."
-
-openai_client = wrap_openai(
-    OpenAI(api_key="sk-..."),
-    capture_content=True,
-    tags=["production", "content-generation"]
-)
-
-anthropic_client = wrap_anthropic(
-    Anthropic(api_key="sk-ant-..."),
-    tags=["production", "anthropic"]
-)
-
-@observe(name="content-generation")
-def generate_content(prompt: str) -> str:
-    response = openai_client.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response.choices[0].message.content
-
-# ✅ Enhanced with v2.0 features:
-# - Explicit wrapper functions
-# - Environment-based Brokle config
-# - Enhanced observability with @observe
-# - Better separation of concerns
-```
 
 ---
 
@@ -1268,7 +1142,7 @@ finally:
 ### Observability Tagging Strategy
 ```python
 # Consistent tagging for analytics
-base_tags = ["production", "v2.0"]
+base_tags = ["production", "brokle-app"]
 
 # Feature-specific tags
 content_tags = base_tags + ["content", "generation"]
@@ -1319,4 +1193,4 @@ analysis_response = client.chat.completions.create(
 )
 ```
 
-The new v2.0 architecture provides comprehensive AI observability and optimization through three flexible integration patterns. Choose the pattern that fits your needs and scale as your requirements grow.
+The Brokle SDK provides comprehensive AI observability and optimization through three flexible integration patterns. Choose the pattern that fits your needs and scale as your requirements grow.

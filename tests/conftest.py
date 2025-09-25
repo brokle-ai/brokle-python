@@ -209,7 +209,7 @@ def generate_test_metadata():
 # Cleanup fixtures
 @pytest.fixture(autouse=True)
 def reset_client_state():
-    """Reset client state for v2.0 architecture before and after each test."""
+    """Reset client state before and after each test."""
     # Clear singleton instance
     import brokle.new_client
     brokle.new_client._client_singleton = None

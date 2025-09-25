@@ -1,14 +1,8 @@
 """
 Brokle SDK 2.0 - The Open-Source AI Control Plane
 
-BREAKING CHANGES in v2.0.0:
-- Removed drop-in replacements (brokle.openai.OpenAI, brokle.anthropic.Anthropic)
-- Added explicit wrapper functions (wrap_openai, wrap_anthropic)
-- Enhanced 3-pattern integration system with shared providers
-
-Migration Guide:
-1.x: from brokle.openai import OpenAI
-2.x: from openai import OpenAI; from brokle import wrap_openai; client = wrap_openai(OpenAI())
+The Brokle SDK provides three integration patterns for adding AI observability,
+routing, and optimization to your applications.
 
 Three Integration Patterns:
 
@@ -68,7 +62,7 @@ from .decorators import (
     ObserveConfig,
 )
 
-# === PATTERN 3: NATIVE SDK (NEW v2.0 ARCHITECTURE) ===
+# === PATTERN 3: NATIVE SDK ===
 from .client import Brokle, AsyncBrokle, get_client
 from .config import Config
 from .auth import AuthManager
@@ -110,7 +104,7 @@ from .evaluation import (
 # NOTE: AI Platform features are now integrated into the main Brokle client
 # These advanced features are available through the Native SDK Pattern 3
 
-# Main exports - Clean 3-Pattern Architecture (v2.0.0)
+# Main exports - Clean 3-Pattern Architecture
 __all__ = [
     # === PATTERN 1: WRAPPER FUNCTIONS ===
     "wrap_openai",               # OpenAI client wrapper
@@ -125,7 +119,7 @@ __all__ = [
     "observe_retrieval",         # Retrieval-specific decorator
     "ObserveConfig",             # Decorator configuration
 
-    # === PATTERN 3: NATIVE SDK (v2.0 - OpenAI-Compatible + Brokle Features) ===
+    # === PATTERN 3: NATIVE SDK (OpenAI-Compatible + Brokle Features) ===
     "Brokle",                    # Main sync client class
     "AsyncBrokle",               # Async client class
     "get_client",                # Client accessor
@@ -169,23 +163,3 @@ __all__ = [
 ]
 
 
-# Deprecation warnings for old imports (BREAKING CHANGE)
-def __getattr__(name: str):
-    """Handle deprecated imports with helpful error messages."""
-    deprecated_imports = {
-        'openai': (
-            'BREAKING CHANGE in Brokle 2.0: brokle.openai is deprecated.\n'
-            'Migration: from openai import OpenAI; from brokle import wrap_openai; client = wrap_openai(OpenAI())\n'
-            'See migration guide: https://docs.brokle.ai/migration/v2'
-        ),
-        'anthropic': (
-            'BREAKING CHANGE in Brokle 2.0: brokle.anthropic is deprecated.\n'
-            'Migration: from anthropic import Anthropic; from brokle import wrap_anthropic; client = wrap_anthropic(Anthropic())\n'
-            'See migration guide: https://docs.brokle.ai/migration/v2'
-        ),
-    }
-
-    if name in deprecated_imports:
-        raise ImportError(deprecated_imports[name])
-
-    raise AttributeError(f"module 'brokle' has no attribute '{name}'")

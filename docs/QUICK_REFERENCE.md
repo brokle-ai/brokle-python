@@ -1,4 +1,4 @@
-# Brokle SDK v2.0 - Quick Reference
+# Brokle SDK - Quick Reference
 
 ## 🎯 Three Integration Patterns
 
@@ -217,11 +217,11 @@ if not hasattr(client, '_brokle_instrumented'):
 
 ```python
 # ❌ Wrong - deprecated parameters
-@observe(as_type="generation")  # Removed in v2.0
+@observe(as_type="generation")  # Not supported
 def my_function():
     pass
 
-# ✅ Correct - v2.0 syntax
+# ✅ Correct - current syntax
 @observe(
     name="llm-generation",
     tags=["generation", "ai"],
@@ -459,7 +459,6 @@ except Exception as e:
 - **📖 [Complete API Reference](API_REFERENCE.md)** - Full documentation
 - **🎯 [Integration Patterns Guide](INTEGRATION_PATTERNS_GUIDE.md)** - Detailed examples
 - **💻 [Example Files](../examples/)** - Working code examples
-- **🔄 [Migration Guide](MIGRATION_GUIDE.md)** - v1.x to v2.0 upgrade
 
 ---
 
