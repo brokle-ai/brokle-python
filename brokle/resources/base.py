@@ -7,7 +7,7 @@ Provides common functionality for sync and async resource implementations.
 from typing import TYPE_CHECKING, Any, Dict
 
 if TYPE_CHECKING:
-    from ..new_client import Brokle, AsyncBrokle
+    from ..client import Brokle, AsyncBrokle
 
 
 class BaseResource:

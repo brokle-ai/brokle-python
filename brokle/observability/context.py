@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any
 import threading
 from contextlib import contextmanager
 
-from ..new_client import Brokle
+from ..client import Brokle
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

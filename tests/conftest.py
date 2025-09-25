@@ -211,8 +211,8 @@ def generate_test_metadata():
 def reset_client_state():
     """Reset client state before and after each test."""
     # Clear singleton instance
-    import brokle.new_client
-    brokle.new_client._client_singleton = None
+    import brokle.client
+    brokle.client._client_singleton = None
 
     # Clear observability context
     from brokle.observability.context import clear_context
@@ -221,7 +221,7 @@ def reset_client_state():
     yield
 
     # Cleanup after test
-    brokle.new_client._client_singleton = None
+    brokle.client._client_singleton = None
     clear_context()
 
 
