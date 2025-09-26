@@ -172,6 +172,10 @@ class SpanContext:
 
                 self.span.end()
 
+                # Submit span telemetry through background processor
+                from .observability.spans import record_span
+                record_span(self.span)
+
             # Restore previous span for hierarchical tracing
             _set_current_span(self.previous_span)
 
@@ -675,6 +679,10 @@ def trace_workflow(
                 BrokleOtelSpanAttributes.RESPONSE_END_TIME: time.time()
             })
             span.end()
+
+            # Submit span telemetry through background processor
+            from .observability.spans import record_span
+            record_span(span)
 
 
 # Convenience functions for common use cases

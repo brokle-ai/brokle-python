@@ -9,13 +9,16 @@ Key Features:
 - Proper resource management with context managers
 - Sync and async client variants
 - Brokle extensions (routing, caching, tags)
+- Integrated background task processing
 """
 
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List, Callable
 import httpx
 
 from .http.base import HTTPBase
 from .exceptions import NetworkError
+from ._task_manager.processor import BackgroundProcessor, get_background_processor
+from .config import Config
 
 
 class Brokle(HTTPBase):
@@ -38,6 +41,7 @@ class Brokle(HTTPBase):
         project_id: Optional[str] = None,
         environment: Optional[str] = None,
         timeout: Optional[float] = None,
+        background_processor: Optional[BackgroundProcessor] = None,
         **kwargs
     ):
         """
@@ -49,6 +53,7 @@ class Brokle(HTTPBase):
             project_id: Project ID
             environment: Environment name
             timeout: Request timeout in seconds
+            background_processor: Optional background processor for telemetry (will create default if None)
             **kwargs: Additional configuration
         """
         super().__init__(
@@ -63,6 +68,15 @@ class Brokle(HTTPBase):
         # Initialize HTTP client
         self._client: Optional[httpx.Client] = None
 
+        # Initialize background processor for telemetry
+        if background_processor is not None:
+            self._background_processor = background_processor
+            self._owns_processor = False  # We don't own it, don't shut it down
+        else:
+            # Create default processor using our config
+            self._background_processor = get_background_processor(config=self.config)
+            self._owns_processor = True  # We created it, we should shut it down
+
         # Initialize resources (will be created in next step)
         from .resources.chat import ChatResource
         from .resources.embeddings import EmbeddingsResource
@@ -76,6 +90,63 @@ class Brokle(HTTPBase):
         """Create a span for observability."""
         from .observability.spans import create_span
         return create_span(name=name, **kwargs)
+
+    def submit_telemetry(self, data: Dict[str, Any]) -> None:
+        """
+        Submit telemetry data for background processing.
+
+        Args:
+            data: Telemetry data to submit
+        """
+        self._background_processor.submit_telemetry(data)
+
+    def submit_analytics(self, data: Dict[str, Any]) -> None:
+        """
+        Submit analytics data for background processing.
+
+        Args:
+            data: Analytics data to submit
+        """
+        self._background_processor.submit_analytics(data)
+
+    def submit_evaluation(self, data: Dict[str, Any]) -> None:
+        """
+        Submit evaluation data for background processing.
+
+        Args:
+            data: Evaluation data to submit
+        """
+        self._background_processor.submit_evaluation(data)
+
+    def get_processor_metrics(self) -> Dict[str, Any]:
+        """
+        Get background processor metrics.
+
+        Returns:
+            Dictionary containing processor metrics
+        """
+        return self._background_processor.get_metrics()
+
+    def is_processor_healthy(self) -> bool:
+        """
+        Check if background processor is healthy.
+
+        Returns:
+            True if processor is healthy
+        """
+        return self._background_processor.is_healthy()
+
+    def flush_processor(self, timeout: Optional[float] = None) -> bool:
+        """
+        Flush pending processor items and wait for completion.
+
+        Args:
+            timeout: Maximum time to wait (None = wait indefinitely)
+
+        Returns:
+            True if all items processed, False if timeout reached
+        """
+        return self._background_processor.flush(timeout=timeout)
 
     def _get_client(self) -> httpx.Client:
         """Get or create HTTP client."""
@@ -101,22 +172,72 @@ class Brokle(HTTPBase):
         Raises:
             NetworkError: For connection errors
         """
+        import time
+        start_time = time.time()
+
         client = self._get_client()
         url = self._prepare_url(endpoint)
         kwargs = self._prepare_request_kwargs(**kwargs)
 
         try:
             response = client.request(method, url, **kwargs)
-            return self._process_response(response)
-        except httpx.ConnectError as e:
-            raise NetworkError(f"Failed to connect to Brokle backend: {e}")
-        except httpx.TimeoutException as e:
-            raise NetworkError(f"Request timeout: {e}")
-        except httpx.HTTPError as e:
-            raise NetworkError(f"HTTP error: {e}")
+            result = self._process_response(response)
+
+            # Submit telemetry data in background
+            telemetry_data = {
+                "method": method,
+                "endpoint": endpoint,
+                "status_code": response.status_code,
+                "latency_ms": int((time.time() - start_time) * 1000),
+                "success": True,
+                "timestamp": time.time(),
+                "project_id": self.config.project_id,
+                "environment": self.config.environment,
+            }
+            self.submit_telemetry(telemetry_data)
+
+            return result
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPError) as e:
+            # Submit error telemetry
+            telemetry_data = {
+                "method": method,
+                "endpoint": endpoint,
+                "status_code": getattr(e, 'response', {}).get('status_code', 0),
+                "latency_ms": int((time.time() - start_time) * 1000),
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "timestamp": time.time(),
+                "project_id": self.config.project_id,
+                "environment": self.config.environment,
+            }
+            self.submit_telemetry(telemetry_data)
+
+            # Re-raise with appropriate exception type
+            if isinstance(e, httpx.ConnectError):
+                raise NetworkError(f"Failed to connect to Brokle backend: {e}")
+            elif isinstance(e, httpx.TimeoutException):
+                raise NetworkError(f"Request timeout: {e}")
+            else:
+                raise NetworkError(f"HTTP error: {e}")
 
     def close(self) -> None:
         """Close HTTP client and cleanup resources."""
+        # Flush processor before closing (give it 5 seconds)
+        if hasattr(self, '_background_processor'):
+            try:
+                self._background_processor.flush(timeout=5.0)
+            except Exception:
+                pass  # Don't let processor errors prevent cleanup
+
+            # Shutdown processor if we own it
+            if hasattr(self, '_owns_processor') and self._owns_processor:
+                try:
+                    self._background_processor.shutdown()
+                except Exception:
+                    pass  # Don't let processor errors prevent cleanup
+
+        # Close HTTP client
         if hasattr(self, '_client') and self._client is not None:
             self._client.close()
             self._client = None
@@ -157,6 +278,7 @@ class AsyncBrokle(HTTPBase):
         project_id: Optional[str] = None,
         environment: Optional[str] = None,
         timeout: Optional[float] = None,
+        background_processor: Optional[BackgroundProcessor] = None,
         **kwargs
     ):
         """
@@ -168,6 +290,7 @@ class AsyncBrokle(HTTPBase):
             project_id: Project ID
             environment: Environment name
             timeout: Request timeout in seconds
+            background_processor: Optional background processor for telemetry (will create default if None)
             **kwargs: Additional configuration
         """
         super().__init__(
@@ -185,6 +308,15 @@ class AsyncBrokle(HTTPBase):
             limits=httpx.Limits(max_connections=100, max_keepalive_connections=20)
         )
 
+        # Initialize background processor for telemetry
+        if background_processor is not None:
+            self._background_processor = background_processor
+            self._owns_processor = False  # We don't own it, don't shut it down
+        else:
+            # Create default processor using our config
+            self._background_processor = get_background_processor(config=self.config)
+            self._owns_processor = True  # We created it, we should shut it down
+
         # Initialize async resources (will be created in next step)
         from .resources.chat import AsyncChatResource
         from .resources.embeddings import AsyncEmbeddingsResource
@@ -193,6 +325,63 @@ class AsyncBrokle(HTTPBase):
         self.chat = AsyncChatResource(self)
         self.embeddings = AsyncEmbeddingsResource(self)
         self.models = AsyncModelsResource(self)
+
+    def submit_telemetry(self, data: Dict[str, Any]) -> None:
+        """
+        Submit telemetry data for background processing.
+
+        Args:
+            data: Telemetry data to submit
+        """
+        self._background_processor.submit_telemetry(data)
+
+    def submit_analytics(self, data: Dict[str, Any]) -> None:
+        """
+        Submit analytics data for background processing.
+
+        Args:
+            data: Analytics data to submit
+        """
+        self._background_processor.submit_analytics(data)
+
+    def submit_evaluation(self, data: Dict[str, Any]) -> None:
+        """
+        Submit evaluation data for background processing.
+
+        Args:
+            data: Evaluation data to submit
+        """
+        self._background_processor.submit_evaluation(data)
+
+    def get_processor_metrics(self) -> Dict[str, Any]:
+        """
+        Get background processor metrics.
+
+        Returns:
+            Dictionary containing processor metrics
+        """
+        return self._background_processor.get_metrics()
+
+    def is_processor_healthy(self) -> bool:
+        """
+        Check if background processor is healthy.
+
+        Returns:
+            True if processor is healthy
+        """
+        return self._background_processor.is_healthy()
+
+    def flush_processor(self, timeout: Optional[float] = None) -> bool:
+        """
+        Flush pending processor items and wait for completion.
+
+        Args:
+            timeout: Maximum time to wait (None = wait indefinitely)
+
+        Returns:
+            True if all items processed, False if timeout reached
+        """
+        return self._background_processor.flush(timeout=timeout)
 
     async def request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """
@@ -209,21 +398,71 @@ class AsyncBrokle(HTTPBase):
         Raises:
             NetworkError: For connection errors
         """
+        import time
+        start_time = time.time()
+
         url = self._prepare_url(endpoint)
         kwargs = self._prepare_request_kwargs(**kwargs)
 
         try:
             response = await self._client.request(method, url, **kwargs)
-            return self._process_response(response)
-        except httpx.ConnectError as e:
-            raise NetworkError(f"Failed to connect to Brokle backend: {e}")
-        except httpx.TimeoutException as e:
-            raise NetworkError(f"Request timeout: {e}")
-        except httpx.HTTPError as e:
-            raise NetworkError(f"HTTP error: {e}")
+            result = self._process_response(response)
+
+            # Submit telemetry data in background
+            telemetry_data = {
+                "method": method,
+                "endpoint": endpoint,
+                "status_code": response.status_code,
+                "latency_ms": int((time.time() - start_time) * 1000),
+                "success": True,
+                "timestamp": time.time(),
+                "project_id": self.config.project_id,
+                "environment": self.config.environment,
+            }
+            self.submit_telemetry(telemetry_data)
+
+            return result
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPError) as e:
+            # Submit error telemetry
+            telemetry_data = {
+                "method": method,
+                "endpoint": endpoint,
+                "status_code": getattr(e, 'response', {}).get('status_code', 0),
+                "latency_ms": int((time.time() - start_time) * 1000),
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "timestamp": time.time(),
+                "project_id": self.config.project_id,
+                "environment": self.config.environment,
+            }
+            self.submit_telemetry(telemetry_data)
+
+            # Re-raise with appropriate exception type
+            if isinstance(e, httpx.ConnectError):
+                raise NetworkError(f"Failed to connect to Brokle backend: {e}")
+            elif isinstance(e, httpx.TimeoutException):
+                raise NetworkError(f"Request timeout: {e}")
+            else:
+                raise NetworkError(f"HTTP error: {e}")
 
     async def close(self) -> None:
         """Close async HTTP client and cleanup resources."""
+        # Flush processor before closing (give it 5 seconds)
+        if hasattr(self, '_background_processor'):
+            try:
+                self._background_processor.flush(timeout=5.0)
+            except Exception:
+                pass  # Don't let processor errors prevent cleanup
+
+            # Shutdown processor if we own it
+            if hasattr(self, '_owns_processor') and self._owns_processor:
+                try:
+                    self._background_processor.shutdown()
+                except Exception:
+                    pass  # Don't let processor errors prevent cleanup
+
+        # Close HTTP client
         if self._client is not None:
             await self._client.aclose()
             self._client = None
@@ -240,7 +479,7 @@ class AsyncBrokle(HTTPBase):
 # Global singleton for clean architecture
 _client_singleton: Optional[Brokle] = None
 
-def get_client() -> Brokle:
+def get_client(background_processor: Optional[BackgroundProcessor] = None) -> Brokle:
     """
     Get or create a singleton Brokle client instance from environment variables.
 
@@ -257,6 +496,9 @@ def get_client() -> Brokle:
     - BROKLE_OTEL_ENABLED
     - etc.
 
+    Args:
+        background_processor: Optional background processor for telemetry (only used when creating new singleton)
+
     Returns:
         Singleton Brokle client instance
 
@@ -267,13 +509,17 @@ def get_client() -> Brokle:
 
         # For environment-based configuration, use get_client()
         client = get_client()  # Reads from BROKLE_* env vars
+
+        # Sharing a background processor across multiple clients
+        processor = get_background_processor(config=config)
+        client = get_client(background_processor=processor)
         ```
     """
     global _client_singleton
 
     if _client_singleton is None:
         # Create singleton from environment variables
-        _client_singleton = Brokle()
+        _client_singleton = Brokle(background_processor=background_processor)
 
     return _client_singleton
 

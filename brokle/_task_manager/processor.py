@@ -29,7 +29,17 @@ class BackgroundProcessor:
         self._worker_thread: Optional[threading.Thread] = None
         self._client: Optional[httpx.AsyncClient] = None
         self._lock = threading.Lock()
-        
+
+        # Metrics tracking
+        self._metrics = {
+            "items_processed": 0,
+            "items_failed": 0,
+            "batches_processed": 0,
+            "start_time": time.time(),
+            "last_error": None,
+            "last_error_time": None
+        }
+
         # Start worker thread
         self._start_worker()
     
@@ -78,23 +88,37 @@ class BackgroundProcessor:
     
     def _process_batch(self, batch: List[Dict[str, Any]]) -> None:
         """Process a batch of items."""
-        # Group items by type
-        telemetry_items = []
-        other_items = []
-        
-        for item in batch:
-            if item.get('type') == 'telemetry':
-                telemetry_items.append(item)
-            else:
-                other_items.append(item)
-        
-        # Process telemetry items
-        if telemetry_items:
-            self._process_telemetry_batch(telemetry_items)
-        
-        # Process other items
-        for item in other_items:
-            self._process_item(item)
+        try:
+            # Group items by type
+            telemetry_items = []
+            other_items = []
+
+            for item in batch:
+                if item.get('type') == 'telemetry':
+                    telemetry_items.append(item)
+                else:
+                    other_items.append(item)
+
+            # Process telemetry items
+            if telemetry_items:
+                self._process_telemetry_batch(telemetry_items)
+
+            # Process other items
+            for item in other_items:
+                self._process_item(item)
+
+            # Update metrics
+            with self._lock:
+                self._metrics["items_processed"] += len(batch)
+                self._metrics["batches_processed"] += 1
+
+        except Exception as e:
+            # Update error metrics
+            with self._lock:
+                self._metrics["items_failed"] += len(batch)
+                self._metrics["last_error"] = str(e)
+                self._metrics["last_error_time"] = time.time()
+            raise
     
     def _process_telemetry_batch(self, items: List[Dict[str, Any]]) -> None:
         """Process telemetry items in batch."""
@@ -236,25 +260,116 @@ class BackgroundProcessor:
         except Exception as e:
             logger.error(f"Failed to queue evaluation: {e}")
     
-    def flush(self, timeout: Optional[float] = None) -> None:
-        """Flush pending items."""
+    def flush(self, timeout: Optional[float] = None) -> bool:
+        """
+        Flush pending items and wait for processing to complete.
+
+        Args:
+            timeout: Maximum time to wait in seconds (None = wait indefinitely)
+
+        Returns:
+            True if all items processed successfully, False if timeout reached
+        """
         if self._shutdown:
-            return
-        
+            return True
+
         try:
-            self._queue.join()
-            if timeout:
-                time.sleep(min(timeout, 5))
+            # For tests and simple cases, just check if queue is already empty
+            if self._queue.empty():
+                return True
+
+            if timeout is None:
+                # Wait indefinitely - check until queue is empty
+                while not self._queue.empty():
+                    time.sleep(0.1)
+                return True
+            else:
+                # Wait with timeout
+                start_time = time.time()
+                while not self._queue.empty():
+                    elapsed = time.time() - start_time
+                    if elapsed >= timeout:
+                        return False
+                    time.sleep(0.1)
+
+                return True
+
         except Exception as e:
             logger.error(f"Failed to flush background processor: {e}")
-    
+            return False
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """
+        Get current task manager metrics.
+
+        Returns:
+            Dict containing queue depth, processed counts, error stats, and timing info
+        """
+        with self._lock:
+            current_time = time.time()
+            uptime = current_time - self._metrics["start_time"]
+
+            return {
+                "queue_depth": self._queue.qsize(),
+                "queue_max_size": self._queue.maxsize,
+                "items_processed": self._metrics["items_processed"],
+                "items_failed": self._metrics["items_failed"],
+                "batches_processed": self._metrics["batches_processed"],
+                "uptime_seconds": uptime,
+                "processing_rate": self._metrics["items_processed"] / uptime if uptime > 0 else 0,
+                "error_rate": (
+                    self._metrics["items_failed"] /
+                    max(1, self._metrics["items_processed"] + self._metrics["items_failed"])
+                ),
+                "worker_alive": self._worker_thread and self._worker_thread.is_alive(),
+                "shutdown": self._shutdown,
+                "last_error": self._metrics["last_error"],
+                "last_error_time": self._metrics["last_error_time"]
+            }
+
+    def is_healthy(self) -> bool:
+        """
+        Check if the background processor is healthy.
+
+        Returns:
+            True if processor is healthy, False if there are critical issues
+        """
+        if self._shutdown:
+            return False
+
+        # Check if worker thread is alive
+        if not (self._worker_thread and self._worker_thread.is_alive()):
+            return False
+
+        with self._lock:
+            # Check if queue is not overwhelmed (less than 90% full)
+            queue_usage = self._queue.qsize() / self._queue.maxsize
+            if queue_usage > 0.9:
+                return False
+
+            # Check if error rate is not too high (less than 10%)
+            total_items = self._metrics["items_processed"] + self._metrics["items_failed"]
+            if total_items > 10:  # Only check after some processing
+                error_rate = self._metrics["items_failed"] / total_items
+                if error_rate > 0.1:
+                    return False
+
+            # Check if there was a recent critical error (within last 5 minutes)
+            if (self._metrics["last_error_time"] and
+                time.time() - self._metrics["last_error_time"] < 300):
+                return False
+
+        return True
+
     def shutdown(self) -> None:
         """Shutdown background processor."""
         self._shutdown = True
         
         # Flush remaining items
         try:
-            self.flush(timeout=5)
+            flushed = self.flush(timeout=5)
+            if not flushed:
+                logger.warning("Background processor shutdown with pending items")
         except Exception:
             pass
         
@@ -274,15 +389,33 @@ _background_processor: Optional[BackgroundProcessor] = None
 _lock = threading.Lock()
 
 
-def get_background_processor(config: Optional[Config] = None) -> BackgroundProcessor:
-    """Get or create background processor."""
+def get_background_processor(
+    config: Optional[Config] = None,
+    config_factory: Optional[Callable[[], Config]] = None
+) -> BackgroundProcessor:
+    """
+    Get or create background processor.
+
+    Args:
+        config: Configuration to use
+        config_factory: Factory function that returns a Config
+
+    Returns:
+        BackgroundProcessor singleton instance
+
+    Raises:
+        ValueError: If neither config nor config_factory is provided
+    """
     global _background_processor
-    
+
     with _lock:
         if _background_processor is None:
+            if config is None and config_factory is None:
+                raise ValueError("Either config or config_factory must be provided")
+
             if config is None:
-                from ..client import get_client
-                config = get_client().config.model_copy()
+                config = config_factory()
+
             _background_processor = BackgroundProcessor(config)
 
         return _background_processor

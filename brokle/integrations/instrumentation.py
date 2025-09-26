@@ -132,7 +132,7 @@ class InstrumentationContext:
 
                 # Add error attributes if there was an exception
                 if exc_type is not None:
-                    record_span_exception(self.span, exc_val)
+                    self.record_span_exception(self.span, exc_val)
 
                     # Add provider-specific error mapping
                     error_mapping = self.provider.get_error_mapping()
@@ -151,15 +151,91 @@ class InstrumentationContext:
 
                 # Sanitize and apply all end attributes
                 sanitized_end_attributes = AttributeValidator.sanitize_attributes(end_attributes)
-                add_span_attributes(self.span, sanitized_end_attributes)
+                self.add_span_attributes(self.span, sanitized_end_attributes)
 
                 # End the span
                 self.span.end()
+
+                # Submit additional telemetry through background processor
+                self._submit_instrumentation_telemetry(end_attributes, exc_type, duration)
 
                 logger.debug(f"Finalized span for {self.provider.name}.{self.method_def['operation']}")
 
         except Exception as e:
             logger.warning(f"Failed to finalize instrumentation span: {e}")
+
+    def record_span_exception(self, span, exception):
+        """Record exception in span (stub implementation)."""
+        if hasattr(span, 'set_status'):
+            span.set_status("error", str(exception))
+
+    def add_span_attributes(self, span, attributes):
+        """Add attributes to span (stub implementation)."""
+        if hasattr(span, 'attributes'):
+            span.attributes.update(attributes)
+
+    def _submit_instrumentation_telemetry(self, end_attributes: dict, exc_type, duration: float):
+        """Submit instrumentation telemetry through background processor."""
+        try:
+            # Get Brokle client for telemetry submission
+            from ..observability.context import get_client
+            client = get_client()
+            if not client:
+                return
+
+            # Build comprehensive telemetry data
+            telemetry_data = {
+                "type": "instrumentation",
+                "provider": self.provider.name,
+                "operation": self.method_def['operation'],
+                "method_path": self.method_def['path'],
+                "duration_ms": duration * 1000,
+                "success": exc_type is None,
+                "timestamp": time.time(),
+            }
+
+            # Add request attributes (from span initial attributes)
+            if self.span and hasattr(self.span, 'attributes'):
+                # Extract meaningful request attributes
+                request_attrs = {}
+                for key, value in self.span.attributes.items():
+                    if any(req_key in key.lower() for req_key in ['model', 'input', 'prompt', 'messages', 'temperature']):
+                        request_attrs[key] = value
+
+                if request_attrs:
+                    telemetry_data["request_attributes"] = request_attrs
+
+            # Add response attributes
+            response_attrs = {}
+            for key, value in end_attributes.items():
+                if any(resp_key in key.lower() for resp_key in ['output', 'tokens', 'cost', 'finish_reason', 'model']):
+                    response_attrs[key] = value
+
+            if response_attrs:
+                telemetry_data["response_attributes"] = response_attrs
+
+            # Add error information if present
+            if exc_type is not None:
+                telemetry_data.update({
+                    "error_type": exc_type.__name__,
+                    "error_message": str(exc_type) if hasattr(exc_type, '__str__') else "Unknown error",
+                    "brokle_error_type": end_attributes.get(BrokleInstrumentationAttributes.BROKLE_ERROR_TYPE, 'ProviderError')
+                })
+
+            # Add span information for correlation
+            if self.span:
+                telemetry_data.update({
+                    "span_id": getattr(self.span, 'span_id', None),
+                    "trace_id": getattr(self.span, 'trace_id', None),
+                })
+
+            # Submit telemetry
+            client.submit_telemetry(telemetry_data)
+            logger.debug(f"Submitted instrumentation telemetry for {self.provider.name}.{self.method_def['operation']}")
+
+        except Exception as e:
+            # Don't let telemetry errors break instrumentation
+            logger.debug(f"Failed to submit instrumentation telemetry: {e}")
 
     def record_response(self, response: Any):
         """Record the response for attribute extraction."""

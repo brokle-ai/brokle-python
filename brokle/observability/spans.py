@@ -189,7 +189,7 @@ def create_span(
 
 def record_span(span: BrokleSpan) -> None:
     """
-    Record a span (send to backend).
+    Record a span (send to backend via background processor).
 
     Args:
         span: Span to record
@@ -197,13 +197,39 @@ def record_span(span: BrokleSpan) -> None:
     try:
         client = get_client()
         if client and span.status in ("completed", "error"):
-            # In a real implementation, this would send to the backend
-            # For now, just log it
+            # Convert span to telemetry data
+            telemetry_data = {
+                "type": "span",
+                "span_id": span.span_id,
+                "trace_id": span.trace_id,
+                "parent_span_id": span.parent_span_id,
+                "name": span.name,
+                "start_time": span.start_time.isoformat() if span.start_time else None,
+                "end_time": span.end_time.isoformat() if span.end_time else None,
+                "duration_ms": None,
+                "status": span.status,
+                "attributes": span.attributes,
+                "metadata": span.metadata,
+                "tags": span.tags,
+                "timestamp": time.time(),
+            }
+
+            # Calculate duration if we have both timestamps
+            if span.start_time and span.end_time:
+                duration = span.end_time - span.start_time
+                telemetry_data["duration_ms"] = duration.total_seconds() * 1000
+
+            # Submit through background processor
+            client.submit_telemetry(telemetry_data)
+
             import logging
             logger = logging.getLogger(__name__)
-            logger.debug(f"Recording span: {span.name} ({span.span_id})")
-    except Exception:
+            logger.debug(f"Submitted span telemetry: {span.name} ({span.span_id})")
+    except Exception as e:
         # Don't let observability failures break the application
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"Failed to record span: {e}")
         pass
 
 
