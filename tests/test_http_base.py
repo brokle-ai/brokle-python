@@ -52,11 +52,11 @@ class TestHTTPBase:
         headers = base.default_headers
 
         assert headers["Content-Type"] == "application/json"
-        assert headers["User-Agent"] == "brokle-python/2.0.0"
+        assert headers["User-Agent"] == "brokle-python/0.1.0"
         assert headers["X-API-Key"] == "ak_test123"
         assert headers["X-Project-ID"] == "proj_test"
         assert headers["X-Environment"] == "production"
-        assert headers["X-SDK-Version"] == "2.0.0"
+        assert headers["X-SDK-Version"] == "0.1.0"
 
     def test_prepare_url(self):
         """Test URL preparation handles various endpoint formats."""

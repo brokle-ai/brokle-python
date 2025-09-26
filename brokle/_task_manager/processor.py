@@ -279,20 +279,30 @@ class BackgroundProcessor:
                 return True
 
             if timeout is None:
-                # Wait indefinitely - check until queue is empty
-                while not self._queue.empty():
-                    time.sleep(0.1)
+                # Wait indefinitely for all tasks to complete
+                self._queue.join()
                 return True
             else:
-                # Wait with timeout
-                start_time = time.time()
-                while not self._queue.empty():
-                    elapsed = time.time() - start_time
-                    if elapsed >= timeout:
-                        return False
-                    time.sleep(0.1)
+                # Wait with timeout using bounded wait loop
+                import threading
 
-                return True
+                # Use threading event to implement timeout on join()
+                completed = threading.Event()
+
+                def wait_for_completion():
+                    self._queue.join()
+                    completed.set()
+
+                # Start join in separate thread
+                join_thread = threading.Thread(target=wait_for_completion)
+                join_thread.daemon = True
+                join_thread.start()
+
+                # Wait for completion or timeout
+                if completed.wait(timeout):
+                    return True
+                else:
+                    return False
 
         except Exception as e:
             logger.error(f"Failed to flush background processor: {e}")

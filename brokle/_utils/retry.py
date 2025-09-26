@@ -9,7 +9,7 @@ import logging
 from typing import Callable, Any, Optional, Type, Union, Tuple
 import httpx
 
-from ..exceptions import NetworkError, RateLimitError
+from ..exceptions import RateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ def extract_retry_after(error: Exception) -> Optional[float]:
     """Extract Retry-After header value from error."""
     if hasattr(error, 'response') and error.response:
         retry_after = error.response.headers.get('Retry-After')
-        if retry_after:
+        if retry_after is not None:
             try:
                 return float(retry_after)
             except (ValueError, TypeError):

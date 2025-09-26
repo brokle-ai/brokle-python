@@ -187,16 +187,17 @@ class Brokle(HTTPBase):
         def _make_request():
             client = self._get_client()
             response = client.request(method, url, **kwargs)
-            return self._process_response(response)
+            result = self._process_response(response)
+            return result, response.status_code
 
         try:
-            result = _make_request()
+            result, status_code = _make_request()
 
             # Submit telemetry data in background
             telemetry_data = {
                 "method": method,
                 "endpoint": endpoint,
-                "status_code": 200,  # Success case
+                "status_code": status_code,  # Real status code from response
                 "latency_ms": int((time.time() - start_time) * 1000),
                 "success": True,
                 "timestamp": time.time(),
@@ -211,7 +212,7 @@ class Brokle(HTTPBase):
             telemetry_data = {
                 "method": method,
                 "endpoint": endpoint,
-                "status_code": getattr(e, 'response', {}).get('status_code', 0),
+                "status_code": getattr(e.response, 'status_code', 0) if hasattr(e, 'response') else 0,
                 "latency_ms": int((time.time() - start_time) * 1000),
                 "success": False,
                 "error": str(e),
@@ -421,16 +422,17 @@ class AsyncBrokle(HTTPBase):
         )
         async def _make_request():
             response = await self._client.request(method, url, **kwargs)
-            return self._process_response(response)
+            result = self._process_response(response)
+            return result, response.status_code
 
         try:
-            result = await _make_request()
+            result, status_code = await _make_request()
 
             # Submit telemetry data in background
             telemetry_data = {
                 "method": method,
                 "endpoint": endpoint,
-                "status_code": 200,  # Success case
+                "status_code": status_code,  # Real status code from response
                 "latency_ms": int((time.time() - start_time) * 1000),
                 "success": True,
                 "timestamp": time.time(),
@@ -445,7 +447,7 @@ class AsyncBrokle(HTTPBase):
             telemetry_data = {
                 "method": method,
                 "endpoint": endpoint,
-                "status_code": getattr(e, 'response', {}).get('status_code', 0),
+                "status_code": getattr(e.response, 'status_code', 0) if hasattr(e, 'response') else 0,
                 "latency_ms": int((time.time() - start_time) * 1000),
                 "success": False,
                 "error": str(e),
