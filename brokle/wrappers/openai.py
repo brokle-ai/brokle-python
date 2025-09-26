@@ -55,7 +55,7 @@ def wrap_openai(
         **config: Additional Brokle configuration options
 
     Returns:
-        Enhanced client with identical interface but comprehensive observability
+        Wrapped client with identical interface but comprehensive observability
 
     Raises:
         ProviderError: If OpenAI SDK not installed or client is invalid
@@ -172,20 +172,20 @@ def wrap_openai(
         instrumentation = UniversalInstrumentation(provider)
 
         # Apply instrumentation to client
-        enhanced_client = instrumentation.instrument_client(client)
+        wrapped_client = instrumentation.instrument_client(client)
 
         # Add wrapper metadata
-        setattr(enhanced_client, '_brokle_instrumented', True)
-        setattr(enhanced_client, '_brokle_provider', 'openai')
-        setattr(enhanced_client, '_brokle_config', provider_config)
-        setattr(enhanced_client, '_brokle_wrapper_version', '2.0.0')
+        setattr(wrapped_client, '_brokle_instrumented', True)
+        setattr(wrapped_client, '_brokle_provider', 'openai')
+        setattr(wrapped_client, '_brokle_config', provider_config)
+        setattr(wrapped_client, '_brokle_wrapper_version', '2.0.0')
 
         logger.info(
             f"OpenAI client successfully wrapped with Brokle observability. "
             f"Provider: {provider.name}, Capture content: {capture_content}"
         )
 
-        return cast(OpenAIType, enhanced_client)
+        return cast(OpenAIType, wrapped_client)
 
     except Exception as e:
         logger.error(f"Failed to wrap OpenAI client: {e}")

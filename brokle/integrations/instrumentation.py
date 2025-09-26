@@ -269,7 +269,7 @@ class UniversalInstrumentation:
             client: Provider SDK client (OpenAI, Anthropic, etc.)
 
         Returns:
-            Enhanced client with observability
+            Wrapped client with observability
 
         Raises:
             ProviderError: If instrumentation fails critically

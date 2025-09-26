@@ -10,6 +10,7 @@ from .requests import (
     AnalyticsRequest,
     EvaluationRequest,
 )
+# Phase 2: Import core models from new modular structure
 from .responses import (
     CompletionResponse,
     ChatCompletionResponse,
