@@ -159,7 +159,7 @@ class Brokle(HTTPBase):
 
     def request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """
-        Make HTTP request to Brokle backend.
+        Make HTTP request to Brokle backend with retry logic.
 
         Args:
             method: HTTP method
@@ -173,21 +173,30 @@ class Brokle(HTTPBase):
             NetworkError: For connection errors
         """
         import time
-        start_time = time.time()
+        from ._utils.retry import retry_with_backoff, is_retryable_error
 
-        client = self._get_client()
+        start_time = time.time()
         url = self._prepare_url(endpoint)
         kwargs = self._prepare_request_kwargs(**kwargs)
 
-        try:
+        @retry_with_backoff(
+            max_retries=self.config.max_retries,
+            base_delay=1.0,
+            max_delay=30.0
+        )
+        def _make_request():
+            client = self._get_client()
             response = client.request(method, url, **kwargs)
-            result = self._process_response(response)
+            return self._process_response(response)
+
+        try:
+            result = _make_request()
 
             # Submit telemetry data in background
             telemetry_data = {
                 "method": method,
                 "endpoint": endpoint,
-                "status_code": response.status_code,
+                "status_code": 200,  # Success case
                 "latency_ms": int((time.time() - start_time) * 1000),
                 "success": True,
                 "timestamp": time.time(),
@@ -385,7 +394,7 @@ class AsyncBrokle(HTTPBase):
 
     async def request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """
-        Make async HTTP request to Brokle backend.
+        Make async HTTP request to Brokle backend with retry logic.
 
         Args:
             method: HTTP method
@@ -399,20 +408,29 @@ class AsyncBrokle(HTTPBase):
             NetworkError: For connection errors
         """
         import time
-        start_time = time.time()
+        from ._utils.retry import async_retry_with_backoff
 
+        start_time = time.time()
         url = self._prepare_url(endpoint)
         kwargs = self._prepare_request_kwargs(**kwargs)
 
-        try:
+        @async_retry_with_backoff(
+            max_retries=self.config.max_retries,
+            base_delay=1.0,
+            max_delay=30.0
+        )
+        async def _make_request():
             response = await self._client.request(method, url, **kwargs)
-            result = self._process_response(response)
+            return self._process_response(response)
+
+        try:
+            result = await _make_request()
 
             # Submit telemetry data in background
             telemetry_data = {
                 "method": method,
                 "endpoint": endpoint,
-                "status_code": response.status_code,
+                "status_code": 200,  # Success case
                 "latency_ms": int((time.time() - start_time) * 1000),
                 "success": True,
                 "timestamp": time.time(),
