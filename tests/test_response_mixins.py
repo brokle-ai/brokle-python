@@ -25,6 +25,8 @@ from brokle.types.responses.base import (
     PaginatedResponse,
     TrackedResponse,
     FullContextResponse,
+    BaseResponse,
+    BrokleMetadata,
 )
 
 
@@ -365,3 +367,249 @@ class TestValidation:
         assert model.tags is None
         assert model.provider is None
         assert model.model is None
+
+
+class TestIndustryStandardBaseResponse:
+    """Test the industry standard BaseResponse model with clean response.brokle.* pattern."""
+
+    def test_base_response_clean_pattern(self):
+        """Test BaseResponse follows industry standard pattern like AWS, Google Cloud."""
+
+        # Create BrokleMetadata with comprehensive platform data
+        now = datetime.utcnow()
+        metadata = BrokleMetadata(
+            request_id="req_123",
+            provider="openai",
+            model_used="gpt-4",
+            latency_ms=150.5,
+            cost_usd=0.002,
+            input_tokens=100,
+            output_tokens=50,
+            total_tokens=150,
+            cache_hit=True,
+            quality_score=0.95,
+            routing_reason="cost_optimized",
+            routing_decision={"strategy": "cost_optimized"},
+            cached=True,
+            evaluation_scores={"relevance": 0.9, "accuracy": 0.85},
+            created_at=now,
+            custom_tags={"env": "production"}
+        )
+
+        # Clean BaseResponse with only brokle metadata field
+        response = BaseResponse(brokle=metadata)
+
+        # Test industry standard pattern: response.brokle.*
+        assert response.brokle is not None
+        assert response.brokle.request_id == "req_123"
+        assert response.brokle.provider == "openai"
+        assert response.brokle.model_used == "gpt-4"
+        assert response.brokle.latency_ms == 150.5
+        assert response.brokle.cost_usd == 0.002
+        assert response.brokle.input_tokens == 100
+        assert response.brokle.output_tokens == 50
+        assert response.brokle.total_tokens == 150
+        assert response.brokle.cache_hit is True
+        assert response.brokle.quality_score == 0.95
+        assert response.brokle.routing_reason == "cost_optimized"
+        assert response.brokle.routing_decision == {"strategy": "cost_optimized"}
+        assert response.brokle.cached is True
+        assert response.brokle.evaluation_scores == {"relevance": 0.9, "accuracy": 0.85}
+        assert response.brokle.created_at == now
+        assert response.brokle.custom_tags == {"env": "production"}
+
+    def test_base_response_minimal_clean(self):
+        """Test BaseResponse works with minimal fields - clean architecture."""
+
+        response = BaseResponse()
+
+        # Only the brokle field should exist
+        assert response.brokle is None
+
+    def test_base_response_direct_access_deprecated(self):
+        """Test that direct field access works but is deprecated with warnings."""
+        import warnings
+
+        response = BaseResponse()
+
+        # These fields now work via compatibility properties but issue deprecation warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+
+            # All should return None when no brokle metadata
+            assert response.request_id is None
+            assert response.provider is None
+            assert response.cache_hit is None
+            assert response.quality_score is None
+            assert response.cost_usd is None
+            assert response.input_tokens is None
+            assert response.routing_reason is None
+
+            # Verify deprecation warnings were issued
+            assert len(w) == 7
+            for warning in w:
+                assert issubclass(warning.category, DeprecationWarning)
+                assert "deprecated" in str(warning.message)
+
+    def test_brokle_metadata_comprehensive(self):
+        """Test that BrokleMetadata has complete platform metadata coverage."""
+
+        metadata = BrokleMetadata(
+            # Request tracking
+            request_id="req_123",
+
+            # Provider and routing info
+            provider="anthropic",
+            model_used="claude-3-sonnet",
+            routing_strategy="quality_optimized",
+            routing_reason="High quality required",
+            routing_decision={"score": 0.95, "alternatives": ["openai"]},
+
+            # Performance metrics
+            latency_ms=200.5,
+
+            # Complete cost tracking
+            cost_usd=0.005,
+            cost_per_token=0.0001,
+            input_cost_usd=0.003,
+            output_cost_usd=0.002,
+
+            # Token usage
+            input_tokens=150,
+            output_tokens=75,
+            total_tokens=225,
+
+            # Caching info
+            cache_hit=True,
+            cache_similarity_score=0.95,
+            cached=True,
+
+            # Quality assessment
+            quality_score=0.92,
+            evaluation_scores={"relevance": 0.95, "accuracy": 0.89},
+
+            # Platform insights
+            optimization_applied=["semantic_cache", "cost_optimization"],
+            cost_savings_usd=0.003,
+
+            # Metadata
+            created_at=datetime.utcnow(),
+            custom_tags={"project": "test", "env": "staging"}
+        )
+
+        # Verify all comprehensive fields are accessible
+        assert metadata.request_id == "req_123"
+        assert metadata.provider == "anthropic"
+        assert metadata.model_used == "claude-3-sonnet"
+        assert metadata.routing_strategy == "quality_optimized"
+        assert metadata.routing_reason == "High quality required"
+        assert metadata.routing_decision == {"score": 0.95, "alternatives": ["openai"]}
+        assert metadata.latency_ms == 200.5
+        assert metadata.cost_usd == 0.005
+        assert metadata.cost_per_token == 0.0001
+        assert metadata.input_cost_usd == 0.003
+        assert metadata.output_cost_usd == 0.002
+        assert metadata.input_tokens == 150
+        assert metadata.output_tokens == 75
+        assert metadata.total_tokens == 225
+        assert metadata.cache_hit is True
+        assert metadata.cache_similarity_score == 0.95
+        assert metadata.cached is True
+        assert metadata.quality_score == 0.92
+        assert metadata.evaluation_scores == {"relevance": 0.95, "accuracy": 0.89}
+        assert metadata.optimization_applied == ["semantic_cache", "cost_optimization"]
+        assert metadata.cost_savings_usd == 0.003
+        assert metadata.custom_tags == {"project": "test", "env": "staging"}
+
+
+class TestBackwardCompatibility:
+    """Test backward compatibility properties on BaseResponse."""
+
+    def test_compatibility_properties_work(self):
+        """Test that legacy properties still work but warn."""
+        import warnings
+
+        metadata = BrokleMetadata(
+            request_id="req_123",
+            provider="openai",
+            cost_usd=0.002,
+            cache_hit=True,
+            quality_score=0.95,
+            input_tokens=100,
+            output_tokens=50,
+            total_tokens=150,
+            latency_ms=200.5,
+            routing_reason="cost_optimized"
+        )
+
+        response = BaseResponse(brokle=metadata)
+
+        # Test that legacy properties work with warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+
+            assert response.request_id == "req_123"
+            assert response.provider == "openai"
+            assert response.cost_usd == 0.002
+            assert response.cache_hit is True
+            assert response.quality_score == 0.95
+            assert response.input_tokens == 100
+            assert response.output_tokens == 50
+            assert response.total_tokens == 150
+            assert response.latency_ms == 200.5
+            assert response.routing_reason == "cost_optimized"
+
+            # Verify deprecation warnings were issued
+            assert len(w) == 10
+            for warning in w:
+                assert issubclass(warning.category, DeprecationWarning)
+                assert "deprecated" in str(warning.message)
+                assert "response.brokle." in str(warning.message)
+
+    def test_compatibility_properties_none_when_no_brokle(self):
+        """Test that legacy properties return None when brokle is None."""
+        import warnings
+
+        response = BaseResponse()  # No brokle metadata
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Ignore deprecation warnings for this test
+
+            assert response.request_id is None
+            assert response.provider is None
+            assert response.cost_usd is None
+            assert response.cache_hit is None
+            assert response.quality_score is None
+            assert response.input_tokens is None
+            assert response.output_tokens is None
+            assert response.total_tokens is None
+            assert response.latency_ms is None
+            assert response.routing_reason is None
+
+    def test_new_pattern_no_warnings(self):
+        """Test that new response.brokle.* pattern generates no warnings."""
+        import warnings
+
+        metadata = BrokleMetadata(
+            request_id="req_456",
+            provider="anthropic",
+            cost_usd=0.005,
+            cache_hit=False,
+            quality_score=0.88
+        )
+
+        response = BaseResponse(brokle=metadata)
+
+        # Test that new pattern works without warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+
+            if response.brokle:
+                assert response.brokle.request_id == "req_456"
+                assert response.brokle.provider == "anthropic"
+                assert response.brokle.cost_usd == 0.005
+                assert response.brokle.cache_hit is False
+                assert response.brokle.quality_score == 0.88
+
+            # Verify no warnings were issued
+            assert len(w) == 0

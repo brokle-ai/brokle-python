@@ -71,7 +71,7 @@ class TestBrokleClient:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "choices": [{"message": {"content": "Hello!"}}],
-            "brokle_metadata": {"provider": "openai", "request_id": "req_123", "latency_ms": 150}
+            "brokle": {"provider": "openai", "request_id": "req_123", "latency_ms": 150}
         }
 
         # Mock client
@@ -88,7 +88,7 @@ class TestBrokleClient:
             result = client.request("POST", "/v1/chat/completions", json={"model": "gpt-4"})
 
             assert result["choices"][0]["message"]["content"] == "Hello!"
-            assert result["brokle_metadata"]["provider"] == "openai"
+            assert result["brokle"]["provider"] == "openai"
 
     @patch('httpx.Client')
     def test_request_network_error(self, mock_httpx_client):
@@ -132,7 +132,7 @@ class TestBrokleClient:
                     "completion_tokens": 5,
                     "total_tokens": 15
                 },
-                "brokle_metadata": {
+                "brokle": {
                     "provider": "openai",
                     "request_id": "req_123",
                     "latency_ms": 150
@@ -148,7 +148,7 @@ class TestBrokleClient:
 
                 assert response.model == "gpt-4"
                 assert response.choices[0].message.content == "Hello!"
-                assert response.brokle_metadata.provider == "openai"
+                assert response.brokle.provider == "openai"
 
     def test_get_client_function(self):
         """Test get_client function."""
@@ -218,7 +218,7 @@ class TestAsyncBrokleClient:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "choices": [{"message": {"content": "Hello async!"}}],
-            "brokle_metadata": {"provider": "openai", "request_id": "req_async", "latency_ms": 120}
+            "brokle": {"provider": "openai", "request_id": "req_async", "latency_ms": 120}
         }
 
         with patch.dict("os.environ", {
@@ -234,7 +234,7 @@ class TestAsyncBrokleClient:
                 result = await client.request("POST", "/v1/chat/completions", json={"model": "gpt-4"})
 
                 assert result["choices"][0]["message"]["content"] == "Hello async!"
-                assert result["brokle_metadata"]["provider"] == "openai"
+                assert result["brokle"]["provider"] == "openai"
 
     @pytest.mark.asyncio
     async def test_async_chat_completions_create(self):
@@ -261,7 +261,7 @@ class TestAsyncBrokleClient:
                     "completion_tokens": 5,
                     "total_tokens": 15
                 },
-                "brokle_metadata": {
+                "brokle": {
                     "provider": "openai",
                     "request_id": "req_async",
                     "latency_ms": 120
@@ -279,7 +279,7 @@ class TestAsyncBrokleClient:
 
                 assert response.model == "gpt-4"
                 assert response.choices[0].message.content == "Hello async!"
-                assert response.brokle_metadata.provider == "openai"
+                assert response.brokle.provider == "openai"
 
 
 class TestEmbeddingsResource:
@@ -306,7 +306,7 @@ class TestEmbeddingsResource:
                     "prompt_tokens": 5,
                     "total_tokens": 5
                 },
-                "brokle_metadata": {
+                "brokle": {
                     "provider": "openai",
                     "request_id": "req_emb_123",
                     "latency_ms": 80
@@ -323,7 +323,7 @@ class TestEmbeddingsResource:
                 assert response.model == "text-embedding-3-small"
                 assert len(response.data) == 1
                 assert response.data[0].embedding == [0.1, 0.2, 0.3]
-                assert response.brokle_metadata.provider == "openai"
+                assert response.brokle.provider == "openai"
 
 
 class TestModelsResource:

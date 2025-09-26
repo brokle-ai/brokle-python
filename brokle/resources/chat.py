@@ -54,8 +54,8 @@ class ChatCompletionResponse(BaseModel):
     choices: List[Choice]
     usage: Usage
 
-    # Brokle extension
-    brokle_metadata: BrokleMetadata
+    # Brokle platform metadata (industry standard pattern)
+    brokle: Optional[BrokleMetadata] = None
 
 
 class ChatCompletions(BaseResource):

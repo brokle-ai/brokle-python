@@ -43,8 +43,8 @@ class EmbeddingResponse(BaseModel):
     model: str
     usage: EmbeddingUsage
 
-    # Brokle extension
-    brokle_metadata: BrokleMetadata
+    # Brokle platform metadata (industry standard pattern)
+    brokle: Optional[BrokleMetadata] = None
 
 
 class EmbeddingsResource(BaseResource):

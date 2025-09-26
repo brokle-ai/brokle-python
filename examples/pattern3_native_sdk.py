@@ -43,12 +43,16 @@ async def basic_chat_completion():
         print("Chat Response:")
         print(f"Content: {response.choices[0].message.content}")
         print(f"Model: {response.model}")
-        print(f"Provider: {response.provider}")
-        print(f"Cost: ${response.cost_usd:.4f}")
-        print(f"Latency: {response.latency_ms}ms")
-        print(f"Cached: {response.cached}")
-        print(f"Cache Hit: {response.cache_hit}")
-        print(f"Quality Score: {response.quality_score}")
+
+        # Industry standard pattern: Platform metadata via response.brokle.*
+        if response.brokle:
+            print(f"Provider: {response.brokle.provider}")
+            print(f"Cost: ${response.brokle.cost_usd:.4f}")
+            print(f"Latency: {response.brokle.latency_ms}ms")
+            print(f"Cache Hit: {response.brokle.cache_hit}")
+            print(f"Quality: {response.brokle.quality_score}")
+        else:
+            print("No platform metadata available")
         print()
 
 
@@ -65,8 +69,10 @@ async def advanced_routing_example():
             max_cost_usd=0.01,
             custom_tags={"priority": "low", "budget": "strict"}
         )
-        print(f"Provider: {response.provider}, Cost: ${response.cost_usd:.4f}")
-        print(f"Routing reason: {response.routing_reason}")
+        # Industry standard pattern: Platform metadata via response.brokle.*
+        if response.brokle:
+            print(f"Provider: {response.brokle.provider}, Cost: ${response.brokle.cost_usd:.4f}")
+            print(f"Routing reason: {response.brokle.routing_reason}")
         print()
         
         # Quality-optimized routing
@@ -78,8 +84,10 @@ async def advanced_routing_example():
             evaluation_metrics=["accuracy", "depth", "clarity"],
             custom_tags={"priority": "high", "quality": "premium"}
         )
-        print(f"Provider: {response.provider}, Quality: {response.quality_score}")
-        print(f"Routing decision: {response.routing_decision}")
+        # Industry standard pattern: Platform metadata via response.brokle.*
+        if response.brokle:
+            print(f"Provider: {response.brokle.provider}, Quality: {response.brokle.quality_score}")
+            print(f"Routing decision: {response.brokle.routing_decision}")
         print()
         
         # Latency-optimized routing
@@ -91,7 +99,9 @@ async def advanced_routing_example():
             max_tokens=50,
             custom_tags={"priority": "urgent", "response_time": "fast"}
         )
-        print(f"Provider: {response.provider}, Latency: {response.latency_ms}ms")
+        # Industry standard pattern: Platform metadata via response.brokle.*
+        if response.brokle:
+            print(f"Provider: {response.brokle.provider}, Latency: {response.brokle.latency_ms}ms")
         print()
 
 
@@ -109,8 +119,11 @@ async def semantic_caching_example():
             custom_tags={"query_type": "factual", "cache_test": "first"}
         )
         print(f"Response: {response1.choices[0].message.content}")
-        print(f"Cache hit: {response1.cache_hit}")
-        print(f"Cost: ${response1.cost_usd:.4f}")
+
+        # Industry standard pattern: Platform metadata via response.brokle.*
+        if response1.brokle:
+            print(f"Cache hit: {response1.brokle.cache_hit}")
+            print(f"Cost: ${response1.brokle.cost_usd:.4f}")
         print()
         
         # Similar request (should hit cache)
@@ -123,9 +136,12 @@ async def semantic_caching_example():
             custom_tags={"query_type": "factual", "cache_test": "similar"}
         )
         print(f"Response: {response2.choices[0].message.content}")
-        print(f"Cache hit: {response2.cache_hit}")
-        print(f"Similarity score: {response2.cache_similarity_score}")
-        print(f"Cost: ${response2.cost_usd:.4f}")
+
+        # Industry standard pattern: Platform metadata via response.brokle.*
+        if response2.brokle:
+            print(f"Cache hit: {response2.brokle.cache_hit}")
+            print(f"Similarity score: {response2.brokle.cache_similarity_score}")
+            print(f"Cost: ${response2.brokle.cost_usd:.4f}")
         print()
         
         # Different request (cache miss)
@@ -138,8 +154,11 @@ async def semantic_caching_example():
             custom_tags={"query_type": "factual", "cache_test": "different"}
         )
         print(f"Response: {response3.choices[0].message.content}")
-        print(f"Cache hit: {response3.cache_hit}")
-        print(f"Cost: ${response3.cost_usd:.4f}")
+
+        # Industry standard pattern: Platform metadata via response.brokle.*
+        if response3.brokle:
+            print(f"Cache hit: {response3.brokle.cache_hit}")
+            print(f"Cost: ${response3.brokle.cost_usd:.4f}")
         print()
 
 
@@ -160,8 +179,11 @@ async def evaluation_example():
         
         print("Response with Evaluation:")
         print(f"Content: {response.choices[0].message.content[:200]}...")
-        print(f"Evaluation scores: {response.evaluation_scores}")
-        print(f"Overall quality: {response.quality_score}")
+
+        # Industry standard pattern: Platform metadata via response.brokle.*
+        if response.brokle:
+            print(f"Evaluation scores: {response.brokle.evaluation_scores}")
+            print(f"Overall quality: {response.brokle.quality_score}")
         print()
         
         # Submit additional feedback
@@ -228,11 +250,14 @@ async def embeddings_example():
         
         print("Embeddings Response:")
         print(f"Model: {response.model}")
-        print(f"Provider: {response.provider}")
         print(f"Number of embeddings: {len(response.data)}")
         print(f"Embedding dimensions: {len(response.data[0].embedding)}")
-        print(f"Cost: ${response.cost_usd:.4f}")
-        print(f"Cached: {response.cached}")
+
+        # Industry standard pattern: Platform metadata via response.brokle.*
+        if response.brokle:
+            print(f"Provider: {response.brokle.provider}")
+            print(f"Cost: ${response.brokle.cost_usd:.4f}")
+            print(f"Cache Hit: {response.brokle.cache_hit}")
         print()
 
 
@@ -253,9 +278,12 @@ async def completions_example():
         print("Completion Response:")
         print(f"Text: {response.choices[0].text}")
         print(f"Model: {response.model}")
-        print(f"Provider: {response.provider}")
-        print(f"Cost: ${response.cost_usd:.4f}")
-        print(f"Quality score: {response.quality_score}")
+
+        # Industry standard pattern: Platform metadata via response.brokle.*
+        if response.brokle:
+            print(f"Provider: {response.brokle.provider}")
+            print(f"Cost: ${response.brokle.cost_usd:.4f}")
+            print(f"Quality score: {response.brokle.quality_score}")
         print()
 
 
@@ -330,8 +358,11 @@ async def batch_processing_example():
             
             print(f"Q{i+1}: {question}")
             print(f"A{i+1}: {response.choices[0].message.content[:100]}...")
-            print(f"Strategy: {strategy}, Provider: {response.provider}")
-            print(f"Cost: ${response.cost_usd:.4f}, Quality: {response.quality_score}")
+
+            # Industry standard pattern: Platform metadata via response.brokle.*
+            if response.brokle:
+                print(f"Strategy: {strategy}, Provider: {response.brokle.provider}")
+                print(f"Cost: ${response.brokle.cost_usd:.4f}, Quality: {response.brokle.quality_score}")
             print("---")
 
 

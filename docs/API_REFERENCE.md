@@ -329,19 +329,22 @@ class ChatCompletionResponse(BaseModel):
     choices: List[Choice]
     usage: Usage
 
-    # Brokle metadata
-    brokle_metadata: BrokleMetadata
+    # Brokle platform metadata (industry standard pattern)
+    brokle: Optional[BrokleMetadata] = None
 
 class BrokleMetadata(BaseModel):
     provider: str                    # Actual provider used
     request_id: str                 # Unique request ID
-    latency_ms: int                 # Response latency
+    latency_ms: float               # Response latency
     cost_usd: Optional[float]       # Estimated cost
-    tokens_used: Optional[int]      # Total tokens used
+    input_tokens: Optional[int]     # Input tokens used
+    output_tokens: Optional[int]    # Output tokens used
+    total_tokens: Optional[int]     # Total tokens used
     cache_hit: bool                 # Whether cache was hit
-    cache_key: Optional[str]        # Cache key used
-    routing_strategy: Optional[str] # Routing strategy used
+    cache_similarity_score: Optional[float] # Cache similarity score
     quality_score: Optional[float]  # Quality score (0-1)
+    routing_strategy: Optional[str] # Routing strategy used
+    routing_reason: Optional[str]   # Routing decision reason
 ```
 
 **Example:**
@@ -360,9 +363,56 @@ response = client.chat.completions.create(
 )
 
 print(f"Response: {response.choices[0].message.content}")
-print(f"Provider: {response.brokle_metadata.provider}")
-print(f"Cost: ${response.brokle_metadata.cost_usd}")
-print(f"Cache hit: {response.brokle_metadata.cache_hit}")
+
+# Industry standard pattern: Access platform metadata via response.brokle.*
+if response.brokle:
+    print(f"Provider: {response.brokle.provider}")
+    print(f"Cost: ${response.brokle.cost_usd}")
+    print(f"Cache hit: {response.brokle.cache_hit}")
+    print(f"Quality: {response.brokle.quality_score}")
+```
+
+### Backward Compatibility
+
+For existing code using direct field access, compatibility properties are provided with deprecation warnings:
+
+```python
+# Legacy pattern (deprecated but still works)
+response = client.chat.completions.create(...)
+print(response.provider)        # Works but shows deprecation warning
+print(response.cost_usd)        # Works but shows deprecation warning
+
+# Recommended pattern (industry standard)
+if response.brokle:
+    print(response.brokle.provider)     # Clean, no warnings
+    print(response.brokle.cost_usd)     # Clean, no warnings
+```
+
+**Available Legacy Properties:**
+- `response.request_id` → `response.brokle.request_id`
+- `response.provider` → `response.brokle.provider`
+- `response.cost_usd` → `response.brokle.cost_usd`
+- `response.cache_hit` → `response.brokle.cache_hit`
+- `response.quality_score` → `response.brokle.quality_score`
+- `response.input_tokens` → `response.brokle.input_tokens`
+- `response.output_tokens` → `response.brokle.output_tokens`
+- `response.total_tokens` → `response.brokle.total_tokens`
+- `response.latency_ms` → `response.brokle.latency_ms`
+- `response.routing_reason` → `response.brokle.routing_reason`
+
+**Migration Timeline:**
+- **Current**: Both patterns work, legacy shows warnings
+- **Next Major Version**: Legacy patterns will be removed
+
+**Migrating Your Code:**
+```python
+# Before (deprecated)
+if response.provider == "openai" and response.cost_usd < 0.01:
+    print(f"Cheap OpenAI request: {response.cache_hit}")
+
+# After (recommended)
+if response.brokle and response.brokle.provider == "openai" and response.brokle.cost_usd < 0.01:
+    print(f"Cheap OpenAI request: {response.brokle.cache_hit}")
 ```
 
 ### Embeddings API

@@ -705,10 +705,12 @@ with Brokle(
     )
 
     print(f"Response: {response.choices[0].message.content}")
-    print(f"Provider used: {response.brokle_metadata.provider}")
-    print(f"Cost: ${response.brokle_metadata.cost_usd}")
-    print(f"Cache hit: {response.brokle_metadata.cache_hit}")
-    print(f"Quality score: {response.brokle_metadata.quality_score}")
+    # Industry standard pattern: Access platform metadata via response.brokle.*
+    if response.brokle:
+        print(f"Provider used: {response.brokle.provider}")
+        print(f"Cost: ${response.brokle.cost_usd}")
+        print(f"Cache hit: {response.brokle.cache_hit}")
+        print(f"Quality score: {response.brokle.quality_score}")
 ```
 
 ### Asynchronous Client
@@ -737,7 +739,7 @@ async def main():
         responses = await asyncio.gather(*tasks)
 
         for i, response in enumerate(responses):
-            metadata = response.brokle_metadata
+            metadata = response.brokle
             print(f"Response {i}: Provider={metadata.provider}, "
                   f"Latency={metadata.latency_ms}ms, "
                   f"Cache hit={metadata.cache_hit}")
@@ -763,7 +765,7 @@ with Brokle() as client:
     )
 
     # Check what actually happened
-    metadata = response.brokle_metadata
+    metadata = response.brokle
     print(f"Requested: gpt-4, Actual provider: {metadata.provider}")
     print(f"Cost savings: {((1.0 - metadata.cost_usd/expected_cost) * 100):.1f}%")
     print(f"Quality maintained: {metadata.quality_score >= 0.8}")
@@ -785,8 +787,8 @@ response = client.chat.completions.create(
     temperature=0.3                             # More deterministic
 )
 
-print(f"Quality score: {response.brokle_metadata.quality_score}")
-print(f"Provider: {response.brokle_metadata.provider}")
+print(f"Quality score: {response.brokle.quality_score}")
+print(f"Provider: {response.brokle.provider}")
 ```
 
 ### Latency Optimization
@@ -802,7 +804,7 @@ response = client.chat.completions.create(
     tags=["realtime", "quick-facts"]
 )
 
-print(f"Response time: {response.brokle_metadata.latency_ms}ms")
+print(f"Response time: {response.brokle.latency_ms}ms")
 ```
 
 ### Balanced Strategy
@@ -817,7 +819,7 @@ response = client.chat.completions.create(
     tags=["education", "balanced"]
 )
 
-metadata = response.brokle_metadata
+metadata = response.brokle
 print(f"Balanced result - Cost: ${metadata.cost_usd}, "
       f"Latency: {metadata.latency_ms}ms, "
       f"Quality: {metadata.quality_score}")
@@ -844,9 +846,9 @@ similar_response = client.chat.completions.create(
 )
 
 # Check cache performance
-if similar_response.brokle_metadata.cache_hit:
+if similar_response.brokle and similar_response.brokle.cache_hit:
     print("Cache hit! Instant response with semantic matching")
-    print(f"Cache key: {similar_response.brokle_metadata.cache_key}")
+    print(f"Cache similarity: {similar_response.brokle.cache_similarity_score}")
 ```
 
 ### Exact Match Caching
@@ -869,7 +871,8 @@ exact_match = client.chat.completions.create(
     temperature=0
 )
 
-print(f"Exact cache hit: {exact_match.brokle_metadata.cache_hit}")
+if exact_match.brokle:
+    print(f"Exact cache hit: {exact_match.brokle.cache_hit}")
 ```
 
 ## Environment-Based Configuration
@@ -932,7 +935,7 @@ for env_name, client in [("dev", dev_client), ("staging", staging_client), ("pro
             messages=[{"role": "user", "content": "Test message"}],
             tags=[env_name, "testing"]
         )
-        print(f"{env_name}: {response.brokle_metadata.provider}")
+        print(f"{env_name}: {response.brokle.provider}")
 ```
 
 ## Production Patterns
@@ -966,7 +969,7 @@ async def robust_ai_call(prompt: str) -> str:
             )
 
             # Log success metrics
-            metadata = response.brokle_metadata
+            metadata = response.brokle
             logging.info(f"AI call successful: provider={metadata.provider}, "
                         f"latency={metadata.latency_ms}ms, "
                         f"cost=${metadata.cost_usd}")
@@ -1051,10 +1054,10 @@ async def process_single_document(client: AsyncBrokle, document: str, doc_id: in
         "doc_id": doc_id,
         "analysis": response.choices[0].message.content,
         "metadata": {
-            "provider": response.brokle_metadata.provider,
-            "cost": response.brokle_metadata.cost_usd,
-            "latency": response.brokle_metadata.latency_ms,
-            "cache_hit": response.brokle_metadata.cache_hit
+            "provider": response.brokle.provider,
+            "cost": response.brokle.cost_usd,
+            "latency": response.brokle.latency_ms,
+            "cache_hit": response.brokle.cache_hit
         }
     }
 

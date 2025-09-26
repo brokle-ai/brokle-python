@@ -11,8 +11,8 @@ This module contains response models for billing, cost tracking, and usage:
 - QuotaCheckResponse
 - BillingMetricsResponse
 
-Models are refactored to use mixins for reduced duplication while maintaining
-complete backward compatibility.
+Models follow industry standard patterns with clean architecture using mixins
+for modular design and response.brokle.* namespace separation.
 """
 
 from typing import Any, Dict, List, Optional

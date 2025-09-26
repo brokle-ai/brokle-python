@@ -149,7 +149,7 @@ class TestHTTPBase:
         response.status_code = 200
         response.json.return_value = {
             "choices": [{"message": {"content": "Hello!"}}],
-            "brokle_metadata": {
+            "brokle": {
                 "provider": "openai",
                 "request_id": "req_123",
                 "latency_ms": 150
@@ -159,7 +159,7 @@ class TestHTTPBase:
         result = base._process_response(response)
 
         assert result["choices"][0]["message"]["content"] == "Hello!"
-        assert result["brokle_metadata"]["provider"] == "openai"
+        assert result["brokle"]["provider"] == "openai"
 
     def test_process_response_http_error(self):
         """Test response processing with HTTP error."""

@@ -1,12 +1,11 @@
 """
 Response models package for Brokle SDK.
 
-This package contains modular response models organized by domain.
-Maintains backward compatibility through re-exports.
+This package contains modular response models organized by domain following
+industry standard patterns with clean namespace separation via response.brokle.*
 """
 
-# Phase 2: Core models migrated, foundation established
-# Import and re-export core models for backward compatibility
+# Import and re-export core models using industry standard pattern
 
 # Import base classes and mixins
 from .base import (
@@ -26,7 +25,7 @@ from .base import (
     TrackedResponse,
     FullContextResponse,
 
-    # Legacy models for backward compatibility
+    # Industry standard response models
     BaseResponse,
     BrokleMetadata,
 )
@@ -229,7 +228,7 @@ __all__ = [
     'NotificationDeliveryMixin',
     'SearchResultMixin',
 
-    # Legacy models (for backward compatibility)
+    # Industry standard response models
     'BaseResponse',
     'BrokleMetadata',
 ]

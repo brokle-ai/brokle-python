@@ -10,11 +10,13 @@ from .requests import (
     AnalyticsRequest,
     EvaluationRequest,
 )
-# Phase 2: Import core models from new modular structure
-from .responses import (
+# Import from modular response structure
+from .responses.core import (
     CompletionResponse,
     ChatCompletionResponse,
     EmbeddingResponse,
+)
+from .responses.observability import (
     AnalyticsResponse,
     EvaluationResponse,
 )

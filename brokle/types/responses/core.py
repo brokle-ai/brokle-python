@@ -6,8 +6,8 @@ This module contains the most commonly used response models:
 - EmbeddingResponse
 - CompletionResponse
 
-Models are refactored to use mixins for reduced duplication while maintaining
-complete backward compatibility.
+Models follow industry standard patterns with clean namespace separation
+via response.brokle.* for all platform metadata and insights.
 """
 
 from typing import Any, Dict, List, Optional
@@ -63,13 +63,13 @@ class EmbeddingData(BaseModel):
     index: int = Field(description="Embedding index")
 
 
-# Core Response Models - Refactored with Mixins
+# Core Response Models - Industry Standard Pattern
 class CompletionResponse(BaseResponse):
     """
-    Completion response model.
+    Completion response model following industry standard pattern.
 
-    Maintains complete backward compatibility with original while internally
-    leveraging mixins for common field patterns.
+    Platform metadata accessible via response.brokle.* namespace.
+    AI response data accessible directly via response.choices, response.model, etc.
     """
 
     id: str = Field(description="Response ID")
@@ -82,10 +82,10 @@ class CompletionResponse(BaseResponse):
 
 class ChatCompletionResponse(BaseResponse):
     """
-    Chat completion response model.
+    Chat completion response model following industry standard pattern.
 
-    Most commonly used response model in the SDK. Maintains complete backward
-    compatibility while internally leveraging mixins.
+    Most commonly used response model in the SDK. Platform metadata accessible
+    via response.brokle.* namespace like AWS ResponseMetadata pattern.
     """
 
     id: str = Field(description="Response ID")

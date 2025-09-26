@@ -198,4 +198,4 @@ class BrokleResponse(BaseModel):
         routing_strategy: Optional[str] = None
         quality_score: Optional[float] = None
 
-    brokle_metadata: BrokleMetadata
+    brokle: Optional[BrokleMetadata] = None
