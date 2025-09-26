@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from ..config import Config
 from ..exceptions import AuthenticationError, NetworkError, APIError
+from .._version import __version__
 
 
 class HTTPBase:
@@ -86,11 +87,11 @@ class HTTPBase:
         """
         return {
             "Content-Type": "application/json",
-            "User-Agent": f"brokle-python/2.0.0",
+            "User-Agent": f"brokle-python/{__version__}",
             "X-API-Key": self.config.api_key,
             "X-Project-ID": self.config.project_id,
             "X-Environment": self.config.environment,
-            "X-SDK-Version": "2.0.0",
+            "X-SDK-Version": __version__,
         }
 
     def _prepare_url(self, endpoint: str) -> str:
