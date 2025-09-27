@@ -1,7 +1,7 @@
 """
 Testing utilities for LLM applications.
 
-This module provides LangSmith-inspired testing capabilities including
+This module provides comprehensive testing capabilities including
 unit test decorators and assertion frameworks.
 """
 

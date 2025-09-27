@@ -10,10 +10,13 @@ from .requests import (
     AnalyticsRequest,
     EvaluationRequest,
 )
-from .responses import (
+# Import from modular response structure
+from .responses.core import (
     CompletionResponse,
     ChatCompletionResponse,
     EmbeddingResponse,
+)
+from .responses.observability import (
     AnalyticsResponse,
     EvaluationResponse,
 )

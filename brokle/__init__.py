@@ -1,17 +1,74 @@
-""".. include:: ../README.md"""
+"""
+Brokle SDK 2.0 - The Open-Source AI Control Plane
 
-from .client import Brokle, get_client
+The Brokle SDK provides three integration patterns for adding AI observability,
+routing, and optimization to your applications.
+
+Three Integration Patterns:
+
+1. **Wrapper Functions**:
+   ```python
+   from openai import OpenAI
+   from anthropic import Anthropic
+   from brokle import wrap_openai, wrap_anthropic
+
+   openai_client = wrap_openai(
+       OpenAI(api_key="sk-..."),
+       tags=["production"],
+       session_id="user_session_123"
+   )
+   anthropic_client = wrap_anthropic(
+       Anthropic(api_key="sk-ant-..."),
+       tags=["claude", "analysis"]
+   )
+   response = openai_client.chat.completions.create(...)
+   ```
+
+2. **Universal Decorator** (Framework-Agnostic):
+   ```python
+   from brokle import observe
+
+   @observe()
+   def my_ai_workflow(user_query: str) -> str:
+       return llm.generate(user_query)
+   ```
+
+3. **Native SDK** (Full AI Platform Features):
+   ```python
+   from brokle import Brokle, get_client
+
+   client = Brokle(api_key="bk_...")
+   response = await client.chat.create(
+       model="gpt-4",
+       messages=[{"role": "user", "content": "Hello!"}]
+   )
+   ```
+"""
+
+# === PATTERN 1: WRAPPER FUNCTIONS (NEW IN 2.0) ===
+from .wrappers import (
+    wrap_openai,
+    wrap_anthropic,
+    wrap_google,    # Future
+    wrap_cohere,    # Future
+)
+
+# === PATTERN 2: UNIVERSAL DECORATOR (UNCHANGED) ===
+from .decorators import (
+    observe,
+    trace_workflow,
+    observe_llm,
+    observe_retrieval,
+    ObserveConfig,
+)
+
+# === PATTERN 3: NATIVE SDK ===
+from .client import Brokle, AsyncBrokle, get_client
 from .config import Config
 from .auth import AuthManager
-from ._client.attributes import BrokleOtelSpanAttributes
-from .integrations import auto_instrument, print_status, get_status, get_registry
-from ._version import __version__
+from .observability.attributes import BrokleOtelSpanAttributes
 
-# Auto-instrumentation convenience imports
-# Note: These imports don't auto-instrument by default - you need to explicitly import the modules
-# For auto-instrumentation, use:
-#   import brokle.openai  # Auto-instruments OpenAI
-#   import brokle.integrations.openai  # Alternative import for auto-instrumentation
+from ._version import __version__
 
 # Exception classes
 from .exceptions import (
@@ -27,58 +84,35 @@ from .exceptions import (
     QuotaExceededError,
     ProviderError,
     CacheError,
-    EvaluationError,
+    # EvaluationError removed - evaluation moved to backend
 )
 
-# Evaluation framework exports
-from .evaluation import (
-    evaluate,
-    aevaluate,
-    BaseEvaluator,
-    EvaluationResult,
-    EvaluationConfig,
-    AccuracyEvaluator,
-    RelevanceEvaluator,
-    CostEfficiencyEvaluator,
-    LatencyEvaluator,
-    QualityEvaluator,
-)
+# These advanced features are available through the Native SDK Pattern 3
 
-# AI Platform exports
-from .ai_platform import (
-    # Core AI client
-    AIClient, get_ai_client, configure_ai_platform, generate, generate_stream,
-
-    # Routing
-    RoutingStrategy, RoutingConfig, ProviderConfig, ProviderTier,
-    create_cost_optimized_routing, create_quality_optimized_routing,
-
-    # Caching
-    CacheStrategy, CacheConfig, SemanticCacheConfig,
-    create_semantic_cache_config, get_cache_stats,
-
-    # Quality
-    QualityMetric, QualityConfig, QualityScore,
-    create_comprehensive_quality, evaluate_quality,
-
-    # Optimization
-    OptimizationStrategy, CostOptimizationConfig, BudgetConfig,
-    create_balanced_optimization, get_cost_breakdown,
-
-    # Providers
-    ProviderStatus, ProviderHealth, get_provider_health,
-    get_healthy_providers, get_provider_rankings,
-)
-
-# Main exports
+# Main exports - Clean 3-Pattern Architecture
 __all__ = [
-    # Core client and observability
-    "Brokle",
-    "get_client",
-    "Config",
-    "AuthManager",
-    "BrokleOtelSpanAttributes",
-    # Exceptions
+    # === PATTERN 1: WRAPPER FUNCTIONS ===
+    "wrap_openai",               # OpenAI client wrapper
+    "wrap_anthropic",            # Anthropic client wrapper
+    "wrap_google",               # Google AI wrapper (future)
+    "wrap_cohere",               # Cohere wrapper (future)
+
+    # === PATTERN 2: UNIVERSAL DECORATOR (Framework-Agnostic) ===
+    "observe",                   # Universal @observe() decorator
+    "trace_workflow",            # Workflow context manager
+    "observe_llm",               # LLM-specific decorator
+    "observe_retrieval",         # Retrieval-specific decorator
+    "ObserveConfig",             # Decorator configuration
+
+    # === PATTERN 3: NATIVE SDK (OpenAI-Compatible + Brokle Features) ===
+    "Brokle",                    # Main sync client class
+    "AsyncBrokle",               # Async client class
+    "get_client",                # Client accessor
+    "Config",                    # Configuration management
+    "AuthManager",               # Authentication handling
+    "BrokleOtelSpanAttributes",  # Telemetry attributes
+
+    # === SHARED: EXCEPTION CLASSES ===
     "BrokleError",
     "AuthenticationError",
     "RateLimitError",
@@ -91,60 +125,17 @@ __all__ = [
     "QuotaExceededError",
     "ProviderError",
     "CacheError",
-    "EvaluationError",
-    # Integrations
-    "auto_instrument",
-    "print_status",
-    "get_status",
-    "get_registry",
-    # Evaluation framework
-    "evaluate",
-    "aevaluate",
-    "BaseEvaluator",
-    "EvaluationResult",
-    "EvaluationConfig",
-    "AccuracyEvaluator",
-    "RelevanceEvaluator",
-    "CostEfficiencyEvaluator",
-    "LatencyEvaluator",
-    "QualityEvaluator",
-    # AI Platform - Core
-    "AIClient",
-    "get_ai_client",
-    "configure_ai_platform",
-    "generate",
-    "generate_stream",
-    # AI Platform - Routing
-    "RoutingStrategy",
-    "RoutingConfig",
-    "ProviderConfig",
-    "ProviderTier",
-    "create_cost_optimized_routing",
-    "create_quality_optimized_routing",
-    # AI Platform - Caching
-    "CacheStrategy",
-    "CacheConfig",
-    "SemanticCacheConfig",
-    "create_semantic_cache_config",
-    "get_cache_stats",
-    # AI Platform - Quality
-    "QualityMetric",
-    "QualityConfig",
-    "QualityScore",
-    "create_comprehensive_quality",
-    "evaluate_quality",
-    # AI Platform - Optimization
-    "OptimizationStrategy",
-    "CostOptimizationConfig",
-    "BudgetConfig",
-    "create_balanced_optimization",
-    "get_cost_breakdown",
-    # AI Platform - Providers
-    "ProviderStatus",
-    "ProviderHealth",
-    "get_provider_health",
-    "get_healthy_providers",
-    "get_provider_rankings",
-    # Version
+    # "EvaluationError" removed - evaluation moved to backend
+
+    # === NOTE: EVALUATION FRAMEWORK MOVED TO BACKEND ===
+    # All evaluation logic is now handled by the backend
+
+    # === NATIVE SDK: ADVANCED FEATURES (Integrated into main client) ===
+    # Advanced features are available through Brokle() and AsyncBrokle() clients
+    # No separate exports needed - clean architecture with unified interface
+
+    # === METADATA ===
     "__version__",
 ]
+
+

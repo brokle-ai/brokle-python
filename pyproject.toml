@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "brokle"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Brokle Platform Python SDK for intelligent LLM routing, caching, and observability"
 readme = "README.md"
 license = {text = "MIT"}
@@ -14,7 +14,7 @@ authors = [
 maintainers = [
     {name = "Brokle Platform", email = "support@brokle.com"}
 ]
-keywords = ["ai", "llm", "brokle", "openai", "observability", "telemetry", "opentelemetry"]
+keywords = ["ai", "llm", "brokle", "openai", "observability", "routing", "caching", "drop-in", "decorator", "patterns"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -96,6 +96,9 @@ Repository = "https://github.com/brokle-ai/brokle-python"
 "Bug Tracker" = "https://github.com/brokle-ai/brokle-python/issues"
 Changelog = "https://github.com/brokle-ai/brokle-python/blob/main/CHANGELOG.md"
 
+[tool.setuptools.dynamic]
+version = {attr = "brokle._version.__version__"}
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["brokle*"]
@@ -106,7 +109,7 @@ brokle = ["py.typed"]
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ['py39']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -132,7 +135,7 @@ ensure_newline_before_comments = true
 line_length = 88
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -198,13 +201,3 @@ exclude_lines = [
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
 ]
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.4.2"
-pytest-asyncio = "^1.2.0"
-pytest-cov = "^7.0.0"
-black = "^25.9.0"
-isort = "^6.0.1"
-flake8 = "^7.3.0"
-mypy = "^1.18.2"
-pre-commit = "^4.3.0"
-

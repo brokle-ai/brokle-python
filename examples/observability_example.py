@@ -7,7 +7,7 @@ enhanced @observe decorator for comprehensive LLM observability.
 
 import asyncio
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 # Import Brokle SDK
@@ -17,8 +17,7 @@ from brokle.observability_decorators import observe_enhanced
 # Create Brokle client with explicit configuration
 client = brokle.Brokle(
     host="http://localhost:8080",  # Your Brokle instance
-    api_key="your-api-key",        # Your API key
-    project_id="your-project-id",  # Your project ID
+    api_key="bk_your_secret",  # Your API key
 )
 
 
@@ -103,7 +102,7 @@ async def preprocess_query(query: str) -> Dict[str, Any]:
         "original_query": query,
         "processed_query": query.strip().lower(),
         "word_count": len(query.split()),
-        "preprocessing_timestamp": datetime.utcnow().isoformat()
+        "preprocessing_timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -118,7 +117,7 @@ async def postprocess_response(response: str, context: Dict[str, Any]) -> Dict[s
         "processed_response": response.strip(),
         "context": context,
         "response_length": len(response),
-        "postprocessing_timestamp": datetime.utcnow().isoformat()
+        "postprocessing_timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -206,7 +205,7 @@ async def batch_operations_example():
             "name": f"batch_observation_{i}",
             "external_observation_id": f"ext_obs_{i}",
             "type": "llm",
-            "start_time": datetime.utcnow().isoformat(),
+            "start_time": datetime.now(timezone.utc).isoformat(),
             "model": "gpt-3.5-turbo",
             "provider": "openai"
         }

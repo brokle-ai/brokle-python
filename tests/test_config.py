@@ -13,53 +13,44 @@ class TestConfig:
     def test_config_from_env(self):
         """Test configuration from environment variables."""
         with patch.dict(os.environ, {
-            'BROKLE_API_KEY': 'ak_test_key',
+            'BROKLE_API_KEY': 'bk_test_secret',
             'BROKLE_HOST': 'https://test.example.com',
-            'BROKLE_PROJECT_ID': 'proj_test',
             'BROKLE_ENVIRONMENT': 'test',
         }):
             config = Config.from_env()
-            assert config.api_key == 'ak_test_key'
+            assert config.api_key == 'bk_test_secret'
             assert config.host == 'https://test.example.com'
-            assert config.project_id == 'proj_test'
             assert config.environment == 'test'
     
     def test_config_validation(self):
         """Test configuration validation."""
         config = Config(
-            api_key='ak_test_key',
-            project_id='proj_test'
+            api_key='bk_test_secret'
         )
-        
+
         # Should not raise
         config.validate()
-        
+
         # Missing API key should raise
         config.api_key = None
         with pytest.raises(ValueError, match="API key is required"):
-            config.validate()
-        
-        # Missing project ID should raise
-        config.api_key = 'ak_test_key'
-        config.project_id = None
-        with pytest.raises(ValueError, match="Project ID is required"):
             config.validate()
     
     def test_api_key_validation(self):
         """Test API key format validation."""
         # Valid API key
-        config = Config(api_key='ak_test_key')
-        assert config.api_key == 'ak_test_key'
-        
+        config = Config(api_key='bk_test_secret')
+        assert config.api_key == 'bk_test_secret'
+
         # Invalid API key format
-        with pytest.raises(ValueError, match='API key must start with "ak_"'):
+        with pytest.raises(ValueError, match='API key must start with "bk_"'):
             Config(api_key='invalid_key')
     
     def test_host_validation(self):
         """Test host URL validation."""
         # Valid hosts
-        config = Config(host='http://localhost:8000')
-        assert config.host == 'http://localhost:8000'
+        config = Config(host='http://localhost:8080')
+        assert config.host == 'http://localhost:8080'
         
         config = Config(host='https://example.com/')
         assert config.host == 'https://example.com'  # Trailing slash removed
@@ -71,14 +62,12 @@ class TestConfig:
     def test_get_headers(self):
         """Test getting HTTP headers."""
         config = Config(
-            api_key='ak_test_key',
-            project_id='proj_test',
+            api_key='bk_test_secret',
             environment='test'
         )
-        
+
         headers = config.get_headers()
-        assert headers['X-API-Key'] == 'ak_test_key'
-        assert headers['X-Project-ID'] == 'proj_test'
+        assert headers['X-API-Key'] == 'bk_test_secret'
         assert headers['X-Environment'] == 'test'
         assert headers['Content-Type'] == 'application/json'
         assert 'brokle-python' in headers['User-Agent']

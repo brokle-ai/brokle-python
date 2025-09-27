@@ -66,9 +66,13 @@ class ConfigurationError(BrokleError):
 class APIError(BrokleError):
     """Raised when API request fails."""
 
-    def __init__(self, message: str, status_code: Optional[int] = None, details: Optional[Dict[str, Any]] = None):
-        super().__init__(message, details)
-        self.status_code = status_code
+    def __init__(self, message: str, status_code: Optional[int] = None, details: Optional[Dict[str, Any]] = None, **kwargs):
+        super().__init__(
+            message,
+            status_code=status_code or kwargs.get('status_code', 500),
+            error_code=kwargs.get('error_code', 'api_error'),
+            details=details or kwargs.get('details')
+        )
 
 
 class NetworkError(BrokleError):

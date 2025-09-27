@@ -11,7 +11,7 @@ import time
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Callable, Union
 from queue import Queue, PriorityQueue, Empty, Full
@@ -108,13 +108,13 @@ class Task:
 
     def is_due(self) -> bool:
         """Check if task is due for execution."""
-        return datetime.utcnow() >= self.scheduled_at
+        return datetime.now(timezone.utc) >= self.scheduled_at
 
     def is_expired(self) -> bool:
         """Check if task has exceeded its deadline."""
         if self.deadline is None:
             return False
-        return datetime.utcnow() > self.deadline
+        return datetime.now(timezone.utc) > self.deadline
 
     def should_retry(self) -> bool:
         """Check if task should be retried."""
@@ -131,9 +131,9 @@ class Task:
     def schedule_retry(self) -> None:
         """Schedule task for retry."""
         retry_delay = self.calculate_retry_delay()
-        self.scheduled_at = datetime.utcnow() + timedelta(seconds=retry_delay)
+        self.scheduled_at = datetime.now(timezone.utc) + timedelta(seconds=retry_delay)
         self.attempts += 1
-        self.last_attempt_at = datetime.utcnow()
+        self.last_attempt_at = datetime.now(timezone.utc)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert task to dictionary for serialization."""
@@ -252,10 +252,10 @@ class TaskQueue:
 
         # Set scheduling
         if delay_seconds > 0:
-            task.scheduled_at = datetime.utcnow() + timedelta(seconds=delay_seconds)
+            task.scheduled_at = datetime.now(timezone.utc) + timedelta(seconds=delay_seconds)
 
         if deadline_seconds:
-            task.deadline = datetime.utcnow() + timedelta(seconds=deadline_seconds)
+            task.deadline = datetime.now(timezone.utc) + timedelta(seconds=deadline_seconds)
 
         # Enqueue task
         try:
@@ -350,12 +350,12 @@ class TaskQueue:
             status=TaskStatus.COMPLETED,
             result=result,
             attempts=task.attempts + 1,
-            completed_at=datetime.utcnow()
+            completed_at=datetime.now(timezone.utc)
         )
 
         # Calculate execution time
         if task.last_attempt_at:
-            execution_time = (datetime.utcnow() - task.last_attempt_at).total_seconds() * 1000
+            execution_time = (datetime.now(timezone.utc) - task.last_attempt_at).total_seconds() * 1000
             task_result.execution_time_ms = execution_time
             self._metrics["total_processing_time_ms"] += execution_time
 
@@ -372,7 +372,7 @@ class TaskQueue:
 
         task = self._processing_tasks.pop(task_id)
         task.last_error = error
-        task.last_attempt_at = datetime.utcnow()
+        task.last_attempt_at = datetime.now(timezone.utc)
 
         if task.should_retry():
             # Schedule for retry
@@ -402,8 +402,8 @@ class TaskQueue:
         dead_letter_entry = {
             "task": task.to_dict(),
             "reason": reason,
-            "dead_lettered_at": datetime.utcnow().isoformat(),
-            "ttl": datetime.utcnow() + timedelta(hours=self.dead_letter_ttl_hours)
+            "dead_lettered_at": datetime.now(timezone.utc).isoformat(),
+            "ttl": datetime.now(timezone.utc) + timedelta(hours=self.dead_letter_ttl_hours)
         }
 
         self._dead_letter_queue.append(dead_letter_entry)
@@ -444,7 +444,7 @@ class TaskQueue:
 
     def cleanup_completed_tasks(self, older_than_hours: int = 24) -> int:
         """Clean up old completed tasks."""
-        cutoff_time = datetime.utcnow() - timedelta(hours=older_than_hours)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=older_than_hours)
 
         to_remove = []
         for task_id, result in self._completed_tasks.items():
@@ -462,7 +462,7 @@ class TaskQueue:
         if not self.enable_dead_letter_queue:
             return 0
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         original_size = len(self._dead_letter_queue)
 
         # Remove expired entries

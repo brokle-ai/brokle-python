@@ -19,8 +19,7 @@ def event_loop():
 def test_config():
     """Create a test configuration."""
     return Config(
-        api_key="ak_test_key",
-        project_id="proj_test",
+        api_key="bk_test_secret",
         host="https://test.brokle.com",
         environment="test"
     )
@@ -209,11 +208,20 @@ def generate_test_metadata():
 # Cleanup fixtures
 @pytest.fixture(autouse=True)
 def reset_client_state():
-    """Reset singleton client cache before and after each test."""
-    client_module = __import__("brokle._client.client", fromlist=["_instances"])
-    client_module._instances.clear()
+    """Reset client state before and after each test."""
+    # Clear singleton instance
+    import brokle.client
+    brokle.client._client_singleton = None
+
+    # Clear observability context
+    from brokle.observability.context import clear_context
+    clear_context()
+
     yield
-    client_module._instances.clear()
+
+    # Cleanup after test
+    brokle.client._client_singleton = None
+    clear_context()
 
 
 @pytest.fixture(autouse=True)

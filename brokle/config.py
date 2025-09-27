@@ -66,11 +66,10 @@ def sanitize_environment_name(env: str) -> str:
 
 class Config(BaseModel):
     """Configuration for Brokle SDK."""
-    
+
     # Core configuration
     api_key: Optional[str] = Field(default=None, description="Brokle API key")
-    host: str = Field(default="http://localhost:8000", description="Brokle host URL")
-    project_id: Optional[str] = Field(default=None, description="Project ID")
+    host: str = Field(default="http://localhost:8080", description="Brokle host URL")
     environment: str = Field(default="default", description="Environment name")
     
     # OpenTelemetry configuration
@@ -103,8 +102,8 @@ class Config(BaseModel):
     @classmethod
     def validate_api_key(cls, v: Optional[str]) -> Optional[str]:
         """Validate API key format."""
-        if v and not v.startswith('ak_'):
-            raise ValueError('API key must start with "ak_"')
+        if v and not v.startswith('bk_'):
+            raise ValueError('API key must start with "bk_"')
         return v
     
     @field_validator('host')
@@ -129,8 +128,7 @@ class Config(BaseModel):
         
         return cls(
             api_key=os.getenv('BROKLE_API_KEY'),
-            host=os.getenv('BROKLE_HOST', 'http://localhost:8000'),
-            project_id=os.getenv('BROKLE_PROJECT_ID'),
+            host=os.getenv('BROKLE_HOST', 'http://localhost:8080'),
             environment=os.getenv('BROKLE_ENVIRONMENT', 'default'),
             
             # OpenTelemetry
@@ -160,8 +158,6 @@ class Config(BaseModel):
         """Validate configuration."""
         if not self.api_key:
             raise ValueError("API key is required")
-        if not self.project_id:
-            raise ValueError("Project ID is required")
     
     def get_headers(self) -> Dict[str, str]:
         """Get HTTP headers for API requests."""
@@ -169,15 +165,12 @@ class Config(BaseModel):
             'Content-Type': 'application/json',
             'User-Agent': f'brokle-python/0.1.0',
         }
-        
+
         if self.api_key:
             headers['X-API-Key'] = self.api_key
-        
-        if self.project_id:
-            headers['X-Project-ID'] = self.project_id
-        
+
         headers['X-Environment'] = self.environment
-        
+
         return headers
 
 

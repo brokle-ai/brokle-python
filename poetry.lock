@@ -464,7 +464,7 @@ description = "Distro - an OS platform information API"
 optional = true
 python-versions = ">=3.6"
 groups = ["main"]
-markers = "extra == \"openai\" or extra == \"all\" or extra == \"anthropic\""
+markers = "extra == \"anthropic\" or extra == \"all\""
 files = [
     {file = "distro-1.9.0-py3-none-any.whl", hash = "sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2"},
     {file = "distro-1.9.0.tar.gz", hash = "sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed"},
@@ -985,7 +985,7 @@ description = "Fast iterable JSON parser."
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"openai\" or extra == \"all\" or extra == \"anthropic\""
+markers = "extra == \"anthropic\" or extra == \"all\""
 files = [
     {file = "jiter-0.11.0-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:3893ce831e1c0094a83eeaf56c635a167d6fa8cc14393cc14298fd6fdc2a2449"},
     {file = "jiter-0.11.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:25c625b9b61b5a8725267fdf867ef2e51b429687f6a4eef211f4612e95607179"},
@@ -1430,35 +1430,6 @@ files = [
     {file = "nodeenv-1.9.1-py2.py3-none-any.whl", hash = "sha256:ba11c9782d29c27c70ffbdda2d7415098754709be8a7056d79a737cd901155c9"},
     {file = "nodeenv-1.9.1.tar.gz", hash = "sha256:6ec12890a2dab7946721edbfbcd91f3319c6ccc9aec47be7c7e6b7011ee6645f"},
 ]
-
-[[package]]
-name = "openai"
-version = "1.107.2"
-description = "The official Python library for the openai API"
-optional = true
-python-versions = ">=3.8"
-groups = ["main"]
-markers = "extra == \"openai\" or extra == \"all\""
-files = [
-    {file = "openai-1.107.2-py3-none-any.whl", hash = "sha256:d159d4f3ee3d9c717b248c5d69fe93d7773a80563c8b1ca8e9cad789d3cf0260"},
-    {file = "openai-1.107.2.tar.gz", hash = "sha256:a11fe8d4318e98e94309308dd3a25108dec4dfc1b606f9b1c5706e8d88bdd3cb"},
-]
-
-[package.dependencies]
-anyio = ">=3.5.0,<5"
-distro = ">=1.7.0,<2"
-httpx = ">=0.23.0,<1"
-jiter = ">=0.4.0,<1"
-pydantic = ">=1.9.0,<3"
-sniffio = "*"
-tqdm = ">4"
-typing-extensions = ">=4.11,<5"
-
-[package.extras]
-aiohttp = ["aiohttp", "httpx-aiohttp (>=0.1.8)"]
-datalib = ["numpy (>=1)", "pandas (>=1.2.3)", "pandas-stubs (>=1.1.0.11)"]
-realtime = ["websockets (>=13,<16)"]
-voice-helpers = ["numpy (>=2.0.2)", "sounddevice (>=0.5.1)"]
 
 [[package]]
 name = "opentelemetry-api"
@@ -2357,7 +2328,7 @@ description = "Fast, Extensible Progress Meter"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"openai\" or extra == \"all\" or extra == \"google\""
+markers = "extra == \"google\" or extra == \"all\""
 files = [
     {file = "tqdm-4.67.1-py3-none-any.whl", hash = "sha256:26445eca388f82e72884e0d580d5464cd801a3ea01e63e5601bdff9ba6a48de2"},
     {file = "tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2"},

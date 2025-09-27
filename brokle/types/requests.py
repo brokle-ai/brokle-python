@@ -245,10 +245,9 @@ class CostCalculationRequest(BaseModel):
 
 class CostTrackingRequest(BaseModel):
     """Cost tracking request."""
-    
+
     request_id: str = Field(description="Request ID")
     organization_id: str = Field(description="Organization ID")
-    project_id: str = Field(description="Project ID")
     environment: str = Field(description="Environment tag")
     provider: str = Field(description="AI provider")
     model: str = Field(description="Model name")
@@ -261,9 +260,8 @@ class CostTrackingRequest(BaseModel):
 
 class BudgetRequest(BaseModel):
     """Budget management request."""
-    
+
     organization_id: str = Field(description="Organization ID")
-    project_id: Optional[str] = Field(default=None, description="Project ID")
     environment: Optional[str] = Field(default=None, description="Environment tag")
     budget_type: str = Field(description="Budget type (monthly, weekly, daily)")
     amount: float = Field(description="Budget amount in USD")
@@ -308,9 +306,8 @@ class MLTrainingDataRequest(BaseModel):
 # Configuration Service Requests
 class ConfigRequest(BaseModel):
     """Configuration request."""
-    
+
     organization_id: Optional[str] = Field(default=None, description="Organization ID")
-    project_id: Optional[str] = Field(default=None, description="Project ID")
     environment: Optional[str] = Field(default=None, description="Environment")
     config_keys: Optional[List[str]] = Field(default=None, description="Specific config keys")
 
@@ -334,9 +331,8 @@ class SubscriptionLimitRequest(BaseModel):
 # Billing Service Requests
 class UsageRecordingRequest(BaseModel):
     """Usage recording request."""
-    
+
     organization_id: str = Field(description="Organization ID")
-    project_id: str = Field(description="Project ID")
     environment: str = Field(description="Environment tag")
     request_id: str = Field(description="Request ID")
     provider: str = Field(description="AI provider")
@@ -352,9 +348,8 @@ class UsageRecordingRequest(BaseModel):
 
 class QuotaCheckRequest(BaseModel):
     """Quota check request."""
-    
+
     organization_id: str = Field(description="Organization ID")
-    project_id: Optional[str] = Field(default=None, description="Project ID")
     environment: Optional[str] = Field(default=None, description="Environment tag")
     resource_type: str = Field(description="Resource type (requests, tokens, cost)")
     requested_amount: int = Field(description="Requested amount")
@@ -399,7 +394,6 @@ class PushNotificationRequest(NotificationRequest):
 class ObservabilityTraceRequest(BaseModel):
     """Create trace request for observability service."""
 
-    project_id: str = Field(description="Project ID")
     external_trace_id: str = Field(description="External trace ID")
     name: str = Field(description="Trace name")
     user_id: Optional[str] = Field(default=None, description="User ID")

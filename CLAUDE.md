@@ -154,7 +154,7 @@ The SDK includes comprehensive environment tag validation rules:
 - Max 40 characters, lowercase only
 - Cannot start with "brokle" prefix
 - Default environment is "default"
-- Headers: `X-Environment`, `X-Project-ID`, `X-API-Key`
+- Headers: `X-Environment`, `X-API-Key`
 
 ### Manual Testing
 Use the provided manual test scripts:
@@ -163,19 +163,18 @@ Use the provided manual test scripts:
 python test_manual.py --interactive
 
 # Direct testing with API key
-python test_manual.py --api-key "ak_your_key_here"
+python test_manual.py --api-key "bk_your_key_here"
 
 # Integration testing with backend
-python test_integration.py --api-key "ak_your_key_here"
+python test_integration.py --api-key "bk_your_key_here"
 ```
 
 ## Configuration and Environment
 
 ### Environment Variables
 ```bash
-BROKLE_API_KEY="ak_your_api_key"
+BROKLE_API_KEY="bk_your_secret"
 BROKLE_HOST="http://localhost:8080"
-BROKLE_PROJECT_ID="proj_your_project_id"
 BROKLE_ENVIRONMENT="production"          # Environment tag (lowercase, max 40 chars)
 BROKLE_OTEL_ENABLED=true
 BROKLE_TELEMETRY_ENABLED=true
@@ -188,9 +187,8 @@ from brokle import Brokle, get_client
 
 # Dedicated client with explicit credentials
 client = Brokle(
-    api_key="ak_your_key",
+    api_key="bk_your_secret",
     host="http://localhost:8080",
-    project_id="proj_your_project",
     environment="production",
 )
 
@@ -255,7 +253,7 @@ span.set_attribute(BrokleOtelSpanAttributes.ROUTING_STRATEGY, "cost_optimized")
 
 This SDK is designed to work with the Brokle platform backend:
 - Default backend: `http://localhost:8080`
-- Authentication via `/api/v1/auth/validate`
+- Authentication via `/v1/auth/validate-key`
 - Environment tags in request headers
 - Project-scoped API key validation
 

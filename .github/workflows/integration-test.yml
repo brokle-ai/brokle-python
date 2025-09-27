@@ -99,8 +99,7 @@ jobs:
 
         # Test config creation
         config = Config(
-            api_key='ak_test',
-            project_id='proj_test',
+            api_key='bk_test',
             environment='test'
         )
         print('✅ Config creation works')

@@ -4,8 +4,8 @@ import sys
 from pathlib import Path
 
 # For older pip versions that don't support pyproject.toml
-if sys.version_info < (3, 8):
-    raise RuntimeError("Brokle SDK requires Python 3.8 or higher")
+if sys.version_info < (3, 9):
+    raise RuntimeError("Brokle SDK requires Python 3.9 or higher")
 
 # Point to pyproject.toml
 try:
