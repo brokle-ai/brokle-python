@@ -682,8 +682,7 @@ from brokle import Brokle
 
 # Context manager (recommended for proper cleanup)
 with Brokle(
-    api_key="ak_your_api_key",
-    project_id="proj_your_project_id",
+    api_key="bk_your_api_key",
     host="http://localhost:8080",
     environment="production"
 ) as client:
@@ -721,8 +720,7 @@ import asyncio
 
 async def main():
     async with AsyncBrokle(
-        api_key="ak_your_api_key",
-        project_id="proj_your_project_id"
+        api_key="bk_your_api_key",
     ) as client:
 
         # Concurrent requests for better performance
@@ -881,8 +879,7 @@ if exact_match.brokle:
 
 ```bash
 # Set environment variables
-export BROKLE_API_KEY="ak_your_api_key"
-export BROKLE_PROJECT_ID="proj_your_project"
+export BROKLE_API_KEY="bk_your_api_key"
 export BROKLE_HOST="https://api.brokle.com"
 export BROKLE_ENVIRONMENT="production"
 export BROKLE_CACHE_ENABLED="true"

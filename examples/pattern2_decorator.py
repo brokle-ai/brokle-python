@@ -16,8 +16,7 @@ import openai
 client = openai.OpenAI()
 
 # Environment variables for Brokle configuration:
-# BROKLE_API_KEY="ak_your_api_key_here"
-# BROKLE_PROJECT_ID="proj_your_project_id"
+# BROKLE_API_KEY="bk_your_api_key_here"
 # BROKLE_HOST="http://localhost:8080"
 
 

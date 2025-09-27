@@ -17,8 +17,7 @@ from brokle.observability_decorators import observe_enhanced
 # Create Brokle client with explicit configuration
 client = brokle.Brokle(
     host="http://localhost:8080",  # Your Brokle instance
-    api_key="your-api-key",        # Your API key
-    project_id="your-project-id",  # Your project ID
+    api_key="bk_your_secret",  # Your API key
 )
 
 

@@ -94,7 +94,7 @@ def my_ai_workflow(query: str) -> str:
 
 # Pattern 3: Native SDK (Full AI Platform)
 from brokle import Brokle
-client = Brokle(api_key="ak_...", project_id="proj_...")
+client = Brokle(api_key="bk_...")
 response = await client.chat.create(...)
 
 # Bonus: LangChain Integration

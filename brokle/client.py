@@ -26,7 +26,7 @@ class Brokle(HTTPBase):
     Sync Brokle client with OpenAI-compatible interface.
 
     Usage:
-        with Brokle(api_key="ak_...", host="http://localhost:8080") as client:
+        with Brokle(api_key="bk_...", host="http://localhost:8080") as client:
             response = client.chat.completions.create(
                 model="gpt-4",
                 messages=[{"role": "user", "content": "Hello!"}],
@@ -38,7 +38,6 @@ class Brokle(HTTPBase):
         self,
         api_key: Optional[str] = None,
         host: Optional[str] = None,
-        project_id: Optional[str] = None,
         environment: Optional[str] = None,
         timeout: Optional[float] = None,
         background_processor: Optional[BackgroundProcessor] = None,
@@ -50,7 +49,6 @@ class Brokle(HTTPBase):
         Args:
             api_key: Brokle API key
             host: Brokle host URL
-            project_id: Project ID
             environment: Environment name
             timeout: Request timeout in seconds
             background_processor: Optional background processor for telemetry (will create default if None)
@@ -59,7 +57,6 @@ class Brokle(HTTPBase):
         super().__init__(
             api_key=api_key,
             host=host,
-            project_id=project_id,
             environment=environment,
             timeout=timeout,
             **kwargs
@@ -201,7 +198,6 @@ class Brokle(HTTPBase):
                 "latency_ms": int((time.time() - start_time) * 1000),
                 "success": True,
                 "timestamp": time.time(),
-                "project_id": self.config.project_id,
                 "environment": self.config.environment,
             }
             self.submit_telemetry(telemetry_data)
@@ -218,7 +214,6 @@ class Brokle(HTTPBase):
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "timestamp": time.time(),
-                "project_id": self.config.project_id,
                 "environment": self.config.environment,
             }
             self.submit_telemetry(telemetry_data)
@@ -270,7 +265,7 @@ class AsyncBrokle(HTTPBase):
     Async Brokle client with OpenAI-compatible interface.
 
     Usage:
-        client = AsyncBrokle(api_key="ak_...")
+        client = AsyncBrokle(api_key="bk_...")
         try:
             response = await client.chat.completions.create(
                 model="gpt-4",
@@ -285,7 +280,6 @@ class AsyncBrokle(HTTPBase):
         self,
         api_key: Optional[str] = None,
         host: Optional[str] = None,
-        project_id: Optional[str] = None,
         environment: Optional[str] = None,
         timeout: Optional[float] = None,
         background_processor: Optional[BackgroundProcessor] = None,
@@ -297,7 +291,6 @@ class AsyncBrokle(HTTPBase):
         Args:
             api_key: Brokle API key
             host: Brokle host URL
-            project_id: Project ID
             environment: Environment name
             timeout: Request timeout in seconds
             background_processor: Optional background processor for telemetry (will create default if None)
@@ -306,7 +299,6 @@ class AsyncBrokle(HTTPBase):
         super().__init__(
             api_key=api_key,
             host=host,
-            project_id=project_id,
             environment=environment,
             timeout=timeout,
             **kwargs
@@ -436,7 +428,6 @@ class AsyncBrokle(HTTPBase):
                 "latency_ms": int((time.time() - start_time) * 1000),
                 "success": True,
                 "timestamp": time.time(),
-                "project_id": self.config.project_id,
                 "environment": self.config.environment,
             }
             self.submit_telemetry(telemetry_data)
@@ -453,7 +444,6 @@ class AsyncBrokle(HTTPBase):
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "timestamp": time.time(),
-                "project_id": self.config.project_id,
                 "environment": self.config.environment,
             }
             self.submit_telemetry(telemetry_data)
@@ -511,7 +501,6 @@ def get_client(background_processor: Optional[BackgroundProcessor] = None) -> Br
     Configuration is read from environment variables:
     - BROKLE_API_KEY
     - BROKLE_HOST
-    - BROKLE_PROJECT_ID
     - BROKLE_ENVIRONMENT
     - BROKLE_OTEL_ENABLED
     - etc.
@@ -525,7 +514,7 @@ def get_client(background_processor: Optional[BackgroundProcessor] = None) -> Br
     Example:
         ```python
         # For explicit configuration, use Brokle() directly
-        client = Brokle(api_key="ak_your_key", project_id="proj_123")
+        client = Brokle(api_key="bk_your_secret")
 
         # For environment-based configuration, use get_client()
         client = get_client()  # Reads from BROKLE_* env vars

@@ -19,15 +19,14 @@ class TestBrokleClient:
     def test_init_with_parameters(self):
         """Test initialization with explicit parameters."""
         client = Brokle(
-            api_key="ak_test123",
+            api_key="bk_test123",
             host="http://localhost:8080",
-            project_id="proj_test",
             environment="test"
         )
 
-        assert client.config.api_key == "ak_test123"
+        assert client.config.api_key == "bk_test123"
         assert client.config.host == "http://localhost:8080"
-        assert client.config.project_id == "proj_test"
+        assert client.config.environment == "test"
         assert client.config.environment == "test"
 
         # Check resources are initialized
@@ -39,8 +38,7 @@ class TestBrokleClient:
     def test_context_manager(self):
         """Test context manager functionality."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             with Brokle() as client:
                 assert client._client is None  # Not created until first use
@@ -53,8 +51,7 @@ class TestBrokleClient:
     def test_explicit_close(self):
         """Test explicit client cleanup."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = Brokle()
             http_client = client._get_client()
@@ -81,8 +78,7 @@ class TestBrokleClient:
 
         # Test request
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = Brokle()
             result = client.request("POST", "/v1/chat/completions", json={"model": "gpt-4"})
@@ -100,8 +96,7 @@ class TestBrokleClient:
 
         # Test error handling
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = Brokle()
 
@@ -111,8 +106,7 @@ class TestBrokleClient:
     def test_chat_completions_create(self):
         """Test chat completions creation."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = Brokle()
 
@@ -153,12 +147,11 @@ class TestBrokleClient:
     def test_get_client_function(self):
         """Test get_client function."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = get_client()
             assert isinstance(client, Brokle)
-            assert client.config.api_key == "ak_test"
+            assert client.config.api_key == "bk_test"
 
 
 class TestAsyncBrokleClient:
@@ -167,15 +160,14 @@ class TestAsyncBrokleClient:
     def test_init_with_parameters(self):
         """Test async client initialization."""
         client = AsyncBrokle(
-            api_key="ak_test123",
+            api_key="bk_test123",
             host="http://localhost:8080",
-            project_id="proj_test",
             environment="test"
         )
 
-        assert client.config.api_key == "ak_test123"
+        assert client.config.api_key == "bk_test123"
         assert client.config.host == "http://localhost:8080"
-        assert client.config.project_id == "proj_test"
+        assert client.config.environment == "test"
         assert client.config.environment == "test"
 
         # Check async resources are initialized
@@ -191,8 +183,7 @@ class TestAsyncBrokleClient:
     async def test_async_context_manager(self):
         """Test async context manager functionality."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             async with AsyncBrokle() as client:
                 assert client._client is not None
@@ -202,8 +193,7 @@ class TestAsyncBrokleClient:
     async def test_explicit_close(self):
         """Test explicit async client cleanup."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = AsyncBrokle()
             assert client._client is not None
@@ -222,8 +212,7 @@ class TestAsyncBrokleClient:
         }
 
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = AsyncBrokle()
 
@@ -240,8 +229,7 @@ class TestAsyncBrokleClient:
     async def test_async_chat_completions_create(self):
         """Test async chat completions creation."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = AsyncBrokle()
 
@@ -288,8 +276,7 @@ class TestEmbeddingsResource:
     def test_embeddings_create(self):
         """Test embeddings creation."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = Brokle()
 
@@ -332,8 +319,7 @@ class TestModelsResource:
     def test_models_list(self):
         """Test models listing."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = Brokle()
 
@@ -367,8 +353,7 @@ class TestModelsResource:
     def test_models_retrieve(self):
         """Test model retrieval."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = Brokle()
 
@@ -400,8 +385,7 @@ class TestTaskManagerIntegration:
     def test_client_creates_default_processor(self):
         """Test that client creates default background processor."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = Brokle()
 
@@ -442,8 +426,7 @@ class TestTaskManagerIntegration:
         custom_processor.is_healthy = Mock(return_value=True)
 
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = Brokle(background_processor=custom_processor)
 
@@ -463,8 +446,8 @@ class TestTaskManagerIntegration:
     def test_telemetry_submission_on_request(self):
         """Test that requests automatically submit telemetry."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test",
+            "BROKLE_ENVIRONMENT": "test"
         }):
             client = Brokle()
 
@@ -492,15 +475,14 @@ class TestTaskManagerIntegration:
                     assert call_args["status_code"] == 200
                     assert call_args["success"] is True
                     assert "latency_ms" in call_args
-                    assert call_args["project_id"] == "proj_test"
+                    assert call_args["environment"] == "test"
 
             client.close()
 
     def test_error_telemetry_submission(self):
         """Test that request errors submit telemetry."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = Brokle()
 
@@ -528,8 +510,7 @@ class TestTaskManagerIntegration:
     def test_processor_methods_integration(self):
         """Test processor method integration on client."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = Brokle()
 
@@ -556,8 +537,7 @@ class TestTaskManagerIntegration:
     async def test_async_client_integration(self):
         """Test async client integration with background processor."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = AsyncBrokle()
 
@@ -592,8 +572,7 @@ class TestTaskManagerIntegration:
         custom_processor = Mock(spec=BackgroundProcessor)
 
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             # Reset singleton
             import brokle.client
@@ -618,8 +597,7 @@ class TestPatternIntegration:
         pytest.importorskip("openai")
 
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             # Create a client with custom processor to monitor
             from brokle._task_manager.processor import BackgroundProcessor
@@ -663,8 +641,7 @@ class TestPatternIntegration:
     def test_span_telemetry_integration(self):
         """Test that spans submit telemetry through background processor."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             # Create client with custom processor
             from brokle._task_manager.processor import BackgroundProcessor
@@ -695,8 +672,7 @@ class TestPatternIntegration:
     def test_observe_decorator_telemetry_integration(self):
         """Test that @observe decorator can integrate with background processor."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             # Create client with custom processor
             from brokle._task_manager.processor import BackgroundProcessor
@@ -741,8 +717,7 @@ class TestPatternIntegration:
     def test_anthropic_wrapper_telemetry_integration(self):
         """Test that Anthropic wrapper integrates with background processor for telemetry."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             # Create client with custom processor
             from brokle._task_manager.processor import BackgroundProcessor

@@ -13,9 +13,8 @@ from brokle import Brokle
 
 # Shared client settings (use environment variables or update here for quick tests)
 BROKLE_SETTINGS = {
-    "api_key": "ak_your_api_key_here",
+    "api_key": "bk_your_api_key_here",
     "host": "http://localhost:8080",
-    "project_id": "proj_your_project_id",
     "otel_enabled": False,
 }
 

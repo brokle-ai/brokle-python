@@ -17,8 +17,7 @@ class TestAuthManager:
     def config(self):
         """Create test configuration."""
         return Config(
-            api_key="ak_test_key",
-            project_id="proj_test",
+            api_key="bk_test_key",
             host="https://test.example.com"
         )
     
@@ -31,7 +30,7 @@ class TestAuthManager:
         """Test AuthManager initialization."""
         auth_manager = AuthManager(config)
         assert auth_manager.config == config
-        assert auth_manager.config.api_key == "ak_test_key"
+        assert auth_manager.config.api_key == "bk_test_key"
     
     @pytest.mark.asyncio
     async def test_validate_api_key_valid(self, auth_manager):
@@ -70,8 +69,7 @@ class TestAuthManager:
         """Test getting authentication headers."""
         headers = auth_manager.get_auth_headers()
 
-        assert headers["X-API-Key"] == "ak_test_key"
-        assert headers["X-Project-ID"] == "proj_test"
+        assert headers["X-API-Key"] == "bk_test_key"
         assert "User-Agent" in headers
     
     def test_get_auth_headers_with_environment(self, config):
@@ -125,21 +123,21 @@ class TestAuthManager:
     def test_auth_manager_with_different_api_key_formats(self):
         """Test AuthManager with different API key formats."""
         # Test with valid Brokle format
-        config1 = Config(api_key="ak_test_key", project_id="proj_test")
+        config1 = Config(api_key="bk_test_key")
         auth1 = AuthManager(config1)
         assert auth1.is_validated() is False  # Not validated yet
 
         # Test with another valid Brokle format
-        config2 = Config(api_key="ak_prod_key_12345", project_id="proj_test")
+        config2 = Config(api_key="bk_prod_key_12345")
         auth2 = AuthManager(config2)
         assert auth2.is_validated() is False  # Not validated yet
 
         # Test that invalid formats are caught during config creation
-        with pytest.raises(ValidationError, match="API key must start with \"ak_\""):
-            Config(api_key="sk-openai-key", project_id="proj_test")
+        with pytest.raises(ValidationError, match="API key must start with \"bk_\""):
+            Config(api_key="sk-openai-key")
 
-        with pytest.raises(ValidationError, match="API key must start with \"ak_\""):
-            Config(api_key="invalid_format", project_id="proj_test")
+        with pytest.raises(ValidationError, match="API key must start with \"bk_\""):
+            Config(api_key="invalid_format")
     
     def test_auth_headers_immutability(self, auth_manager):
         """Test that auth headers are independent copies."""
@@ -158,15 +156,13 @@ class TestAuthManager:
         """Test string representation of AuthManager."""
         str_repr = str(auth_manager)
         assert "AuthManager" in str_repr
-        assert "ak_test_key" not in str_repr  # Should not expose sensitive info
-        assert "proj_test" in str_repr  # Project ID is not sensitive
+        assert "bk_test_key" not in str_repr  # Should not expose sensitive info
     
     def test_auth_manager_repr(self, auth_manager):
         """Test repr representation of AuthManager."""
         repr_str = repr(auth_manager)
         assert "AuthManager" in repr_str
-        assert "project_id" in repr_str
-        assert "ak_test_key" not in repr_str  # Should not expose API key
+        assert "bk_test_key" not in repr_str  # Should not expose API key
     
     def test_auth_headers_consistency(self, auth_manager):
         """Test that auth headers are consistent across calls."""
@@ -179,15 +175,13 @@ class TestAuthManager:
         # Headers should be the same
         assert headers1 == headers2
         assert headers1["X-API-Key"] == headers2["X-API-Key"]
-        assert headers1["X-Project-ID"] == headers2["X-Project-ID"]
     
     def test_auth_headers_basic(self, auth_manager):
         """Test basic authentication headers."""
         headers = auth_manager.get_auth_headers()
 
         # Should include auth headers
-        assert headers["X-API-Key"] == "ak_test_key"
-        assert headers["X-Project-ID"] == "proj_test"
+        assert headers["X-API-Key"] == "bk_test_key"
 
     def test_auth_header_consistency(self, auth_manager):
         """Test that auth headers are consistent."""
@@ -196,4 +190,3 @@ class TestAuthManager:
 
         # Should have same auth headers
         assert headers1["X-API-Key"] == headers2["X-API-Key"]
-        assert headers1["X-Project-ID"] == headers2["X-Project-ID"]

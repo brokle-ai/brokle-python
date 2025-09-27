@@ -32,7 +32,6 @@ class HTTPBase:
         self,
         api_key: Optional[str] = None,
         host: Optional[str] = None,
-        project_id: Optional[str] = None,
         environment: Optional[str] = None,
         timeout: Optional[float] = None,
         config: Optional[Config] = None,
@@ -42,9 +41,8 @@ class HTTPBase:
         Initialize HTTP base with configuration.
 
         Args:
-            api_key: Brokle API key (ak_...)
+            api_key: Brokle API key (bk_...)
             host: Brokle host URL
-            project_id: Project ID
             environment: Environment name
             timeout: Request timeout in seconds
             config: Pre-configured Config object (overrides individual parameters)
@@ -53,7 +51,7 @@ class HTTPBase:
         # If config object provided, use it directly
         if config is not None:
             self.config = config
-        elif api_key is None and host is None and project_id is None and environment is None and timeout is None and not kwargs:
+        elif api_key is None and host is None and environment is None and timeout is None and not kwargs:
             # If no parameters provided, use environment variables
             self.config = Config.from_env()
         else:
@@ -62,7 +60,6 @@ class HTTPBase:
             self.config = Config(
                 api_key=api_key or from_env.api_key,
                 host=host or from_env.host,
-                project_id=project_id or from_env.project_id,
                 environment=environment or from_env.environment,
                 timeout=timeout or from_env.timeout,
                 **kwargs
@@ -71,9 +68,6 @@ class HTTPBase:
         # Validate required fields
         if not self.config.api_key:
             raise AuthenticationError("API key is required. Set BROKLE_API_KEY or pass api_key parameter.")
-
-        if not self.config.project_id:
-            raise AuthenticationError("Project ID is required. Set BROKLE_PROJECT_ID or pass project_id parameter.")
 
         # Build default headers
         self.default_headers = self._build_headers()
@@ -89,7 +83,6 @@ class HTTPBase:
             "Content-Type": "application/json",
             "User-Agent": f"brokle-python/{__version__}",
             "X-API-Key": self.config.api_key,
-            "X-Project-ID": self.config.project_id,
             "X-Environment": self.config.environment,
             "X-SDK-Version": __version__,
         }

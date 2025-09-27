@@ -260,7 +260,6 @@ class TestPrebuiltResponseClasses:
             request_id="req_123",
             user_id="user_456",
             organization_id="org_789",
-            project_id="proj_abc",
             environment="production",
             created_at=now,
             metadata={"source": "api"}
@@ -270,7 +269,6 @@ class TestPrebuiltResponseClasses:
         assert response.request_id == "req_123"
         assert response.user_id == "user_456"
         assert response.organization_id == "org_789"
-        assert response.project_id == "proj_abc"
         assert response.environment == "production"
         assert response.created_at == now
         assert response.metadata == {"source": "api"}

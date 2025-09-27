@@ -19,33 +19,27 @@ class TestHTTPBase:
     def test_init_with_valid_credentials(self):
         """Test initialization with valid credentials."""
         base = HTTPBase(
-            api_key="ak_test123",
+            api_key="bk_test_secret",
             host="http://localhost:8080",
-            project_id="proj_test",
             environment="test"
         )
 
-        assert base.config.api_key == "ak_test123"
+        assert base.config.api_key == "bk_test_secret"
+        assert base.config.environment == "test"
         assert base.config.host == "http://localhost:8080"
-        assert base.config.project_id == "proj_test"
         assert base.config.environment == "test"
         assert base.config.timeout == 30  # default
 
     def test_init_missing_api_key(self):
         """Test initialization fails without API key."""
         with pytest.raises(AuthenticationError, match="API key is required"):
-            HTTPBase(project_id="proj_test")
+            HTTPBase(environment="test")
 
-    def test_init_missing_project_id(self):
-        """Test initialization fails without project ID."""
-        with pytest.raises(AuthenticationError, match="Project ID is required"):
-            HTTPBase(api_key="ak_test123")
 
     def test_build_headers(self):
         """Test default headers are built correctly."""
         base = HTTPBase(
-            api_key="ak_test123",
-            project_id="proj_test",
+            api_key="bk_test_secret",
             environment="production"
         )
 
@@ -53,17 +47,15 @@ class TestHTTPBase:
 
         assert headers["Content-Type"] == "application/json"
         assert headers["User-Agent"] == "brokle-python/0.1.0"
-        assert headers["X-API-Key"] == "ak_test123"
-        assert headers["X-Project-ID"] == "proj_test"
+        assert headers["X-API-Key"] == "bk_test_secret"
         assert headers["X-Environment"] == "production"
         assert headers["X-SDK-Version"] == "0.1.0"
 
     def test_prepare_url(self):
         """Test URL preparation handles various endpoint formats."""
         base = HTTPBase(
-            api_key="ak_test123",
-            host="http://localhost:8080",
-            project_id="proj_test"
+            api_key="bk_test_secret",
+            host="http://localhost:8080"
         )
 
         # Test various endpoint formats
@@ -78,15 +70,14 @@ class TestHTTPBase:
     def test_prepare_request_kwargs(self):
         """Test request kwargs preparation."""
         base = HTTPBase(
-            api_key="ak_test123",
-            project_id="proj_test",
+            api_key="bk_test_secret",
             timeout=60
         )
 
         # Test with no additional kwargs
         kwargs = base._prepare_request_kwargs()
 
-        assert kwargs["headers"]["X-API-Key"] == "ak_test123"
+        assert kwargs["headers"]["X-API-Key"] == "bk_test_secret"
         assert kwargs["timeout"] == 60
         assert "X-Request-Timestamp" in kwargs["headers"]
 
@@ -96,14 +87,14 @@ class TestHTTPBase:
             json={"model": "gpt-4"}
         )
 
-        assert kwargs["headers"]["X-API-Key"] == "ak_test123"  # Default header
+        assert kwargs["headers"]["X-API-Key"] == "bk_test_secret"  # Default header
         assert kwargs["headers"]["X-Custom"] == "value"  # Custom header
         assert kwargs["json"]["model"] == "gpt-4"  # Other kwargs preserved
         assert kwargs["timeout"] == 60
 
     def test_handle_http_error_401(self):
         """Test authentication error handling."""
-        base = HTTPBase(api_key="ak_test123", project_id="proj_test")
+        base = HTTPBase(api_key="bk_test_secret")
 
         # Mock 401 response
         response = Mock(spec=httpx.Response)
@@ -115,7 +106,7 @@ class TestHTTPBase:
 
     def test_handle_http_error_429(self):
         """Test rate limit error handling."""
-        base = HTTPBase(api_key="ak_test123", project_id="proj_test")
+        base = HTTPBase(api_key="bk_test_secret")
 
         # Mock 429 response
         response = Mock(spec=httpx.Response)
@@ -127,7 +118,7 @@ class TestHTTPBase:
 
     def test_handle_http_error_generic(self):
         """Test generic API error handling."""
-        base = HTTPBase(api_key="ak_test123", project_id="proj_test")
+        base = HTTPBase(api_key="bk_test_secret")
 
         # Mock 400 response with JSON error
         response = Mock(spec=httpx.Response)
@@ -142,7 +133,7 @@ class TestHTTPBase:
 
     def test_process_response_success(self):
         """Test successful response processing."""
-        base = HTTPBase(api_key="ak_test123", project_id="proj_test")
+        base = HTTPBase(api_key="bk_test_secret")
 
         # Mock successful response
         response = Mock(spec=httpx.Response)
@@ -163,7 +154,7 @@ class TestHTTPBase:
 
     def test_process_response_http_error(self):
         """Test response processing with HTTP error."""
-        base = HTTPBase(api_key="ak_test123", project_id="proj_test")
+        base = HTTPBase(api_key="bk_test_secret")
 
         # Mock error response
         response = Mock(spec=httpx.Response)
@@ -176,7 +167,7 @@ class TestHTTPBase:
 
     def test_process_response_invalid_json(self):
         """Test response processing with invalid JSON."""
-        base = HTTPBase(api_key="ak_test123", project_id="proj_test")
+        base = HTTPBase(api_key="bk_test_secret")
 
         # Mock response with invalid JSON
         response = Mock(spec=httpx.Response)
@@ -189,32 +180,27 @@ class TestHTTPBase:
     def test_environment_defaults(self):
         """Test environment variable defaults."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_env_key",
-            "BROKLE_PROJECT_ID": "proj_env",
+            "BROKLE_API_KEY": "bk_env_secret",
             "BROKLE_HOST": "https://api.brokle.ai",
             "BROKLE_ENVIRONMENT": "staging"
         }):
             base = HTTPBase()
 
-            assert base.config.api_key == "ak_env_key"
-            assert base.config.project_id == "proj_env"
+            assert base.config.api_key == "bk_env_secret"
             assert base.config.host == "https://api.brokle.ai"
             assert base.config.environment == "staging"
 
     def test_parameter_override_environment(self):
         """Test parameters override environment variables."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_env_key",
-            "BROKLE_PROJECT_ID": "proj_env"
+            "BROKLE_API_KEY": "bk_env_secret"
         }):
             base = HTTPBase(
-                api_key="ak_param_key",
-                project_id="proj_param"
+                api_key="bk_param_secret"
             )
 
             # Parameters should override environment
-            assert base.config.api_key == "ak_param_key"
-            assert base.config.project_id == "proj_param"
+            assert base.config.api_key == "bk_param_secret"
 
 
 class TestBrokleResponse:

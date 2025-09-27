@@ -77,13 +77,11 @@ class TestObservabilityContext:
     def test_get_client_creates_new(self):
         """Test get_client creates new client when none exists."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = get_client()
             assert client is not None
-            assert client.config.api_key == "ak_test"
-            assert client.config.project_id == "proj_test"
+            assert client.config.api_key == "bk_test"
 
     def test_get_client_context_none_initially(self):
         """Test get_client_context returns None initially."""
@@ -92,8 +90,7 @@ class TestObservabilityContext:
     def test_context_persistence(self):
         """Test context persists within thread."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client1 = get_client()
             client2 = get_client()
@@ -104,8 +101,7 @@ class TestObservabilityContext:
     def test_clear_context(self):
         """Test clearing context."""
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test"
         }):
             client = get_client()
             assert get_client_context() is client
@@ -121,15 +117,13 @@ class TestObservabilityContext:
 
         # With client
         with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "ak_test123",
-            "BROKLE_PROJECT_ID": "proj_test"
+            "BROKLE_API_KEY": "bk_test123"
         }):
             get_client()
             info = get_context_info()
 
             assert info['has_client'] is True
-            assert info['api_key'] == "ak_test123..."
-            assert info['project_id'] == "proj_test"
+            assert info['api_key'] == "bk_test123..."
 
     def test_thread_isolation(self):
         """Test that contexts are isolated between threads with explicit credentials."""
@@ -139,8 +133,7 @@ class TestObservabilityContext:
             # Pass credentials explicitly - no environment mutation!
             # This is production-safe and thread-safe
             client = get_client(
-                api_key=f"ak_thread_{thread_id}",
-                project_id=f"proj_thread_{thread_id}"
+                api_key=f"bk_thread_{thread_id}"
             )
             results[thread_id] = client.config.api_key
 
@@ -157,17 +150,16 @@ class TestObservabilityContext:
 
         # Each thread should have its own client with correct credentials
         assert len(results) == 3
-        assert results[0] == "ak_thread_0"
-        assert results[1] == "ak_thread_1"
-        assert results[2] == "ak_thread_2"
+        assert results[0] == "bk_thread_0"
+        assert results[1] == "bk_thread_1"
+        assert results[2] == "bk_thread_2"
 
     def test_explicit_credentials_persist_in_thread(self):
         """Test that explicit credentials are latched into thread-local context."""
         def thread_test():
             # First call with explicit credentials - should create and store client
             client1 = get_client(
-                api_key="ak_explicit_test",
-                project_id="proj_explicit_test"
+                api_key="bk_explicit_test"
             )
 
             # Second call without credentials - should reuse the stored client
@@ -177,9 +169,7 @@ class TestObservabilityContext:
             return (
                 client1 is client2,
                 client1.config.api_key,
-                client2.config.api_key,
-                client1.config.project_id,
-                client2.config.project_id
+                client2.config.api_key
             )
 
         import threading
@@ -192,16 +182,14 @@ class TestObservabilityContext:
         thread.start()
         thread.join()
 
-        same_instance, api_key1, api_key2, project_id1, project_id2 = result[0]
+        same_instance, api_key1, api_key2 = result[0]
 
         # Verify same instance is reused
         assert same_instance, "get_client() should reuse the same instance in thread"
 
         # Verify credentials are preserved
-        assert api_key1 == "ak_explicit_test"
-        assert api_key2 == "ak_explicit_test"
-        assert project_id1 == "proj_explicit_test"
-        assert project_id2 == "proj_explicit_test"
+        assert api_key1 == "bk_explicit_test"
+        assert api_key2 == "bk_explicit_test"
 
 
 class TestBrokleSpan:

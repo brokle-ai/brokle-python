@@ -41,7 +41,6 @@ class ObservabilityContext:
             return {
                 'has_client': True,
                 'api_key': client.config.api_key[:10] + "..." if client.config.api_key else None,
-                'project_id': client.config.project_id,
                 'environment': client.config.environment,
                 'host': client.config.host
             }
@@ -55,7 +54,6 @@ _context = ObservabilityContext()
 def get_client(
     api_key: Optional[str] = None,
     host: Optional[str] = None,
-    project_id: Optional[str] = None,
     environment: Optional[str] = None,
     otel_enabled: Optional[bool] = None,
     otel_endpoint: Optional[str] = None,
@@ -81,7 +79,6 @@ def get_client(
     Args:
         api_key: Explicit API key (overrides environment)
         host: Explicit host URL (overrides environment)
-        project_id: Explicit project ID (overrides environment)
         environment: Environment name
         otel_enabled: Enable OpenTelemetry integration
         otel_endpoint: OpenTelemetry endpoint
@@ -103,7 +100,7 @@ def get_client(
     """
     # Check if any explicit credentials/config provided
     explicit_config = any([
-        api_key, host, project_id, environment,
+        api_key, host, environment,
         otel_enabled is not None, otel_endpoint, otel_service_name, otel_headers,
         telemetry_enabled is not None, telemetry_batch_size is not None, telemetry_flush_interval is not None,
         debug is not None, timeout is not None, max_retries is not None,
@@ -120,8 +117,6 @@ def get_client(
             client_kwargs['api_key'] = api_key
         if host is not None:
             client_kwargs['host'] = host
-        if project_id is not None:
-            client_kwargs['project_id'] = project_id
         if environment is not None:
             client_kwargs['environment'] = environment
         if otel_enabled is not None:

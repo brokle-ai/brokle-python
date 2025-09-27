@@ -13,9 +13,8 @@ from openai import OpenAI, AsyncOpenAI
 from brokle import wrap_openai
 
 # Set up environment variables
-os.environ["BROKLE_API_KEY"] = "ak_your_api_key_here"
+os.environ["BROKLE_API_KEY"] = "bk_your_api_key_here"
 os.environ["BROKLE_HOST"] = "http://localhost:8080"
-os.environ["BROKLE_PROJECT_ID"] = "proj_your_project_id"
 
 
 def sync_chat_example():

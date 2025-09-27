@@ -16,8 +16,7 @@ from brokle.auto_instrumentation import auto_instrument, print_status, get_statu
 # Create Brokle client with explicit configuration
 client = brokle.Brokle(
     host="http://localhost:8080",  # Your Brokle instance
-    api_key="your-api-key",        # Your API key
-    project_id="your-project-id",  # Your project ID
+    api_key="bk_your_secret",  # Your API key
 )
 
 

@@ -64,10 +64,9 @@ class RequestTrackingMixin(BaseModel):
 
 
 class OrganizationContextMixin(BaseModel):
-    """Mixin for organization and project context fields."""
+    """Mixin for organization context fields."""
 
     organization_id: Optional[str] = Field(default=None, description="Organization identifier")
-    project_id: Optional[str] = Field(default=None, description="Project identifier")
     environment: Optional[str] = Field(default=None, description="Environment tag")
 
 

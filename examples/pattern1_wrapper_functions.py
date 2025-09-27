@@ -14,9 +14,8 @@ from anthropic import Anthropic, AsyncAnthropic
 from brokle import wrap_openai, wrap_anthropic
 
 # Set up environment variables for Brokle
-os.environ["BROKLE_API_KEY"] = "ak_your_api_key_here"
+os.environ["BROKLE_API_KEY"] = "bk_your_api_key_here"
 os.environ["BROKLE_HOST"] = "http://localhost:8080"
-os.environ["BROKLE_PROJECT_ID"] = "proj_your_project_id"
 
 
 def check_pattern1_status():

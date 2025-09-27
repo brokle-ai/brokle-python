@@ -24,8 +24,7 @@ pip install brokle
 ### Setup
 
 ```bash
-export BROKLE_API_KEY="ak_your_api_key_here"
-export BROKLE_PROJECT_ID="proj_your_project_id"
+export BROKLE_API_KEY="bk_your_api_key_here"
 export BROKLE_HOST="http://localhost:8080"
 ```
 
@@ -106,8 +105,7 @@ from brokle import Brokle
 
 # Context manager (recommended)
 with Brokle(
-    api_key="ak_...",
-    project_id="proj_...",
+    api_key="bk_...",
     host="http://localhost:8080"
 ) as client:
     response = client.chat.completions.create(
@@ -126,8 +124,7 @@ import asyncio
 
 async def main():
     async with AsyncBrokle(
-        api_key="ak_...",
-        project_id="proj_..."
+        api_key="bk_...",
     ) as client:
         response = await client.chat.completions.create(
             model="gpt-4",

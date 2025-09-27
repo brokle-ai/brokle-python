@@ -70,8 +70,7 @@ from brokle import Brokle, AsyncBrokle
 
 # Sync client with context manager
 with Brokle(
-    api_key="ak_...",
-    project_id="proj_...",
+    api_key="bk_...",
     host="http://localhost:8080"
 ) as client:
     response = client.chat.completions.create(
@@ -86,7 +85,7 @@ with Brokle(
 import asyncio
 
 async def main():
-    async with AsyncBrokle(api_key="ak_...") as client:
+    async with AsyncBrokle(api_key="bk_...") as client:
         response = await client.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": "Hello async!"}],
@@ -106,8 +105,7 @@ asyncio.run(main())
 
 ```bash
 # Required
-export BROKLE_API_KEY="ak_your_api_key_here"
-export BROKLE_PROJECT_ID="proj_your_project_id"
+export BROKLE_API_KEY="bk_your_api_key_here"
 
 # Optional
 export BROKLE_HOST="http://localhost:8080"
@@ -125,8 +123,7 @@ from brokle import Brokle, get_client
 
 # Explicit configuration
 client = Brokle(
-    api_key="ak_...",
-    project_id="proj_...",
+    api_key="bk_...",
     host="http://localhost:8080",
     environment="production",
     timeout=30
@@ -241,17 +238,17 @@ def process_sensitive(api_key: str):
 
 ```python
 # ❌ Wrong - missing context manager
-client = Brokle(api_key="ak_...")
+client = Brokle(api_key="bk_...")
 response = client.chat.completions.create(...)
 # Missing cleanup
 
 # ✅ Correct - with context manager
-with Brokle(api_key="ak_...") as client:
+with Brokle(api_key="bk_...") as client:
     response = client.chat.completions.create(...)
 # Automatic cleanup
 
 # ✅ Correct - manual cleanup
-client = Brokle(api_key="ak_...")
+client = Brokle(api_key="bk_...")
 try:
     response = client.chat.completions.create(...)
 finally:
@@ -267,7 +264,6 @@ from brokle import get_client
 try:
     client = get_client()
     print(f"API Key: {client.config.api_key[:10]}...")
-    print(f"Project: {client.config.project_id}")
     print(f"Host: {client.config.host}")
 except Exception as e:
     print(f"Configuration error: {e}")
@@ -446,7 +442,6 @@ try:
     client = get_client()
     print('✅ Configuration valid')
     print(f'Host: {client.config.host}')
-    print(f'Project: {client.config.project_id}')
 except Exception as e:
     print(f'❌ Configuration error: {e}')
 "

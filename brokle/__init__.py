@@ -37,7 +37,7 @@ Three Integration Patterns:
    ```python
    from brokle import Brokle, get_client
 
-   client = Brokle(api_key="ak_...")
+   client = Brokle(api_key="bk_...")
    response = await client.chat.create(
        model="gpt-4",
        messages=[{"role": "user", "content": "Hello!"}]

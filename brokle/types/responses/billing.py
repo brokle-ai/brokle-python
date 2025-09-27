@@ -79,7 +79,6 @@ class CostTrackingResponse(BaseModel):
     actual_cost: Optional[float] = Field(default=None, description="Actual provider cost")
     variance: Optional[float] = Field(default=None, description="Cost variance")
     organization_total: Optional[float] = Field(default=None, description="Organization total cost")
-    project_total: Optional[float] = Field(default=None, description="Project total cost")
 
 
 class BudgetResponse(BaseModel):
@@ -91,7 +90,6 @@ class BudgetResponse(BaseModel):
 
     budget_id: str = Field(description="Budget ID")
     organization_id: str = Field(description="Organization ID")
-    project_id: Optional[str] = Field(default=None, description="Project ID")
     environment: Optional[str] = Field(default=None, description="Environment tag")
     budget_type: str = Field(description="Budget type")
     amount: float = Field(description="Budget amount")
@@ -146,7 +144,6 @@ class UsageRecordingResponse(BaseModel):
     request_id: str = Field(description="Request ID")
     recorded: bool = Field(description="Successfully recorded")
     organization_id: str = Field(description="Organization ID")
-    project_id: str = Field(description="Project ID")
     total_requests: int = Field(description="Total requests count")
     total_tokens: int = Field(description="Total tokens used")
     total_cost: float = Field(description="Total cost")

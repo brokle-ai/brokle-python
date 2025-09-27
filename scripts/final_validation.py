@@ -95,8 +95,7 @@ class BrokleSDKValidator:
         try:
             # Test without environment variables (should handle gracefully)
             client = Brokle(
-                api_key="ak_test_key",
-                project_id="proj_test",
+                api_key="bk_test_key",
                 host="http://test.example.com"
             )
 
@@ -114,8 +113,7 @@ class BrokleSDKValidator:
             from brokle.config import Config
 
             config = Config(
-                api_key="ak_test_key",
-                project_id="proj_test",
+                api_key="bk_test_key",
                 environment="test"
             )
 
@@ -141,8 +139,7 @@ class BrokleSDKValidator:
 
             # Test client creation with explicit parameters
             client1 = Brokle(
-                api_key="ak_test_1",
-                project_id="proj_test_1",
+                api_key="bk_test_1",
                 environment="test1"
             )
 
@@ -167,8 +164,7 @@ class BrokleSDKValidator:
 
             # Create client for project 1
             client1 = Brokle(
-                api_key="ak_test_1",
-                project_id="proj_1",
+                api_key="bk_test_1",
                 environment="prod"
             )
 
@@ -177,8 +173,7 @@ class BrokleSDKValidator:
                 warnings.simplefilter("always")
 
                 client2 = Brokle(
-                    api_key="ak_test_2",
-                    project_id="proj_2",
+                    api_key="bk_test_2",
                     environment="prod"
                 )
 

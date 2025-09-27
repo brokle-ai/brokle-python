@@ -129,7 +129,6 @@ class BrokleOtelSpanAttributes:
     BROKLE_CACHE_HIT = "brokle.cache.hit"
     BROKLE_CACHE_KEY = "brokle.cache.key"
     BROKLE_ENVIRONMENT = "brokle.environment"
-    BROKLE_PROJECT_ID = "brokle.project_id"
 
     # Generation-specific attributes
     BROKLE_GENERATION_MODEL = "brokle.generation.model"

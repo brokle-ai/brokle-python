@@ -19,8 +19,7 @@ class TestV2Integration:
     def config(self):
         """Create test configuration."""
         return Config(
-            api_key="ak_test_key",
-            project_id="proj_test",
+            api_key="bk_test_secret",
             host="https://api.brokle.ai",
             otel_enabled=False
         )
@@ -36,34 +35,28 @@ class TestV2Integration:
         assert hasattr(client, 'models')
 
         # Verify configuration
-        assert client.config.api_key == "ak_test_key"
-        assert client.config.project_id == "proj_test"
-
+        assert client.config.api_key == "bk_test_secret"
     def test_pattern_3_with_kwargs(self):
         """Test Pattern 3: Native SDK with kwargs."""
         client = Brokle(
-            api_key="ak_kwargs_key",
-            project_id="proj_kwargs",
+            api_key="bk_kwargs_secret",
             environment="staging",
             otel_enabled=False
         )
 
-        assert client.config.api_key == "ak_kwargs_key"
-        assert client.config.project_id == "proj_kwargs"
+        assert client.config.api_key == "bk_kwargs_secret"
         assert client.config.environment == "staging"
 
     def test_pattern_1_2_get_client(self, monkeypatch):
         """Test Pattern 1/2: get_client() from environment."""
         # Set environment variables
-        monkeypatch.setenv("BROKLE_API_KEY", "ak_env_key")
-        monkeypatch.setenv("BROKLE_PROJECT_ID", "proj_env")
+        monkeypatch.setenv("BROKLE_API_KEY", "bk_env_secret")
         monkeypatch.setenv("BROKLE_HOST", "https://api.brokle.ai")
 
         # get_client() should use environment variables
         client = get_client()
 
-        assert client.config.api_key == "ak_env_key"
-        assert client.config.project_id == "proj_env"
+        assert client.config.api_key == "bk_env_secret"
         assert client.config.host == "https://api.brokle.ai"
 
     def test_client_lifecycle(self, config):
@@ -90,8 +83,7 @@ class TestV2Integration:
         """Test various environment configurations."""
         # Test with environment name
         client = Brokle(
-            api_key="ak_test",
-            project_id="proj_test",
+            api_key="bk_test_secret",
             environment="production",
             otel_enabled=False
         )
@@ -100,8 +92,7 @@ class TestV2Integration:
 
         # Test with custom host
         client2 = Brokle(
-            api_key="ak_test",
-            project_id="proj_test",
+            api_key="bk_test_secret",
             host="https://custom.brokle.ai",
             otel_enabled=False
         )
@@ -112,7 +103,6 @@ class TestV2Integration:
         """Test error handling patterns."""
         # Clear environment variables
         monkeypatch.delenv("BROKLE_API_KEY", raising=False)
-        monkeypatch.delenv("BROKLE_PROJECT_ID", raising=False)
 
         # Should raise AuthenticationError when no credentials
         with pytest.raises(AuthenticationError, match="API key is required"):
@@ -121,19 +111,15 @@ class TestV2Integration:
     def test_configuration_precedence(self, monkeypatch):
         """Test configuration precedence (explicit > env vars)."""
         # Set environment variables
-        monkeypatch.setenv("BROKLE_API_KEY", "ak_env_key")
-        monkeypatch.setenv("BROKLE_PROJECT_ID", "proj_env")
+        monkeypatch.setenv("BROKLE_API_KEY", "bk_env_secret")
 
         # Explicit parameters should override environment
         client = Brokle(
-            api_key="ak_explicit_key",
-            project_id="proj_explicit",
+            api_key="bk_explicit_secret",
             otel_enabled=False
         )
 
-        assert client.config.api_key == "ak_explicit_key"
-        assert client.config.project_id == "proj_explicit"
-
+        assert client.config.api_key == "bk_explicit_secret"
     def test_client_string_representation(self, config):
         """Test client has reasonable string representation."""
         client = Brokle(config=config)

@@ -52,8 +52,8 @@ def validate_api_key(api_key: str) -> bool:
     if not api_key:
         raise ValueError("API key cannot be empty")
 
-    if not api_key.startswith('ak_'):
-        raise ValueError("API key must start with 'ak_' prefix")
+    if not api_key.startswith('bk_'):
+        raise ValueError("API key must start with 'bk_' prefix")
 
     if len(api_key) < 10:
         raise ValueError("API key is too short")
@@ -61,26 +61,3 @@ def validate_api_key(api_key: str) -> bool:
     return True
 
 
-def validate_project_id(project_id: str) -> bool:
-    """
-    Validate project ID format.
-
-    Args:
-        project_id: Project ID to validate
-
-    Returns:
-        True if valid
-
-    Raises:
-        ValueError: If project ID is invalid
-    """
-    if not project_id:
-        raise ValueError("Project ID cannot be empty")
-
-    if not project_id.startswith('proj_'):
-        raise ValueError("Project ID must start with 'proj_' prefix")
-
-    if len(project_id) < 8:
-        raise ValueError("Project ID is too short")
-
-    return True

@@ -65,7 +65,6 @@ class ObservabilityTraceResponse(BaseModel):
     """
 
     id: str = Field(description="Trace ID")
-    project_id: str = Field(description="Project ID")
     external_trace_id: str = Field(description="External trace ID")
     name: str = Field(description="Trace name")
     user_id: Optional[str] = Field(default=None, description="User ID")

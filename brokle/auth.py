@@ -11,9 +11,8 @@ from .config import Config
 
 class AuthInfo(BaseModel):
     """Authentication information."""
-    
+
     api_key: str
-    project_id: str
     environment: str
     organization_id: Optional[str] = None
     user_id: Optional[str] = None
@@ -37,7 +36,7 @@ class AuthManager:
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.post(
-                    f"{self.config.host}/api/v1/auth/validate",
+                    f"{self.config.host}/v1/auth/validate-key",
                     headers=self.config.get_headers(),
                     timeout=self.config.timeout
                 )
@@ -50,7 +49,6 @@ class AuthManager:
                 auth_data = data.get('data', {})
                 self._auth_info = AuthInfo(
                     api_key=self.config.api_key,
-                    project_id=auth_data.get('project_id', self.config.project_id),
                     environment=auth_data.get('environment', self.config.environment),
                     organization_id=auth_data.get('organization_id'),
                     user_id=auth_data.get('user_id'),
@@ -87,8 +85,8 @@ class AuthManager:
 
     def __str__(self) -> str:
         """String representation without exposing sensitive info."""
-        return f"AuthManager(project_id={self.config.project_id})"
+        return f"AuthManager(environment={self.config.environment})"
 
     def __repr__(self) -> str:
         """Detailed representation without exposing API key."""
-        return f"AuthManager(project_id={self.config.project_id}, validated={self._validated})"
+        return f"AuthManager(environment={self.config.environment}, validated={self._validated})"

@@ -223,7 +223,6 @@ Synchronous Brokle client with OpenAI-compatible interface and advanced platform
 **Constructor Parameters:**
 - `api_key` (str, optional): Brokle API key (or use BROKLE_API_KEY env var)
 - `host` (str, optional): Brokle host URL (default: http://localhost:8080)
-- `project_id` (str, optional): Project ID (or use BROKLE_PROJECT_ID env var)
 - `environment` (str, optional): Environment name (or use BROKLE_ENVIRONMENT env var)
 - `timeout` (float, optional): Request timeout in seconds (default: 60)
 - `**kwargs`: Additional configuration options
@@ -234,9 +233,8 @@ from brokle import Brokle
 
 # Explicit configuration
 with Brokle(
-    api_key="ak_...",
+    api_key="bk_...",
     host="http://localhost:8080",
-    project_id="proj_...",
     environment="production"
 ) as client:
     response = client.chat.completions.create(
@@ -254,7 +252,7 @@ Asynchronous Brokle client with identical interface to sync client.
 ```python
 from brokle import AsyncBrokle
 
-async with AsyncBrokle(api_key="ak_...") as client:
+async with AsyncBrokle(api_key="bk_...") as client:
     response = await client.chat.completions.create(
         model="gpt-4",
         messages=[{"role": "user", "content": "Hello!"}],
@@ -270,7 +268,6 @@ Get or create a singleton Brokle client instance from environment variables.
 **Environment Variables:**
 - `BROKLE_API_KEY`: API key
 - `BROKLE_HOST`: Host URL
-- `BROKLE_PROJECT_ID`: Project ID
 - `BROKLE_ENVIRONMENT`: Environment name
 - `BROKLE_OTEL_ENABLED`: Enable OpenTelemetry
 - `BROKLE_TELEMETRY_ENABLED`: Enable telemetry
@@ -460,7 +457,6 @@ Configuration management with validation and environment variable support.
 **Attributes:**
 - `api_key` (str): API key
 - `host` (str): Host URL
-- `project_id` (str): Project ID
 - `environment` (str): Environment name
 - `timeout` (float): Request timeout
 - `telemetry_enabled` (bool): Telemetry enabled
@@ -472,8 +468,7 @@ Configuration management with validation and environment variable support.
 from brokle import Config
 
 config = Config(
-    api_key="ak_...",
-    project_id="proj_...",
+    api_key="bk_...",
     environment="production",
     telemetry_enabled=True
 )
@@ -623,7 +618,6 @@ except Exception as e:
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `BROKLE_API_KEY` | API key for authentication | Yes | None |
-| `BROKLE_PROJECT_ID` | Project identifier | Yes | None |
 
 ## Optional Environment Variables
 
@@ -640,8 +634,7 @@ except Exception as e:
 
 ```bash
 # Required
-export BROKLE_API_KEY="ak_your_api_key_here"
-export BROKLE_PROJECT_ID="proj_your_project_id"
+export BROKLE_API_KEY="bk_your_api_key_here"
 
 # Optional
 export BROKLE_HOST="https://api.brokle.com"
@@ -672,7 +665,6 @@ export BROKLE_CACHE_ENABLED="true"
 # Production configuration
 client = Brokle(
     api_key=os.getenv("BROKLE_API_KEY"),
-    project_id=os.getenv("BROKLE_PROJECT_ID"),
     environment="production",
     timeout=30,  # Shorter timeout for production
 )
