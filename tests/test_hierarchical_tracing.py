@@ -6,6 +6,7 @@ with automatic parent-child span relationships without requiring trace_workflow.
 """
 
 import pytest
+
 from brokle import observe
 from brokle.observability.spans import get_current_span
 
@@ -20,11 +21,13 @@ class TestHierarchicalTracing:
     def collect_span_info(self, role: str):
         """Helper to collect span information."""
         current = get_current_span()
-        self.span_info.append((
-            role,
-            current.span_id if current else None,
-            current.parent_span_id if current else None
-        ))
+        self.span_info.append(
+            (
+                role,
+                current.span_id if current else None,
+                current.parent_span_id if current else None,
+            )
+        )
 
     def test_parent_child_relationship(self):
         """Test basic parent-child span relationship."""
@@ -50,7 +53,9 @@ class TestHierarchicalTracing:
         assert len(self.span_info) == 2
 
         # Extract spans by role
-        spans_by_role = {role: (span_id, parent_id) for role, span_id, parent_id in self.span_info}
+        spans_by_role = {
+            role: (span_id, parent_id) for role, span_id, parent_id in self.span_info
+        }
 
         # Verify parent span has no parent
         parent_span_id, parent_parent_id = spans_by_role["parent"]
@@ -93,7 +98,9 @@ class TestHierarchicalTracing:
         assert len(self.span_info) == 3
 
         # Extract spans by role
-        spans_by_role = {role: (span_id, parent_id) for role, span_id, parent_id in self.span_info}
+        spans_by_role = {
+            role: (span_id, parent_id) for role, span_id, parent_id in self.span_info
+        }
 
         grandparent_span_id, grandparent_parent_id = spans_by_role["grandparent"]
         parent_span_id, parent_parent_id = spans_by_role["parent"]
@@ -142,7 +149,9 @@ class TestHierarchicalTracing:
         assert len(self.span_info) == 3
 
         # Extract spans by role
-        spans_by_role = {role: (span_id, parent_id) for role, span_id, parent_id in self.span_info}
+        spans_by_role = {
+            role: (span_id, parent_id) for role, span_id, parent_id in self.span_info
+        }
 
         parent_span_id, parent_parent_id = spans_by_role["parent"]
         child1_span_id, child1_parent_id = spans_by_role["child1"]
@@ -212,7 +221,9 @@ class TestHierarchicalTracing:
         assert len(self.span_info) == 5
 
         # Extract spans by role
-        spans_by_role = {role: (span_id, parent_id) for role, span_id, parent_id in self.span_info}
+        spans_by_role = {
+            role: (span_id, parent_id) for role, span_id, parent_id in self.span_info
+        }
 
         # Verify hierarchy
         workflow_span_id = spans_by_role["workflow"][0]
@@ -282,7 +293,9 @@ class TestHierarchicalTracing:
         assert len(self.span_info) == 3
 
         # Both "outer" and "outer-after" should have the same span context
-        outer_span_info = [info for info in self.span_info if info[0].startswith("outer")]
+        outer_span_info = [
+            info for info in self.span_info if info[0].startswith("outer")
+        ]
         assert len(outer_span_info) == 2
         assert outer_span_info[0][1] == outer_span_info[1][1]  # Same span ID
         assert outer_span_info[0][2] == outer_span_info[1][2]  # Same parent ID

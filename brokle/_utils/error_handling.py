@@ -6,7 +6,7 @@ across all SDK components.
 """
 
 import logging
-from typing import Any, Optional, Dict
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ def handle_provider_error(error: Exception, provider: str, operation: str) -> Ex
         Processed exception with additional context
     """
     try:
-        from ..exceptions import ProviderError, RateLimitError, AuthenticationError
+        from ..exceptions import AuthenticationError, ProviderError, RateLimitError
 
         error_msg = str(error)
         error_type = type(error).__name__
@@ -72,7 +72,9 @@ def safe_str(obj: Any, max_length: int = 1000) -> str:
         return f"<{type(obj).__name__} - conversion failed>"
 
 
-def log_error_safely(logger_obj: logging.Logger, message: str, error: Exception, **kwargs):
+def log_error_safely(
+    logger_obj: logging.Logger, message: str, error: Exception, **kwargs
+):
     """
     Safely log errors with context.
 
@@ -86,7 +88,7 @@ def log_error_safely(logger_obj: logging.Logger, message: str, error: Exception,
         context = {
             "error_type": type(error).__name__,
             "error_message": safe_str(error),
-            **kwargs
+            **kwargs,
         }
 
         logger_obj.error(message, extra=context)
@@ -99,7 +101,9 @@ def log_error_safely(logger_obj: logging.Logger, message: str, error: Exception,
             pass  # Silent fail to prevent logging loops
 
 
-def handle_import_error(module_name: str, error: ImportError, required: bool = False) -> Optional[Any]:
+def handle_import_error(
+    module_name: str, error: ImportError, required: bool = False
+) -> Optional[Any]:
     """
     Handle import errors with appropriate logging and fallbacks.
 
@@ -117,7 +121,9 @@ def handle_import_error(module_name: str, error: ImportError, required: bool = F
     try:
         if required:
             logger.error(f"Required module {module_name} not available: {error}")
-            raise ImportError(f"Required dependency {module_name} not installed: {error}")
+            raise ImportError(
+                f"Required dependency {module_name} not installed: {error}"
+            )
         else:
             logger.warning(f"Optional module {module_name} not available: {error}")
             return None

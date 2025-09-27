@@ -2,17 +2,18 @@
 Test retry logic with exponential backoff.
 """
 
-import pytest
 import time
 from unittest.mock import Mock, patch
+
 import httpx
+import pytest
 
 from brokle._utils.retry import (
     RetryConfig,
+    async_retry_with_backoff,
+    extract_retry_after,
     is_retryable_error,
     retry_with_backoff,
-    async_retry_with_backoff,
-    extract_retry_after
 )
 from brokle.exceptions import RateLimitError
 
@@ -36,7 +37,7 @@ class TestRetryConfig:
             base_delay=0.5,
             max_delay=30.0,
             exponential_base=1.5,
-            jitter=False
+            jitter=False,
         )
         assert config.max_retries == 5
         assert config.base_delay == 0.5
@@ -55,7 +56,9 @@ class TestRetryConfig:
 
     def test_calculate_delay_with_max(self):
         """Test delay calculation with max delay."""
-        config = RetryConfig(base_delay=1.0, exponential_base=2.0, max_delay=3.0, jitter=False)
+        config = RetryConfig(
+            base_delay=1.0, exponential_base=2.0, max_delay=3.0, jitter=False
+        )
 
         assert config.calculate_delay(1) == 1.0
         assert config.calculate_delay(2) == 2.0
@@ -310,7 +313,7 @@ class TestAsyncRetryDecorator:
 class TestIntegration:
     """Integration tests for retry logic."""
 
-    @patch('time.sleep')  # Mock sleep to speed up tests
+    @patch("time.sleep")  # Mock sleep to speed up tests
     def test_retry_with_rate_limiting(self, mock_sleep):
         """Test retry behavior with rate limiting."""
         call_count = 0
@@ -323,7 +326,9 @@ class TestIntegration:
                 response = Mock()
                 response.headers = {"Retry-After": "2"}
                 response.status_code = 429
-                error = httpx.HTTPStatusError("Rate limited", request=Mock(), response=response)
+                error = httpx.HTTPStatusError(
+                    "Rate limited", request=Mock(), response=response
+                )
                 error.response = response
                 raise error
             return "success"

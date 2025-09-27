@@ -7,34 +7,33 @@ worker pools, and comprehensive monitoring.
 """
 
 # Legacy processor (backwards compatibility)
-from .processor import get_background_processor, BackgroundProcessor
+from .processor import BackgroundProcessor, get_background_processor
 
 # Advanced queue system
 from .queue import (
     Task,
-    TaskResult,
-    TaskStatus,
     TaskPriority,
     TaskQueue,
     TaskQueueManager,
-    get_queue_manager
+    TaskResult,
+    TaskStatus,
+    get_queue_manager,
 )
 
 # Worker system
 from .workers import (
+    AsyncWorker,
     BaseWorker,
     ThreadWorker,
-    AsyncWorker,
+    WorkerMetrics,
     WorkerPool,
     WorkerStatus,
-    WorkerMetrics
 )
 
 __all__ = [
     # Legacy processor
     "get_background_processor",
     "BackgroundProcessor",
-
     # Advanced queue system
     "Task",
     "TaskResult",
@@ -43,7 +42,6 @@ __all__ = [
     "TaskQueue",
     "TaskQueueManager",
     "get_queue_manager",
-
     # Worker system
     "BaseWorker",
     "ThreadWorker",

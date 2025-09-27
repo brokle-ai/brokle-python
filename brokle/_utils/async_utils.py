@@ -10,13 +10,11 @@ from typing import Any, Awaitable, Callable, Optional, TypeVar, Union
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 async def safe_async_call(
-    coro: Awaitable[T],
-    timeout: Optional[float] = None,
-    default: Optional[T] = None
+    coro: Awaitable[T], timeout: Optional[float] = None, default: Optional[T] = None
 ) -> Optional[T]:
     """
     Safely execute an async call with timeout and error handling.
@@ -52,9 +50,8 @@ def is_async_callable(obj: Any) -> bool:
     Returns:
         True if object is async callable
     """
-    return (
-        asyncio.iscoroutinefunction(obj) or
-        (hasattr(obj, '__call__') and asyncio.iscoroutinefunction(obj.__call__))
+    return asyncio.iscoroutinefunction(obj) or (
+        hasattr(obj, "__call__") and asyncio.iscoroutinefunction(obj.__call__)
     )
 
 
@@ -88,6 +85,7 @@ def sync_wrapper(async_func: Callable[..., Awaitable[T]]) -> Callable[..., T]:
     Returns:
         Sync version of the function
     """
+
     def wrapper(*args, **kwargs) -> T:
         coro = async_func(*args, **kwargs)
         return asyncio.run(coro)
@@ -96,9 +94,7 @@ def sync_wrapper(async_func: Callable[..., Awaitable[T]]) -> Callable[..., T]:
 
 
 async def gather_with_limit(
-    *coroutines: Awaitable[T],
-    limit: int = 10,
-    return_exceptions: bool = False
+    *coroutines: Awaitable[T], limit: int = 10, return_exceptions: bool = False
 ) -> list:
     """
     Execute coroutines with concurrency limit.
@@ -118,7 +114,9 @@ async def gather_with_limit(
             return await coro
 
     limited_coroutines = [_limited_coro(coro) for coro in coroutines]
-    return await asyncio.gather(*limited_coroutines, return_exceptions=return_exceptions)
+    return await asyncio.gather(
+        *limited_coroutines, return_exceptions=return_exceptions
+    )
 
 
 async def async_retry(
@@ -127,7 +125,7 @@ async def async_retry(
     max_attempts: int = 3,
     delay: float = 1.0,
     backoff: float = 2.0,
-    **kwargs
+    **kwargs,
 ) -> T:
     """
     Retry an async function with exponential backoff.

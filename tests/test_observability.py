@@ -4,23 +4,24 @@ Tests for observability module.
 Tests the stable public API for Pattern 1/2 compatibility.
 """
 
-import pytest
-from unittest.mock import patch
 import threading
+from unittest.mock import patch
+
+import pytest
 
 from brokle.observability import (
-    get_config,
-    telemetry_enabled,
-    get_client,
-    get_client_context,
-    clear_context,
-    get_context_info,
-    create_span,
-    get_current_span,
-    BrokleSpan,
     BrokleGeneration,
     BrokleOtelSpanAttributes,
-    span_context
+    BrokleSpan,
+    clear_context,
+    create_span,
+    get_client,
+    get_client_context,
+    get_config,
+    get_context_info,
+    get_current_span,
+    span_context,
+    telemetry_enabled,
 )
 
 
@@ -51,7 +52,7 @@ class TestObservabilityConfig:
             debug=True,
             sample_rate=0.5,
             batch_size=50,
-            flush_interval=5000
+            flush_interval=5000,
         )
 
         config = get_config()
@@ -76,9 +77,7 @@ class TestObservabilityContext:
 
     def test_get_client_creates_new(self):
         """Test get_client creates new client when none exists."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = get_client()
             assert client is not None
             assert client.config.api_key == "bk_test"
@@ -89,9 +88,7 @@ class TestObservabilityContext:
 
     def test_context_persistence(self):
         """Test context persists within thread."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client1 = get_client()
             client2 = get_client()
 
@@ -100,9 +97,7 @@ class TestObservabilityContext:
 
     def test_clear_context(self):
         """Test clearing context."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = get_client()
             assert get_client_context() is client
 
@@ -113,17 +108,15 @@ class TestObservabilityContext:
         """Test getting context information."""
         # No client initially
         info = get_context_info()
-        assert info['has_client'] is False
+        assert info["has_client"] is False
 
         # With client
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test123"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test123"}):
             get_client()
             info = get_context_info()
 
-            assert info['has_client'] is True
-            assert info['api_key'] == "bk_test123..."
+            assert info["has_client"] is True
+            assert info["api_key"] == "bk_test123..."
 
     def test_thread_isolation(self):
         """Test that contexts are isolated between threads with explicit credentials."""
@@ -132,9 +125,7 @@ class TestObservabilityContext:
         def thread_func(thread_id):
             # Pass credentials explicitly - no environment mutation!
             # This is production-safe and thread-safe
-            client = get_client(
-                api_key=f"bk_thread_{thread_id}"
-            )
+            client = get_client(api_key=f"bk_thread_{thread_id}")
             results[thread_id] = client.config.api_key
 
         # Start multiple threads
@@ -156,23 +147,19 @@ class TestObservabilityContext:
 
     def test_explicit_credentials_persist_in_thread(self):
         """Test that explicit credentials are latched into thread-local context."""
+
         def thread_test():
             # First call with explicit credentials - should create and store client
-            client1 = get_client(
-                api_key="bk_explicit_test"
-            )
+            client1 = get_client(api_key="bk_explicit_test")
 
             # Second call without credentials - should reuse the stored client
             client2 = get_client()
 
             # Should be the same instance with same credentials
-            return (
-                client1 is client2,
-                client1.config.api_key,
-                client2.config.api_key
-            )
+            return (client1 is client2, client1.config.api_key, client2.config.api_key)
 
         import threading
+
         result = []
 
         def worker():
@@ -223,7 +210,9 @@ class TestBrokleSpan:
 
         span.set_status("completed", "Operation completed successfully")
         assert span.status == "completed"
-        assert span.attributes["status_description"] == "Operation completed successfully"
+        assert (
+            span.attributes["status_description"] == "Operation completed successfully"
+        )
 
     def test_span_tags(self):
         """Test adding span tags."""
@@ -254,7 +243,7 @@ class TestBrokleSpan:
             name="test-span",
             trace_id="trace_123",
             attributes={"test": "value"},
-            tags=["tag1", "tag2"]
+            tags=["tag1", "tag2"],
         )
         span.finish()
 
@@ -292,7 +281,7 @@ class TestBrokleGeneration:
             provider="openai",
             input_tokens=50,
             output_tokens=20,
-            cost_usd=0.003
+            cost_usd=0.003,
         )
 
         assert gen.model == "gpt-4"
@@ -308,15 +297,12 @@ class TestSpanManagement:
     def teardown_method(self):
         """Clean up after each test."""
         from brokle.observability.spans import _set_current_span
+
         _set_current_span(None)
 
     def test_create_span(self):
         """Test creating a span."""
-        span = create_span(
-            "test-operation",
-            attributes={"key": "value"},
-            tags=["test"]
-        )
+        span = create_span("test-operation", attributes={"key": "value"}, tags=["test"])
 
         assert span.name == "test-operation"
         assert span.trace_id is not None
@@ -329,6 +315,7 @@ class TestSpanManagement:
 
         # Mock current span
         from brokle.observability.spans import _set_current_span
+
         _set_current_span(parent_span)
 
         child_span = create_span("child-op")
@@ -342,6 +329,7 @@ class TestSpanManagement:
 
         span = create_span("test-op")
         from brokle.observability.spans import _set_current_span
+
         _set_current_span(span)
 
         assert get_current_span() is span
@@ -376,7 +364,10 @@ class TestBrokleOtelSpanAttributes:
         assert BrokleOtelSpanAttributes.REQUEST_ID == "brokle.request_id"
         assert BrokleOtelSpanAttributes.LLM_MODEL == "llm.model"
         assert BrokleOtelSpanAttributes.LLM_PROVIDER == "llm.provider"
-        assert BrokleOtelSpanAttributes.BROKLE_ROUTING_STRATEGY == "brokle.routing.strategy"
+        assert (
+            BrokleOtelSpanAttributes.BROKLE_ROUTING_STRATEGY
+            == "brokle.routing.strategy"
+        )
         assert BrokleOtelSpanAttributes.LLM_COST_USD == "llm.cost.usd"
 
     def test_get_all_attributes(self):

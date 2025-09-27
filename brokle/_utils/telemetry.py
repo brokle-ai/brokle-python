@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional
 try:
     from opentelemetry import trace
     from opentelemetry.trace import Span
+
     HAS_OTEL = True
 except ImportError:
     HAS_OTEL = False
@@ -20,7 +21,9 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-def create_span(name: str, attributes: Optional[Dict[str, Any]] = None) -> Optional[Any]:
+def create_span(
+    name: str, attributes: Optional[Dict[str, Any]] = None
+) -> Optional[Any]:
     """
     Create a new telemetry span.
 
@@ -116,7 +119,9 @@ def get_current_span() -> Optional[Any]:
         return None
 
 
-def set_span_status(span: Any, status_code: str, description: Optional[str] = None) -> None:
+def set_span_status(
+    span: Any, status_code: str, description: Optional[str] = None
+) -> None:
     """
     Set span status.
 

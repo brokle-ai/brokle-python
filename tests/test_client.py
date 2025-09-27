@@ -4,13 +4,14 @@ Tests for new Brokle client architecture.
 Tests sync/async clients, resource organization, and OpenAI compatibility.
 """
 
-import pytest
-import httpx
-from unittest.mock import Mock, patch, AsyncMock
 import asyncio
+from unittest.mock import AsyncMock, Mock, patch
 
-from brokle.client import Brokle, AsyncBrokle, get_client
-from brokle.exceptions import NetworkError, AuthenticationError
+import httpx
+import pytest
+
+from brokle.client import AsyncBrokle, Brokle, get_client
+from brokle.exceptions import AuthenticationError, NetworkError
 
 
 class TestBrokleClient:
@@ -19,9 +20,7 @@ class TestBrokleClient:
     def test_init_with_parameters(self):
         """Test initialization with explicit parameters."""
         client = Brokle(
-            api_key="bk_test123",
-            host="http://localhost:8080",
-            environment="test"
+            api_key="bk_test123", host="http://localhost:8080", environment="test"
         )
 
         assert client.config.api_key == "bk_test123"
@@ -37,9 +36,7 @@ class TestBrokleClient:
 
     def test_context_manager(self):
         """Test context manager functionality."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             with Brokle() as client:
                 assert client._client is None  # Not created until first use
                 # Use client to trigger HTTP client creation
@@ -50,9 +47,7 @@ class TestBrokleClient:
 
     def test_explicit_close(self):
         """Test explicit client cleanup."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = Brokle()
             http_client = client._get_client()
             assert http_client is not None
@@ -60,7 +55,7 @@ class TestBrokleClient:
             client.close()
             assert client._client is None
 
-    @patch('httpx.Client')
+    @patch("httpx.Client")
     def test_request_success(self, mock_httpx_client):
         """Test successful HTTP request."""
         # Mock response
@@ -68,7 +63,11 @@ class TestBrokleClient:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "choices": [{"message": {"content": "Hello!"}}],
-            "brokle": {"provider": "openai", "request_id": "req_123", "latency_ms": 150}
+            "brokle": {
+                "provider": "openai",
+                "request_id": "req_123",
+                "latency_ms": 150,
+            },
         }
 
         # Mock client
@@ -77,27 +76,27 @@ class TestBrokleClient:
         mock_httpx_client.return_value = mock_client_instance
 
         # Test request
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = Brokle()
-            result = client.request("POST", "/v1/chat/completions", json={"model": "gpt-4"})
+            result = client.request(
+                "POST", "/v1/chat/completions", json={"model": "gpt-4"}
+            )
 
             assert result["choices"][0]["message"]["content"] == "Hello!"
             assert result["brokle"]["provider"] == "openai"
 
-    @patch('httpx.Client')
+    @patch("httpx.Client")
     def test_request_network_error(self, mock_httpx_client):
         """Test network error handling."""
         # Mock network error
         mock_client_instance = Mock()
-        mock_client_instance.request.side_effect = httpx.ConnectError("Connection failed")
+        mock_client_instance.request.side_effect = httpx.ConnectError(
+            "Connection failed"
+        )
         mock_httpx_client.return_value = mock_client_instance
 
         # Test error handling
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = Brokle()
 
             with pytest.raises(NetworkError, match="Failed to connect"):
@@ -105,9 +104,7 @@ class TestBrokleClient:
 
     def test_chat_completions_create(self):
         """Test chat completions creation."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = Brokle()
 
             # Mock the request method
@@ -116,28 +113,30 @@ class TestBrokleClient:
                 "object": "chat.completion",
                 "created": 1234567890,
                 "model": "gpt-4",
-                "choices": [{
-                    "index": 0,
-                    "message": {"role": "assistant", "content": "Hello!"},
-                    "finish_reason": "stop"
-                }],
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Hello!"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 "usage": {
                     "prompt_tokens": 10,
                     "completion_tokens": 5,
-                    "total_tokens": 15
+                    "total_tokens": 15,
                 },
                 "brokle": {
                     "provider": "openai",
                     "request_id": "req_123",
-                    "latency_ms": 150
-                }
+                    "latency_ms": 150,
+                },
             }
 
-            with patch.object(client, 'request', return_value=mock_response):
+            with patch.object(client, "request", return_value=mock_response):
                 response = client.chat.completions.create(
                     model="gpt-4",
                     messages=[{"role": "user", "content": "Hello!"}],
-                    routing_strategy="cost_optimized"
+                    routing_strategy="cost_optimized",
                 )
 
                 assert response.model == "gpt-4"
@@ -146,9 +145,7 @@ class TestBrokleClient:
 
     def test_get_client_function(self):
         """Test get_client function."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = get_client()
             assert isinstance(client, Brokle)
             assert client.config.api_key == "bk_test"
@@ -160,9 +157,7 @@ class TestAsyncBrokleClient:
     def test_init_with_parameters(self):
         """Test async client initialization."""
         client = AsyncBrokle(
-            api_key="bk_test123",
-            host="http://localhost:8080",
-            environment="test"
+            api_key="bk_test123", host="http://localhost:8080", environment="test"
         )
 
         assert client.config.api_key == "bk_test123"
@@ -182,9 +177,7 @@ class TestAsyncBrokleClient:
     @pytest.mark.asyncio
     async def test_async_context_manager(self):
         """Test async context manager functionality."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             async with AsyncBrokle() as client:
                 assert client._client is not None
                 assert not client._client.is_closed
@@ -192,9 +185,7 @@ class TestAsyncBrokleClient:
     @pytest.mark.asyncio
     async def test_explicit_close(self):
         """Test explicit async client cleanup."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = AsyncBrokle()
             assert client._client is not None
 
@@ -208,19 +199,25 @@ class TestAsyncBrokleClient:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "choices": [{"message": {"content": "Hello async!"}}],
-            "brokle": {"provider": "openai", "request_id": "req_async", "latency_ms": 120}
+            "brokle": {
+                "provider": "openai",
+                "request_id": "req_async",
+                "latency_ms": 120,
+            },
         }
 
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = AsyncBrokle()
 
             # Mock the async client request
-            with patch.object(client._client, 'request', new_callable=AsyncMock) as mock_request:
+            with patch.object(
+                client._client, "request", new_callable=AsyncMock
+            ) as mock_request:
                 mock_request.return_value = mock_response
 
-                result = await client.request("POST", "/v1/chat/completions", json={"model": "gpt-4"})
+                result = await client.request(
+                    "POST", "/v1/chat/completions", json={"model": "gpt-4"}
+                )
 
                 assert result["choices"][0]["message"]["content"] == "Hello async!"
                 assert result["brokle"]["provider"] == "openai"
@@ -228,9 +225,7 @@ class TestAsyncBrokleClient:
     @pytest.mark.asyncio
     async def test_async_chat_completions_create(self):
         """Test async chat completions creation."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = AsyncBrokle()
 
             # Mock response
@@ -239,30 +234,34 @@ class TestAsyncBrokleClient:
                 "object": "chat.completion",
                 "created": 1234567890,
                 "model": "gpt-4",
-                "choices": [{
-                    "index": 0,
-                    "message": {"role": "assistant", "content": "Hello async!"},
-                    "finish_reason": "stop"
-                }],
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Hello async!"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 "usage": {
                     "prompt_tokens": 10,
                     "completion_tokens": 5,
-                    "total_tokens": 15
+                    "total_tokens": 15,
                 },
                 "brokle": {
                     "provider": "openai",
                     "request_id": "req_async",
-                    "latency_ms": 120
-                }
+                    "latency_ms": 120,
+                },
             }
 
-            with patch.object(client, 'request', new_callable=AsyncMock) as mock_request:
+            with patch.object(
+                client, "request", new_callable=AsyncMock
+            ) as mock_request:
                 mock_request.return_value = mock_response
 
                 response = await client.chat.completions.create(
                     model="gpt-4",
                     messages=[{"role": "user", "content": "Hello async!"}],
-                    routing_strategy="quality_optimized"
+                    routing_strategy="quality_optimized",
                 )
 
                 assert response.model == "gpt-4"
@@ -275,36 +274,29 @@ class TestEmbeddingsResource:
 
     def test_embeddings_create(self):
         """Test embeddings creation."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = Brokle()
 
             # Mock response
             mock_response = {
                 "object": "list",
-                "data": [{
-                    "object": "embedding",
-                    "index": 0,
-                    "embedding": [0.1, 0.2, 0.3]
-                }],
+                "data": [
+                    {"object": "embedding", "index": 0, "embedding": [0.1, 0.2, 0.3]}
+                ],
                 "model": "text-embedding-3-small",
-                "usage": {
-                    "prompt_tokens": 5,
-                    "total_tokens": 5
-                },
+                "usage": {"prompt_tokens": 5, "total_tokens": 5},
                 "brokle": {
                     "provider": "openai",
                     "request_id": "req_emb_123",
-                    "latency_ms": 80
-                }
+                    "latency_ms": 80,
+                },
             }
 
-            with patch.object(client, 'request', return_value=mock_response):
+            with patch.object(client, "request", return_value=mock_response):
                 response = client.embeddings.create(
                     input="Hello world",
                     model="text-embedding-3-small",
-                    cache_strategy="semantic"
+                    cache_strategy="semantic",
                 )
 
                 assert response.model == "text-embedding-3-small"
@@ -318,9 +310,7 @@ class TestModelsResource:
 
     def test_models_list(self):
         """Test models listing."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = Brokle()
 
             # Mock response
@@ -337,12 +327,12 @@ class TestModelsResource:
                         "capabilities": ["chat"],
                         "cost_per_token": 0.00003,
                         "context_length": 8192,
-                        "availability": "available"
+                        "availability": "available",
                     }
-                ]
+                ],
             }
 
-            with patch.object(client, 'request', return_value=mock_response):
+            with patch.object(client, "request", return_value=mock_response):
                 response = client.models.list(provider="openai", category="chat")
 
                 assert len(response.data) == 1
@@ -352,9 +342,7 @@ class TestModelsResource:
 
     def test_models_retrieve(self):
         """Test model retrieval."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = Brokle()
 
             # Mock response
@@ -368,10 +356,10 @@ class TestModelsResource:
                 "capabilities": ["chat"],
                 "cost_per_token": 0.00003,
                 "context_length": 8192,
-                "availability": "available"
+                "availability": "available",
             }
 
-            with patch.object(client, 'request', return_value=mock_response):
+            with patch.object(client, "request", return_value=mock_response):
                 model = client.models.retrieve("gpt-4")
 
                 assert model.id == "gpt-4"
@@ -384,18 +372,17 @@ class TestTaskManagerIntegration:
 
     def test_client_creates_default_processor(self):
         """Test that client creates default background processor."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = Brokle()
 
             # Client should have a background processor
-            assert hasattr(client, '_background_processor')
+            assert hasattr(client, "_background_processor")
             assert client._background_processor is not None
             assert client._owns_processor is True  # Client owns the processor
 
             # Give the processor a moment to fully initialize
             import time
+
             time.sleep(0.1)
 
             # Check basic processor state - focus on what we can verify
@@ -416,8 +403,9 @@ class TestTaskManagerIntegration:
 
     def test_client_accepts_custom_processor(self):
         """Test that client accepts custom background processor."""
-        from brokle._task_manager.processor import BackgroundProcessor
         from unittest.mock import Mock
+
+        from brokle._task_manager.processor import BackgroundProcessor
 
         # Create mock processor
         custom_processor = Mock(spec=BackgroundProcessor)
@@ -425,9 +413,7 @@ class TestTaskManagerIntegration:
         custom_processor.flush = Mock(return_value=True)
         custom_processor.is_healthy = Mock(return_value=True)
 
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = Brokle(background_processor=custom_processor)
 
             # Client should use the custom processor
@@ -441,30 +427,38 @@ class TestTaskManagerIntegration:
             # Close should not shutdown custom processor
             client.close()
             custom_processor.flush.assert_called_once_with(timeout=5.0)
-            assert not hasattr(custom_processor, 'shutdown') or not custom_processor.shutdown.called
+            assert (
+                not hasattr(custom_processor, "shutdown")
+                or not custom_processor.shutdown.called
+            )
 
     def test_telemetry_submission_on_request(self):
         """Test that requests automatically submit telemetry."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test",
-            "BROKLE_ENVIRONMENT": "test"
-        }):
+        with patch.dict(
+            "os.environ", {"BROKLE_API_KEY": "bk_test", "BROKLE_ENVIRONMENT": "test"}
+        ):
             client = Brokle()
 
             # Mock the HTTP request
             mock_response = Mock()
             mock_response.status_code = 200
-            mock_response.json.return_value = {"choices": [{"message": {"content": "Hello!"}}]}
+            mock_response.json.return_value = {
+                "choices": [{"message": {"content": "Hello!"}}]
+            }
 
             # Mock the processor
-            with patch.object(client._background_processor, 'submit_telemetry') as mock_submit:
-                with patch('httpx.Client') as mock_httpx:
+            with patch.object(
+                client._background_processor, "submit_telemetry"
+            ) as mock_submit:
+                with patch("httpx.Client") as mock_httpx:
                     mock_client = Mock()
                     mock_client.request.return_value = mock_response
                     mock_httpx.return_value = mock_client
 
                     # Make request
-                    client.request("POST", "/v1/chat/completions", json={"model": "gpt-4"})
+                    client.request(
+                        "POST", "/v1/chat/completions", json={"model": "gpt-4"}
+                    )
 
                     # Should have submitted telemetry
                     mock_submit.assert_called_once()
@@ -481,16 +475,18 @@ class TestTaskManagerIntegration:
 
     def test_error_telemetry_submission(self):
         """Test that request errors submit telemetry."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = Brokle()
 
             # Mock the processor
-            with patch.object(client._background_processor, 'submit_telemetry') as mock_submit:
-                with patch('httpx.Client') as mock_httpx:
+            with patch.object(
+                client._background_processor, "submit_telemetry"
+            ) as mock_submit:
+                with patch("httpx.Client") as mock_httpx:
                     mock_client = Mock()
-                    mock_client.request.side_effect = httpx.ConnectError("Connection failed")
+                    mock_client.request.side_effect = httpx.ConnectError(
+                        "Connection failed"
+                    )
                     mock_httpx.return_value = mock_client
 
                     # Make request that fails
@@ -509,9 +505,7 @@ class TestTaskManagerIntegration:
 
     def test_processor_methods_integration(self):
         """Test processor method integration on client."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = Brokle()
 
             # Test all processor methods
@@ -536,27 +530,33 @@ class TestTaskManagerIntegration:
     @pytest.mark.asyncio
     async def test_async_client_integration(self):
         """Test async client integration with background processor."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             client = AsyncBrokle()
 
             # Client should have a background processor
-            assert hasattr(client, '_background_processor')
+            assert hasattr(client, "_background_processor")
             assert client._background_processor is not None
             assert client._owns_processor is True
 
             # Test async request with telemetry
             mock_response = Mock()
             mock_response.status_code = 200
-            mock_response.json.return_value = {"choices": [{"message": {"content": "Hello async!"}}]}
+            mock_response.json.return_value = {
+                "choices": [{"message": {"content": "Hello async!"}}]
+            }
 
-            with patch.object(client._background_processor, 'submit_telemetry') as mock_submit:
-                with patch.object(client._client, 'request', new_callable=AsyncMock) as mock_request:
+            with patch.object(
+                client._background_processor, "submit_telemetry"
+            ) as mock_submit:
+                with patch.object(
+                    client._client, "request", new_callable=AsyncMock
+                ) as mock_request:
                     mock_request.return_value = mock_response
 
                     # Make async request
-                    await client.request("POST", "/v1/chat/completions", json={"model": "gpt-4"})
+                    await client.request(
+                        "POST", "/v1/chat/completions", json={"model": "gpt-4"}
+                    )
 
                     # Should have submitted telemetry
                     mock_submit.assert_called_once()
@@ -565,17 +565,17 @@ class TestTaskManagerIntegration:
 
     def test_get_client_with_processor(self):
         """Test get_client function with background processor."""
-        from brokle._task_manager.processor import BackgroundProcessor
         from unittest.mock import Mock
+
+        from brokle._task_manager.processor import BackgroundProcessor
 
         # Create mock processor
         custom_processor = Mock(spec=BackgroundProcessor)
 
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             # Reset singleton
             import brokle.client
+
             brokle.client._client_singleton = None
 
             client = get_client(background_processor=custom_processor)
@@ -591,17 +591,19 @@ class TestTaskManagerIntegration:
 class TestPatternIntegration:
     """Test integration between different SDK patterns and background processor."""
 
-    @pytest.mark.skipif(not hasattr(pytest, "importorskip"), reason="Requires optional imports")
+    @pytest.mark.skipif(
+        not hasattr(pytest, "importorskip"), reason="Requires optional imports"
+    )
     def test_openai_wrapper_telemetry_integration(self):
         """Test that OpenAI wrapper submits telemetry through background processor."""
         pytest.importorskip("openai")
 
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             # Create a client with custom processor to monitor
-            from brokle._task_manager.processor import BackgroundProcessor
             from unittest.mock import Mock
+
+            from brokle._task_manager.processor import BackgroundProcessor
+
             custom_processor = Mock(spec=BackgroundProcessor)
             custom_processor.submit_telemetry = Mock()
 
@@ -609,26 +611,37 @@ class TestPatternIntegration:
 
             # Mock OpenAI client
             mock_openai_client = Mock()
-            mock_openai_client.chat.completions.create = Mock(return_value={
-                "choices": [{"message": {"content": "Hello from OpenAI"}}],
-                "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
-            })
+            mock_openai_client.chat.completions.create = Mock(
+                return_value={
+                    "choices": [{"message": {"content": "Hello from OpenAI"}}],
+                    "usage": {
+                        "prompt_tokens": 10,
+                        "completion_tokens": 5,
+                        "total_tokens": 15,
+                    },
+                }
+            )
 
             # Import and test wrapper (if available)
             try:
                 from brokle.wrappers.openai import wrap_openai
 
                 # Mock the validation and dependency checks
-                with patch('brokle.wrappers.openai.HAS_OPENAI', True):
-                    with patch('brokle.wrappers.openai.validate_environment'):
-                        with patch('brokle.wrappers.openai.get_client', return_value=client):
-                            with patch('brokle.integrations.instrumentation.get_client', return_value=client):
+                with patch("brokle.wrappers.openai.HAS_OPENAI", True):
+                    with patch("brokle.wrappers.openai.validate_environment"):
+                        with patch(
+                            "brokle.wrappers.openai.get_client", return_value=client
+                        ):
+                            with patch(
+                                "brokle.integrations.instrumentation.get_client",
+                                return_value=client,
+                            ):
                                 # This should work but might fail due to complex mocking
                                 # The key point is that the telemetry path exists
                                 wrapped_client = wrap_openai(mock_openai_client)
 
                                 # Verify that wrapper was applied
-                                assert hasattr(wrapped_client, '_brokle_instrumented')
+                                assert hasattr(wrapped_client, "_brokle_instrumented")
                                 assert wrapped_client._brokle_instrumented is True
 
             except Exception as e:
@@ -640,23 +653,21 @@ class TestPatternIntegration:
 
     def test_span_telemetry_integration(self):
         """Test that spans submit telemetry through background processor."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             # Create client with custom processor
-            from brokle._task_manager.processor import BackgroundProcessor
             from unittest.mock import Mock
+
+            from brokle._task_manager.processor import BackgroundProcessor
+
             custom_processor = Mock(spec=BackgroundProcessor)
             custom_processor.submit_telemetry = Mock()
 
             client = Brokle(background_processor=custom_processor)
 
             # Test direct telemetry submission
-            client.submit_telemetry({
-                "type": "test_span",
-                "name": "test_operation",
-                "status": "completed"
-            })
+            client.submit_telemetry(
+                {"type": "test_span", "name": "test_operation", "status": "completed"}
+            )
 
             # Verify telemetry was submitted
             custom_processor.submit_telemetry.assert_called_once()
@@ -671,12 +682,12 @@ class TestPatternIntegration:
 
     def test_observe_decorator_telemetry_integration(self):
         """Test that @observe decorator can integrate with background processor."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             # Create client with custom processor
-            from brokle._task_manager.processor import BackgroundProcessor
             from unittest.mock import Mock
+
+            from brokle._task_manager.processor import BackgroundProcessor
+
             custom_processor = Mock(spec=BackgroundProcessor)
             custom_processor.submit_telemetry = Mock()
 
@@ -687,11 +698,14 @@ class TestPatternIntegration:
             from brokle.observability.spans import create_span, record_span
 
             # Create a span (similar to what decorator does)
-            span = create_span("decorator_test", attributes={"function_name": "test_function"})
+            span = create_span(
+                "decorator_test", attributes={"function_name": "test_function"}
+            )
             span.finish()
 
             # Test direct telemetry submission (simulating what record_span should do)
             import time
+
             telemetry_data = {
                 "type": "span",
                 "name": "decorator_test",
@@ -716,12 +730,12 @@ class TestPatternIntegration:
 
     def test_anthropic_wrapper_telemetry_integration(self):
         """Test that Anthropic wrapper integrates with background processor for telemetry."""
-        with patch.dict("os.environ", {
-            "BROKLE_API_KEY": "bk_test"
-        }):
+        with patch.dict("os.environ", {"BROKLE_API_KEY": "bk_test"}):
             # Create client with custom processor
-            from brokle._task_manager.processor import BackgroundProcessor
             from unittest.mock import Mock
+
+            from brokle._task_manager.processor import BackgroundProcessor
+
             custom_processor = Mock(spec=BackgroundProcessor)
             custom_processor.submit_telemetry = Mock()
 
@@ -737,17 +751,23 @@ class TestPatternIntegration:
                 from brokle.wrappers.anthropic import wrap_anthropic
 
                 # Mock Anthropic classes
-                with patch('brokle.wrappers.anthropic.HAS_ANTHROPIC', True):
-                    with patch('brokle.wrappers.anthropic._Anthropic') as mock_anthropic_class:
-                        with patch('brokle.wrappers.anthropic._AsyncAnthropic'):
+                with patch("brokle.wrappers.anthropic.HAS_ANTHROPIC", True):
+                    with patch(
+                        "brokle.wrappers.anthropic._Anthropic"
+                    ) as mock_anthropic_class:
+                        with patch("brokle.wrappers.anthropic._AsyncAnthropic"):
                             # Create mock Anthropic client
                             mock_anthropic_client = Mock()
                             mock_anthropic_client._brokle_instrumented = False
                             mock_anthropic_class.return_value = mock_anthropic_client
 
                             # Mock the provider and instrumentation
-                            with patch('brokle.wrappers.anthropic.get_provider') as mock_get_provider:
-                                with patch('brokle.wrappers.anthropic.UniversalInstrumentation') as mock_instrumentation_class:
+                            with patch(
+                                "brokle.wrappers.anthropic.get_provider"
+                            ) as mock_get_provider:
+                                with patch(
+                                    "brokle.wrappers.anthropic.UniversalInstrumentation"
+                                ) as mock_instrumentation_class:
                                     # Setup provider mock
                                     mock_provider = Mock()
                                     mock_provider.name = "anthropic"
@@ -755,14 +775,22 @@ class TestPatternIntegration:
 
                                     # Setup instrumentation mock
                                     mock_instrumentation = Mock()
-                                    mock_instrumentation.instrument_client.return_value = mock_anthropic_client
-                                    mock_instrumentation_class.return_value = mock_instrumentation
+                                    mock_instrumentation.instrument_client.return_value = (
+                                        mock_anthropic_client
+                                    )
+                                    mock_instrumentation_class.return_value = (
+                                        mock_instrumentation
+                                    )
 
                                     # Wrap the client - should succeed
-                                    wrapped_client = wrap_anthropic(mock_anthropic_client)
+                                    wrapped_client = wrap_anthropic(
+                                        mock_anthropic_client
+                                    )
 
                                     # Verify that wrapper was applied
-                                    assert hasattr(wrapped_client, '_brokle_instrumented')
+                                    assert hasattr(
+                                        wrapped_client, "_brokle_instrumented"
+                                    )
                                     assert wrapped_client._brokle_instrumented is True
 
             except Exception as e:

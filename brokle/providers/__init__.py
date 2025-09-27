@@ -10,10 +10,10 @@ All patterns use the same provider logic for consistent behavior and attributes.
 """
 
 from typing import Dict, Type
+
+from .anthropic import AnthropicProvider
 from .base import BaseProvider
 from .openai import OpenAIProvider
-from .anthropic import AnthropicProvider
-
 
 # Clean provider registry
 PROVIDERS: Dict[str, Type[BaseProvider]] = {
@@ -38,7 +38,9 @@ def get_provider(provider_name: str, **config) -> BaseProvider:
     """
     if provider_name not in PROVIDERS:
         supported = ", ".join(PROVIDERS.keys())
-        raise ValueError(f"Unsupported provider '{provider_name}'. Supported: {supported}")
+        raise ValueError(
+            f"Unsupported provider '{provider_name}'. Supported: {supported}"
+        )
 
     provider_class = PROVIDERS[provider_name]
     return provider_class(**config)

@@ -10,7 +10,7 @@ from typing import Any, Callable, Optional, TypeVar
 
 logger = logging.getLogger(__name__)
 
-F = TypeVar('F', bound=Callable[..., Any])
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 def safe_wrapper(func: F) -> F:
@@ -23,6 +23,7 @@ def safe_wrapper(func: F) -> F:
     Returns:
         Wrapped function that handles exceptions safely
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -44,6 +45,7 @@ def async_safe_wrapper(func: F) -> F:
     Returns:
         Wrapped async function that handles exceptions safely
     """
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         try:
@@ -59,7 +61,7 @@ def retry_decorator(
     max_attempts: int = 3,
     delay: float = 1.0,
     backoff: float = 2.0,
-    exceptions: tuple = (Exception,)
+    exceptions: tuple = (Exception,),
 ):
     """
     Decorator for retrying function calls with exponential backoff.
@@ -73,6 +75,7 @@ def retry_decorator(
     Returns:
         Decorated function
     """
+
     def decorator(func: F) -> F:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -94,6 +97,7 @@ def retry_decorator(
             raise last_exception
 
         return wrapper
+
     return decorator
 
 
@@ -107,6 +111,7 @@ def conditional_decorator(condition: bool):
     Returns:
         Decorator function or identity function
     """
+
     def decorator(func_or_decorator):
         if condition:
             return func_or_decorator
@@ -114,6 +119,7 @@ def conditional_decorator(condition: bool):
             # If condition is False, return identity function
             def identity(func):
                 return func
+
             return identity
 
     return decorator
@@ -157,15 +163,19 @@ def deprecated(reason: str = "This function is deprecated"):
     Returns:
         Decorated function that warns when called
     """
+
     def decorator(func: F) -> F:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             import warnings
+
             warnings.warn(
                 f"{func.__name__} is deprecated: {reason}",
                 DeprecationWarning,
-                stacklevel=2
+                stacklevel=2,
             )
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator

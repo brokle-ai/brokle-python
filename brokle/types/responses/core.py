@@ -11,19 +11,20 @@ via response.brokle.* for all platform metadata and insights.
 """
 
 from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
+# Import BaseResponse and BrokleMetadata from base module
 # Import our mixins and base classes
 from .base import (
+    BaseResponse,
+    BrokleMetadata,
     BrokleResponseBase,
-    TokenUsageMixin,
     CostTrackingMixin,
     ProviderMixin,
     TimestampMixin,
+    TokenUsageMixin,
 )
-
-# Import BaseResponse and BrokleMetadata from base module
-from .base import BaseResponse, BrokleMetadata
 
 
 # Supporting model classes (unchanged for compatibility)
@@ -32,7 +33,9 @@ class CompletionChoice(BaseModel):
 
     text: str = Field(description="Generated text")
     index: int = Field(description="Choice index")
-    logprobs: Optional[Dict[str, Any]] = Field(default=None, description="Log probabilities")
+    logprobs: Optional[Dict[str, Any]] = Field(
+        default=None, description="Log probabilities"
+    )
     finish_reason: Optional[str] = Field(default=None, description="Finish reason")
 
 
@@ -41,8 +44,12 @@ class ChatCompletionMessage(BaseModel):
 
     role: str = Field(description="Message role")
     content: Optional[str] = Field(default=None, description="Message content")
-    function_call: Optional[Dict[str, Any]] = Field(default=None, description="Function call")
-    tool_calls: Optional[List[Dict[str, Any]]] = Field(default=None, description="Tool calls")
+    function_call: Optional[Dict[str, Any]] = Field(
+        default=None, description="Function call"
+    )
+    tool_calls: Optional[List[Dict[str, Any]]] = Field(
+        default=None, description="Tool calls"
+    )
     name: Optional[str] = Field(default=None, description="Function name")
 
 
@@ -52,7 +59,9 @@ class ChatCompletionChoice(BaseModel):
     index: int = Field(description="Choice index")
     message: ChatCompletionMessage = Field(description="Message")
     finish_reason: Optional[str] = Field(default=None, description="Finish reason")
-    logprobs: Optional[Dict[str, Any]] = Field(default=None, description="Log probabilities")
+    logprobs: Optional[Dict[str, Any]] = Field(
+        default=None, description="Log probabilities"
+    )
 
 
 class EmbeddingData(BaseModel):
@@ -94,7 +103,9 @@ class ChatCompletionResponse(BaseResponse):
     model: str = Field(description="Model used")
     choices: List[ChatCompletionChoice] = Field(description="Generated choices")
     usage: Optional[Dict[str, int]] = Field(default=None, description="Token usage")
-    system_fingerprint: Optional[str] = Field(default=None, description="System fingerprint")
+    system_fingerprint: Optional[str] = Field(
+        default=None, description="System fingerprint"
+    )
 
 
 class EmbeddingResponse(BaseResponse):
@@ -111,19 +122,15 @@ class EmbeddingResponse(BaseResponse):
     usage: Optional[Dict[str, int]] = Field(default=None, description="Token usage")
 
 
-
-
 # Re-export for backward compatibility
 __all__ = [
     # Core Response Models (backward compatible)
-    'ChatCompletionResponse',
-    'EmbeddingResponse',
-    'CompletionResponse',
-
+    "ChatCompletionResponse",
+    "EmbeddingResponse",
+    "CompletionResponse",
     # Supporting Models
-    'ChatCompletionMessage',
-    'ChatCompletionChoice',
-    'EmbeddingData',
-    'CompletionChoice',
-
+    "ChatCompletionMessage",
+    "ChatCompletionChoice",
+    "EmbeddingData",
+    "CompletionChoice",
 ]

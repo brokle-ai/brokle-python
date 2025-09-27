@@ -12,13 +12,14 @@ Key Features:
 - Integrated background task processing
 """
 
-from typing import Optional, Any, Dict, List, Callable
+from typing import Any, Callable, Dict, List, Optional
+
 import httpx
 
-from .http.base import HTTPBase
-from .exceptions import NetworkError
 from ._task_manager.processor import BackgroundProcessor, get_background_processor
 from .config import Config
+from .exceptions import NetworkError
+from .http.base import HTTPBase
 
 
 class Brokle(HTTPBase):
@@ -41,7 +42,7 @@ class Brokle(HTTPBase):
         environment: Optional[str] = None,
         timeout: Optional[float] = None,
         background_processor: Optional[BackgroundProcessor] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize sync Brokle client.
@@ -59,7 +60,7 @@ class Brokle(HTTPBase):
             host=host,
             environment=environment,
             timeout=timeout,
-            **kwargs
+            **kwargs,
         )
 
         # Initialize HTTP client
@@ -86,6 +87,7 @@ class Brokle(HTTPBase):
     def span(self, name: str, **kwargs):
         """Create a span for observability."""
         from .observability.spans import create_span
+
         return create_span(name=name, **kwargs)
 
     def submit_telemetry(self, data: Dict[str, Any]) -> None:
@@ -150,7 +152,7 @@ class Brokle(HTTPBase):
         if self._client is None:
             self._client = httpx.Client(
                 timeout=httpx.Timeout(self.config.timeout),
-                limits=httpx.Limits(max_connections=100, max_keepalive_connections=20)
+                limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
             )
         return self._client
 
@@ -170,16 +172,15 @@ class Brokle(HTTPBase):
             NetworkError: For connection errors
         """
         import time
-        from ._utils.retry import retry_with_backoff, is_retryable_error
+
+        from ._utils.retry import is_retryable_error, retry_with_backoff
 
         start_time = time.time()
         url = self._prepare_url(endpoint)
         kwargs = self._prepare_request_kwargs(**kwargs)
 
         @retry_with_backoff(
-            max_retries=self.config.max_retries,
-            base_delay=1.0,
-            max_delay=30.0
+            max_retries=self.config.max_retries, base_delay=1.0, max_delay=30.0
         )
         def _make_request():
             client = self._get_client()
@@ -208,7 +209,11 @@ class Brokle(HTTPBase):
             telemetry_data = {
                 "method": method,
                 "endpoint": endpoint,
-                "status_code": getattr(e.response, 'status_code', 0) if hasattr(e, 'response') else 0,
+                "status_code": (
+                    getattr(e.response, "status_code", 0)
+                    if hasattr(e, "response")
+                    else 0
+                ),
                 "latency_ms": int((time.time() - start_time) * 1000),
                 "success": False,
                 "error": str(e),
@@ -229,21 +234,21 @@ class Brokle(HTTPBase):
     def close(self) -> None:
         """Close HTTP client and cleanup resources."""
         # Flush processor before closing (give it 5 seconds)
-        if hasattr(self, '_background_processor'):
+        if hasattr(self, "_background_processor"):
             try:
                 self._background_processor.flush(timeout=5.0)
             except Exception:
                 pass  # Don't let processor errors prevent cleanup
 
             # Shutdown processor if we own it
-            if hasattr(self, '_owns_processor') and self._owns_processor:
+            if hasattr(self, "_owns_processor") and self._owns_processor:
                 try:
                     self._background_processor.shutdown()
                 except Exception:
                     pass  # Don't let processor errors prevent cleanup
 
         # Close HTTP client
-        if hasattr(self, '_client') and self._client is not None:
+        if hasattr(self, "_client") and self._client is not None:
             self._client.close()
             self._client = None
 
@@ -283,7 +288,7 @@ class AsyncBrokle(HTTPBase):
         environment: Optional[str] = None,
         timeout: Optional[float] = None,
         background_processor: Optional[BackgroundProcessor] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize async Brokle client.
@@ -301,13 +306,13 @@ class AsyncBrokle(HTTPBase):
             host=host,
             environment=environment,
             timeout=timeout,
-            **kwargs
+            **kwargs,
         )
 
         # Initialize persistent HTTP client (performance optimization)
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(self.config.timeout),
-            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20)
+            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
         )
 
         # Initialize background processor for telemetry
@@ -401,6 +406,7 @@ class AsyncBrokle(HTTPBase):
             NetworkError: For connection errors
         """
         import time
+
         from ._utils.retry import async_retry_with_backoff
 
         start_time = time.time()
@@ -408,9 +414,7 @@ class AsyncBrokle(HTTPBase):
         kwargs = self._prepare_request_kwargs(**kwargs)
 
         @async_retry_with_backoff(
-            max_retries=self.config.max_retries,
-            base_delay=1.0,
-            max_delay=30.0
+            max_retries=self.config.max_retries, base_delay=1.0, max_delay=30.0
         )
         async def _make_request():
             response = await self._client.request(method, url, **kwargs)
@@ -438,7 +442,11 @@ class AsyncBrokle(HTTPBase):
             telemetry_data = {
                 "method": method,
                 "endpoint": endpoint,
-                "status_code": getattr(e.response, 'status_code', 0) if hasattr(e, 'response') else 0,
+                "status_code": (
+                    getattr(e.response, "status_code", 0)
+                    if hasattr(e, "response")
+                    else 0
+                ),
                 "latency_ms": int((time.time() - start_time) * 1000),
                 "success": False,
                 "error": str(e),
@@ -459,14 +467,14 @@ class AsyncBrokle(HTTPBase):
     async def close(self) -> None:
         """Close async HTTP client and cleanup resources."""
         # Flush processor before closing (give it 5 seconds)
-        if hasattr(self, '_background_processor'):
+        if hasattr(self, "_background_processor"):
             try:
                 self._background_processor.flush(timeout=5.0)
             except Exception:
                 pass  # Don't let processor errors prevent cleanup
 
             # Shutdown processor if we own it
-            if hasattr(self, '_owns_processor') and self._owns_processor:
+            if hasattr(self, "_owns_processor") and self._owns_processor:
                 try:
                     self._background_processor.shutdown()
                 except Exception:
@@ -488,6 +496,7 @@ class AsyncBrokle(HTTPBase):
 
 # Global singleton for clean architecture
 _client_singleton: Optional[Brokle] = None
+
 
 def get_client(background_processor: Optional[BackgroundProcessor] = None) -> Brokle:
     """

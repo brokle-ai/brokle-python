@@ -10,17 +10,18 @@ Models are refactored to use mixins for reduced duplication while maintaining
 complete backward compatibility.
 """
 
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 # Import our mixins and base classes
 from .base import (
     BrokleResponseBase,
-    TimestampMixin,
     MetadataMixin,
     RequestTrackingMixin,
     StatusMixin,
+    TimestampMixin,
 )
 
 
@@ -29,7 +30,9 @@ class TelemetryTimingMixin(BaseModel):
 
     start_time: datetime = Field(description="Start timestamp")
     end_time: Optional[datetime] = Field(default=None, description="End timestamp")
-    duration_ms: Optional[float] = Field(default=None, description="Duration in milliseconds")
+    duration_ms: Optional[float] = Field(
+        default=None, description="Duration in milliseconds"
+    )
 
 
 class TelemetryTraceResponse(BaseModel):
@@ -45,11 +48,15 @@ class TelemetryTraceResponse(BaseModel):
     status: str = Field(description="Trace status")
     start_time: datetime = Field(description="Trace start time")
     end_time: Optional[datetime] = Field(default=None, description="Trace end time")
-    duration_ms: Optional[float] = Field(default=None, description="Duration in milliseconds")
+    duration_ms: Optional[float] = Field(
+        default=None, description="Duration in milliseconds"
+    )
     span_count: Optional[int] = Field(default=None, description="Number of spans")
     user_id: Optional[str] = Field(default=None, description="User ID")
     session_id: Optional[str] = Field(default=None, description="Session ID")
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Trace metadata")
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="Trace metadata"
+    )
     tags: Optional[List[str]] = Field(default=None, description="Trace tags")
 
 
@@ -69,9 +76,15 @@ class TelemetrySpanResponse(BaseModel):
     status: str = Field(description="Span status")
     start_time: datetime = Field(description="Span start time")
     end_time: Optional[datetime] = Field(default=None, description="Span end time")
-    duration_ms: Optional[float] = Field(default=None, description="Duration in milliseconds")
-    attributes: Optional[Dict[str, Any]] = Field(default=None, description="Span attributes")
-    events: Optional[List[Dict[str, Any]]] = Field(default=None, description="Span events")
+    duration_ms: Optional[float] = Field(
+        default=None, description="Duration in milliseconds"
+    )
+    attributes: Optional[Dict[str, Any]] = Field(
+        default=None, description="Span attributes"
+    )
+    events: Optional[List[Dict[str, Any]]] = Field(
+        default=None, description="Span events"
+    )
 
 
 class TelemetryEventBatchResponse(BaseModel):
@@ -85,17 +98,13 @@ class TelemetryEventBatchResponse(BaseModel):
     failed_count: int = Field(description="Number of events failed")
     batch_id: str = Field(description="Batch ID")
     processing_time_ms: float = Field(description="Processing time in milliseconds")
-    errors: Optional[List[Dict[str, Any]]] = Field(default=None, description="Processing errors")
-
-
+    errors: Optional[List[Dict[str, Any]]] = Field(
+        default=None, description="Processing errors"
+    )
 
 
 # Performance metrics response for telemetry
-class TelemetryPerformanceResponse(
-    BrokleResponseBase,
-    TimestampMixin,
-    MetadataMixin
-):
+class TelemetryPerformanceResponse(BrokleResponseBase, TimestampMixin, MetadataMixin):
     """
     Telemetry performance metrics response.
 
@@ -115,14 +124,11 @@ class TelemetryPerformanceResponse(
 # Re-export for backward compatibility
 __all__ = [
     # Backward compatible models
-    'TelemetryTraceResponse',
-    'TelemetrySpanResponse',
-    'TelemetryEventBatchResponse',
-
-
+    "TelemetryTraceResponse",
+    "TelemetrySpanResponse",
+    "TelemetryEventBatchResponse",
     # New models designed with mixins
-    'TelemetryPerformanceResponse',
-
+    "TelemetryPerformanceResponse",
     # Mixins for other telemetry models
-    'TelemetryTimingMixin',
+    "TelemetryTimingMixin",
 ]

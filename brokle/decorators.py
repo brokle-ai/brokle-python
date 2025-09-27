@@ -36,26 +36,33 @@ Usage:
 
 import asyncio
 import functools
+import inspect
 import logging
 import time
 import traceback
-from typing import Any, Dict, List, Optional, Callable, Union
-import inspect
 from contextlib import contextmanager
+from typing import Any, Callable, Dict, List, Optional, Union
 
 try:
     from opentelemetry import trace
     from opentelemetry.trace import Span
+
     HAS_OTEL = True
 except ImportError:
     HAS_OTEL = False
     trace = None
     Span = None
 
-from .observability import get_client, create_span, span_context, BrokleOtelSpanAttributes, get_current_span
-from .observability.spans import _set_current_span
 from ._utils.validation import validate_environment
 from .exceptions import BrokleError
+from .observability import (
+    BrokleOtelSpanAttributes,
+    create_span,
+    get_client,
+    get_current_span,
+    span_context,
+)
+from .observability.spans import _set_current_span
 from .providers import get_provider
 
 logger = logging.getLogger(__name__)
@@ -108,7 +115,9 @@ class ObserveConfig:
 class SpanContext:
     """Context manager for function spans with comprehensive observability"""
 
-    def __init__(self, config: ObserveConfig, func: Callable, args: tuple, kwargs: dict):
+    def __init__(
+        self, config: ObserveConfig, func: Callable, args: tuple, kwargs: dict
+    ):
         self.config = config
         self.func = func
         self.args = args
@@ -131,8 +140,7 @@ class SpanContext:
 
             # Create span with comprehensive attributes
             self.span = create_span(
-                name=span_name,
-                attributes=self._create_initial_attributes()
+                name=span_name, attributes=self._create_initial_attributes()
             )
 
             # Set as current span for hierarchical tracing
@@ -152,11 +160,14 @@ class SpanContext:
             if self.span:
                 # Record execution time
                 duration = time.time() - self.start_time if self.start_time else 0
-                add_span_attributes(self.span, {
-                    BrokleOtelSpanAttributes.REQUEST_DURATION: duration,
-                    BrokleOtelSpanAttributes.RESPONSE_END_TIME: time.time(),
-                    BrokleOtelSpanAttributes.FUNCTION_EXECUTED: True
-                })
+                add_span_attributes(
+                    self.span,
+                    {
+                        BrokleOtelSpanAttributes.REQUEST_DURATION: duration,
+                        BrokleOtelSpanAttributes.RESPONSE_END_TIME: time.time(),
+                        BrokleOtelSpanAttributes.FUNCTION_EXECUTED: True,
+                    },
+                )
 
                 # Capture outputs if available and enabled
                 if self.config.capture_outputs and self.result is not None:
@@ -165,15 +176,19 @@ class SpanContext:
                 # Record exception if any
                 if exc_type and self.config.capture_errors:
                     record_span_exception(self.span, exc_val)
-                    add_span_attributes(self.span, {
-                        BrokleOtelSpanAttributes.ERROR_TYPE: exc_type.__name__,
-                        BrokleOtelSpanAttributes.ERROR_MESSAGE: str(exc_val)
-                    })
+                    add_span_attributes(
+                        self.span,
+                        {
+                            BrokleOtelSpanAttributes.ERROR_TYPE: exc_type.__name__,
+                            BrokleOtelSpanAttributes.ERROR_MESSAGE: str(exc_val),
+                        },
+                    )
 
                 self.span.end()
 
                 # Submit span telemetry through background processor
                 from .observability.spans import record_span
+
                 record_span(self.span)
 
             # Restore previous span for hierarchical tracing
@@ -189,10 +204,10 @@ class SpanContext:
 
     def _generate_span_name(self) -> str:
         """Generate descriptive span name from function"""
-        func_name = getattr(self.func, '__name__', 'unknown_function')
-        module_name = getattr(self.func, '__module__', 'unknown_module')
+        func_name = getattr(self.func, "__name__", "unknown_function")
+        module_name = getattr(self.func, "__module__", "unknown_module")
 
-        if module_name and module_name != '__main__':
+        if module_name and module_name != "__main__":
             return f"{module_name}.{func_name}"
         return func_name
 
@@ -212,7 +227,7 @@ class SpanContext:
             pass
 
         # Add module information
-        if hasattr(self.func, '__module__'):
+        if hasattr(self.func, "__module__"):
             attributes[BrokleOtelSpanAttributes.FUNCTION_MODULE] = self.func.__module__
 
         # Add configuration metadata
@@ -223,7 +238,7 @@ class SpanContext:
             attributes[BrokleOtelSpanAttributes.USER_ID] = self.config.user_id
 
         if self.config.tags:
-            attributes[BrokleOtelSpanAttributes.TAGS] = ','.join(self.config.tags)
+            attributes[BrokleOtelSpanAttributes.TAGS] = ",".join(self.config.tags)
 
         # Add custom metadata
         for key, value in self.config.metadata.items():
@@ -245,9 +260,7 @@ class SpanContext:
             if self.args:
                 for i, arg in enumerate(self.args):
                     arg_str = self._safe_serialize(arg, self.config.max_input_length)
-                    add_span_attributes(self.span, {
-                        f"input.args.{i}": arg_str
-                    })
+                    add_span_attributes(self.span, {f"input.args.{i}": arg_str})
 
             # Capture keyword arguments
             if self.kwargs:
@@ -256,11 +269,11 @@ class SpanContext:
                     if self._is_sensitive_key(key):
                         value_str = "[REDACTED]"
                     else:
-                        value_str = self._safe_serialize(value, self.config.max_input_length)
+                        value_str = self._safe_serialize(
+                            value, self.config.max_input_length
+                        )
 
-                    add_span_attributes(self.span, {
-                        f"input.kwargs.{key}": value_str
-                    })
+                    add_span_attributes(self.span, {f"input.kwargs.{key}": value_str})
 
         except Exception as e:
             logger.warning(f"Failed to capture inputs: {e}")
@@ -271,11 +284,16 @@ class SpanContext:
             return
 
         try:
-            output_str = self._safe_serialize(self.result, self.config.max_output_length)
-            add_span_attributes(self.span, {
-                BrokleOtelSpanAttributes.OUTPUT: output_str,
-                BrokleOtelSpanAttributes.OUTPUT_TYPE: type(self.result).__name__
-            })
+            output_str = self._safe_serialize(
+                self.result, self.config.max_output_length
+            )
+            add_span_attributes(
+                self.span,
+                {
+                    BrokleOtelSpanAttributes.OUTPUT: output_str,
+                    BrokleOtelSpanAttributes.OUTPUT_TYPE: type(self.result).__name__,
+                },
+            )
 
         except Exception as e:
             logger.warning(f"Failed to capture outputs: {e}")
@@ -314,8 +332,14 @@ class SpanContext:
     def _is_sensitive_key(self, key: str) -> bool:
         """Check if parameter key contains sensitive information"""
         sensitive_patterns = [
-            'key', 'token', 'password', 'secret', 'auth',
-            'credential', 'api_key', 'access_token'
+            "key",
+            "token",
+            "password",
+            "secret",
+            "auth",
+            "credential",
+            "api_key",
+            "access_token",
         ]
         key_lower = key.lower()
         return any(pattern in key_lower for pattern in sensitive_patterns)
@@ -371,9 +395,20 @@ class SpanContext:
                     request_kwargs = {}
 
                     # Try to extract common AI parameters from function kwargs
-                    ai_params = ['model', 'messages', 'prompt', 'temperature', 'max_tokens',
-                                'top_p', 'frequency_penalty', 'presence_penalty', 'stream',
-                                'tools', 'functions', 'system']
+                    ai_params = [
+                        "model",
+                        "messages",
+                        "prompt",
+                        "temperature",
+                        "max_tokens",
+                        "top_p",
+                        "frequency_penalty",
+                        "presence_penalty",
+                        "stream",
+                        "tools",
+                        "functions",
+                        "system",
+                    ]
 
                     for param in ai_params:
                         if param in self.kwargs:
@@ -381,15 +416,21 @@ class SpanContext:
 
                     # Extract provider-specific attributes if we have request parameters
                     if request_kwargs:
-                        provider_attributes = provider.extract_request_attributes(request_kwargs)
+                        provider_attributes = provider.extract_request_attributes(
+                            request_kwargs
+                        )
                         ai_attributes.update(provider_attributes)
 
                         # Mark as AI operation
-                        ai_attributes[BrokleOtelSpanAttributes.OPERATION_TYPE] = "ai_call"
+                        ai_attributes[BrokleOtelSpanAttributes.OPERATION_TYPE] = (
+                            "ai_call"
+                        )
                         ai_attributes[BrokleOtelSpanAttributes.PROVIDER] = provider_name
 
                 except Exception as e:
-                    logger.debug(f"Failed to extract AI attributes for {provider_name}: {e}")
+                    logger.debug(
+                        f"Failed to extract AI attributes for {provider_name}: {e}"
+                    )
 
         except Exception as e:
             logger.debug(f"Failed to detect AI usage in decorator: {e}")
@@ -417,7 +458,9 @@ class SpanContext:
                     ai_attributes.update(response_attributes)
 
                 except Exception as e:
-                    logger.debug(f"Failed to extract AI response attributes for {provider_name}: {e}")
+                    logger.debug(
+                        f"Failed to extract AI response attributes for {provider_name}: {e}"
+                    )
 
         except Exception as e:
             logger.debug(f"Failed to extract AI response attributes: {e}")
@@ -428,9 +471,8 @@ class SpanContext:
         """Check if object is an OpenAI client instance"""
         try:
             type_name = type(obj).__name__
-            module_name = getattr(type(obj), '__module__', '')
-            return (type_name in ['OpenAI', 'AsyncOpenAI'] and
-                    'openai' in module_name)
+            module_name = getattr(type(obj), "__module__", "")
+            return type_name in ["OpenAI", "AsyncOpenAI"] and "openai" in module_name
         except:
             return False
 
@@ -438,9 +480,11 @@ class SpanContext:
         """Check if object is an Anthropic client instance"""
         try:
             type_name = type(obj).__name__
-            module_name = getattr(type(obj), '__module__', '')
-            return (type_name in ['Anthropic', 'AsyncAnthropic'] and
-                    'anthropic' in module_name)
+            module_name = getattr(type(obj), "__module__", "")
+            return (
+                type_name in ["Anthropic", "AsyncAnthropic"]
+                and "anthropic" in module_name
+            )
         except:
             return False
 
@@ -448,10 +492,17 @@ class SpanContext:
         """Check if object is an OpenAI response"""
         try:
             type_name = type(obj).__name__
-            module_name = getattr(type(obj), '__module__', '')
-            return ('openai' in module_name and
-                    any(keyword in type_name.lower() for keyword in
-                        ['completion', 'response', 'message', 'embedding', 'image']))
+            module_name = getattr(type(obj), "__module__", "")
+            return "openai" in module_name and any(
+                keyword in type_name.lower()
+                for keyword in [
+                    "completion",
+                    "response",
+                    "message",
+                    "embedding",
+                    "image",
+                ]
+            )
         except:
             return False
 
@@ -459,10 +510,11 @@ class SpanContext:
         """Check if object is an Anthropic response"""
         try:
             type_name = type(obj).__name__
-            module_name = getattr(type(obj), '__module__', '')
-            return ('anthropic' in module_name and
-                    any(keyword in type_name.lower() for keyword in
-                        ['message', 'completion', 'response']))
+            module_name = getattr(type(obj), "__module__", "")
+            return "anthropic" in module_name and any(
+                keyword in type_name.lower()
+                for keyword in ["message", "completion", "response"]
+            )
         except:
             return False
 
@@ -561,7 +613,11 @@ def _wrap_sync_function(func: Callable, config: ObserveConfig) -> Callable:
         telemetry_enabled = True  # Default to enabled for development/testing
         try:
             client = get_client()
-            if client and hasattr(client, 'config') and hasattr(client.config, 'telemetry_enabled'):
+            if (
+                client
+                and hasattr(client, "config")
+                and hasattr(client.config, "telemetry_enabled")
+            ):
                 telemetry_enabled = client.config.telemetry_enabled
         except:
             # If client is not available, still enable observability for development/testing
@@ -594,7 +650,11 @@ def _wrap_async_function(func: Callable, config: ObserveConfig) -> Callable:
         telemetry_enabled = True  # Default to enabled for development/testing
         try:
             client = get_client()
-            if client and hasattr(client, 'config') and hasattr(client.config, 'telemetry_enabled'):
+            if (
+                client
+                and hasattr(client, "config")
+                and hasattr(client.config, "telemetry_enabled")
+            ):
                 telemetry_enabled = client.config.telemetry_enabled
         except:
             # If client is not available, still enable observability for development/testing
@@ -623,7 +683,7 @@ def trace_workflow(
     name: str,
     session_id: Optional[str] = None,
     user_id: Optional[str] = None,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
 ):
     """
     Context manager for tracing complex workflows.
@@ -674,71 +734,61 @@ def trace_workflow(
     finally:
         if span:
             duration = time.time() - start_time
-            add_span_attributes(span, {
-                BrokleOtelSpanAttributes.REQUEST_DURATION: duration,
-                BrokleOtelSpanAttributes.RESPONSE_END_TIME: time.time()
-            })
+            add_span_attributes(
+                span,
+                {
+                    BrokleOtelSpanAttributes.REQUEST_DURATION: duration,
+                    BrokleOtelSpanAttributes.RESPONSE_END_TIME: time.time(),
+                },
+            )
             span.end()
 
             # Submit span telemetry through background processor
             from .observability.spans import record_span
+
             record_span(span)
 
 
 # Convenience functions for common use cases
 def observe_llm(
-    name: Optional[str] = None,
-    model: Optional[str] = None,
-    **kwargs
+    name: Optional[str] = None, model: Optional[str] = None, **kwargs
 ) -> Callable:
     """
     Specialized decorator for LLM function calls.
 
     Adds LLM-specific metadata and attributes.
     """
-    metadata = kwargs.pop('metadata', {})
+    metadata = kwargs.pop("metadata", {})
     if model:
-        metadata['model'] = model
+        metadata["model"] = model
 
-    tags = kwargs.pop('tags', [])
-    tags.append('llm')
+    tags = kwargs.pop("tags", [])
+    tags.append("llm")
 
-    return observe(
-        name=name or "llm-call",
-        tags=tags,
-        metadata=metadata,
-        **kwargs
-    )
+    return observe(name=name or "llm-call", tags=tags, metadata=metadata, **kwargs)
 
 
 def observe_retrieval(
-    name: Optional[str] = None,
-    index_name: Optional[str] = None,
-    **kwargs
+    name: Optional[str] = None, index_name: Optional[str] = None, **kwargs
 ) -> Callable:
     """
     Specialized decorator for retrieval/search operations.
     """
-    metadata = kwargs.pop('metadata', {})
+    metadata = kwargs.pop("metadata", {})
     if index_name:
-        metadata['index_name'] = index_name
+        metadata["index_name"] = index_name
 
-    tags = kwargs.pop('tags', [])
-    tags.append('retrieval')
+    tags = kwargs.pop("tags", [])
+    tags.append("retrieval")
 
-    return observe(
-        name=name or "retrieval",
-        tags=tags,
-        metadata=metadata,
-        **kwargs
-    )
+    return observe(name=name or "retrieval", tags=tags, metadata=metadata, **kwargs)
 
 
 # Export public API
 __all__ = [
-    'observe',
-    'trace_workflow',
-    'observe_llm',
-    'observe_retrieval',
-    'ObserveConfig',
+    "observe",
+    "trace_workflow",
+    "observe_llm",
+    "observe_retrieval",
+    "ObserveConfig",
 ]

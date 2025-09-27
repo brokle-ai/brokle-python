@@ -82,7 +82,9 @@ class BrokleOtelSpanAttributes:
 
     # Token usage (aliases for compatibility)
     INPUT_TOKENS = "llm.usage.prompt_tokens"  # Alias for LLM_USAGE_PROMPT_TOKENS
-    OUTPUT_TOKENS = "llm.usage.completion_tokens"  # Alias for LLM_USAGE_COMPLETION_TOKENS
+    OUTPUT_TOKENS = (
+        "llm.usage.completion_tokens"  # Alias for LLM_USAGE_COMPLETION_TOKENS
+    )
     TOTAL_TOKENS = "llm.usage.total_tokens"  # Alias for LLM_USAGE_TOTAL_TOKENS
 
     # Cost (alias for compatibility)
@@ -174,9 +176,9 @@ class BrokleOtelSpanAttributes:
         """
         attributes = {}
         for name in dir(cls):
-            if not name.startswith('_') and not callable(getattr(cls, name)):
+            if not name.startswith("_") and not callable(getattr(cls, name)):
                 value = getattr(cls, name)
-                if isinstance(value, str) and not name.startswith('get_'):
+                if isinstance(value, str) and not name.startswith("get_"):
                     attributes[name] = value
         return attributes
 
@@ -191,4 +193,4 @@ class BrokleOtelSpanAttributes:
         Returns:
             True if it's a Brokle attribute
         """
-        return attr_name.startswith('brokle.') or attr_name.startswith('llm.')
+        return attr_name.startswith("brokle.") or attr_name.startswith("llm.")

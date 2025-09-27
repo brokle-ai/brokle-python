@@ -6,15 +6,15 @@ Centralizes auth, headers, and request preparation logic.
 """
 
 import time
-from typing import Dict, Any, Optional, Union
+from typing import Any, Dict, Optional, Union
 from urllib.parse import urljoin
 
 import httpx
 from pydantic import BaseModel
 
-from ..config import Config
-from ..exceptions import AuthenticationError, NetworkError, APIError
 from .._version import __version__
+from ..config import Config
+from ..exceptions import APIError, AuthenticationError, NetworkError
 
 
 class HTTPBase:
@@ -35,7 +35,7 @@ class HTTPBase:
         environment: Optional[str] = None,
         timeout: Optional[float] = None,
         config: Optional[Config] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize HTTP base with configuration.
@@ -51,7 +51,13 @@ class HTTPBase:
         # If config object provided, use it directly
         if config is not None:
             self.config = config
-        elif api_key is None and host is None and environment is None and timeout is None and not kwargs:
+        elif (
+            api_key is None
+            and host is None
+            and environment is None
+            and timeout is None
+            and not kwargs
+        ):
             # If no parameters provided, use environment variables
             self.config = Config.from_env()
         else:
@@ -62,12 +68,14 @@ class HTTPBase:
                 host=host or from_env.host,
                 environment=environment or from_env.environment,
                 timeout=timeout or from_env.timeout,
-                **kwargs
+                **kwargs,
             )
 
         # Validate required fields
         if not self.config.api_key:
-            raise AuthenticationError("API key is required. Set BROKLE_API_KEY or pass api_key parameter.")
+            raise AuthenticationError(
+                "API key is required. Set BROKLE_API_KEY or pass api_key parameter."
+            )
 
         # Build default headers
         self.default_headers = self._build_headers()
@@ -97,7 +105,7 @@ class HTTPBase:
         Returns:
             Full URL
         """
-        return urljoin(self.config.host.rstrip('/') + '/', endpoint.lstrip('/'))
+        return urljoin(self.config.host.rstrip("/") + "/", endpoint.lstrip("/"))
 
     def _prepare_request_kwargs(self, **kwargs) -> Dict[str, Any]:
         """
@@ -113,16 +121,16 @@ class HTTPBase:
         headers = self.default_headers.copy()
 
         # Merge with provided headers
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
-        kwargs['headers'] = headers
+        if "headers" in kwargs:
+            headers.update(kwargs["headers"])
+        kwargs["headers"] = headers
 
         # Set timeout if not provided
-        if 'timeout' not in kwargs:
-            kwargs['timeout'] = self.config.timeout
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = self.config.timeout
 
         # Add timestamp for debugging
-        kwargs.setdefault('headers', {})['X-Request-Timestamp'] = str(int(time.time()))
+        kwargs.setdefault("headers", {})["X-Request-Timestamp"] = str(int(time.time()))
 
         return kwargs
 
@@ -144,7 +152,7 @@ class HTTPBase:
         elif response.status_code >= 400:
             try:
                 error_data = response.json()
-                error_msg = error_data.get('error', {}).get('message', response.text)
+                error_msg = error_data.get("error", {}).get("message", response.text)
             except Exception:
                 error_msg = response.text
 
@@ -181,6 +189,7 @@ class BrokleResponse(BaseModel):
 
     class BrokleMetadata(BaseModel):
         """Brokle-specific response metadata."""
+
         provider: str
         request_id: str
         latency_ms: int

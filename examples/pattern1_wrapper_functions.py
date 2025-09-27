@@ -5,13 +5,15 @@ This example demonstrates Brokle's Pattern 1 - Wrapper Functions for AI provider
 Explicit wrapper functions for enhanced observability.
 """
 
-import os
 import asyncio
+import os
+
+from anthropic import Anthropic, AsyncAnthropic
 
 # ✨ PATTERN 1: Wrapper Functions - explicit wrapping approach
-from openai import OpenAI, AsyncOpenAI
-from anthropic import Anthropic, AsyncAnthropic
-from brokle import wrap_openai, wrap_anthropic
+from openai import AsyncOpenAI, OpenAI
+
+from brokle import wrap_anthropic, wrap_openai
 
 # Set up environment variables for Brokle
 os.environ["BROKLE_API_KEY"] = "bk_your_api_key_here"
@@ -45,7 +47,7 @@ def basic_openai_wrapper_example():
         capture_content=True,
         capture_metadata=True,
         tags=["example", "openai"],
-        session_id="demo_session_123"
+        session_id="demo_session_123",
     )
 
     # Use wrapped client exactly like normal OpenAI client
@@ -53,10 +55,10 @@ def basic_openai_wrapper_example():
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "What is machine learning in one sentence?"}
+            {"role": "user", "content": "What is machine learning in one sentence?"},
         ],
         max_tokens=100,
-        temperature=0.7
+        temperature=0.7,
     )
 
     print(f"Response: {response.choices[0].message.content}")
@@ -78,7 +80,7 @@ def basic_anthropic_wrapper_example():
         capture_content=True,
         capture_metadata=True,
         tags=["example", "anthropic"],
-        user_id="demo_user_456"
+        user_id="demo_user_456",
     )
 
     # Use wrapped client exactly like normal Anthropic client
@@ -87,7 +89,7 @@ def basic_anthropic_wrapper_example():
         max_tokens=100,
         messages=[
             {"role": "user", "content": "Explain quantum computing in simple terms."}
-        ]
+        ],
     )
 
     print(f"Response: {response.content[0].text}")
@@ -117,17 +119,15 @@ def advanced_configuration_example():
         custom_attributes={
             "application": "demo_app",
             "version": "1.0.0",
-            "environment": "staging"
-        }
+            "environment": "staging",
+        },
     )
 
     response = wrapped_client.chat.completions.create(
         model="gpt-4",
-        messages=[
-            {"role": "user", "content": "Write a haiku about programming."}
-        ],
+        messages=[{"role": "user", "content": "Write a haiku about programming."}],
         max_tokens=50,
-        temperature=0.8
+        temperature=0.8,
     )
 
     print(f"Haiku: {response.choices[0].message.content}")
@@ -148,7 +148,7 @@ async def async_wrapper_example():
         async_openai_client,
         capture_content=True,
         tags=["async", "streaming"],
-        session_id="async_session_999"
+        session_id="async_session_999",
     )
 
     # Async OpenAI call with wrapped client
@@ -157,7 +157,7 @@ async def async_wrapper_example():
         messages=[
             {"role": "user", "content": "Explain async programming in Python briefly."}
         ],
-        max_tokens=80
+        max_tokens=80,
     )
 
     print(f"Response: {response.choices[0].message.content}")
@@ -177,7 +177,7 @@ async def streaming_wrapper_example():
         async_openai_client,
         capture_content=False,  # Don't capture content for streaming
         capture_metadata=True,
-        tags=["streaming", "realtime"]
+        tags=["streaming", "realtime"],
     )
 
     # Streaming call with wrapped client
@@ -187,7 +187,7 @@ async def streaming_wrapper_example():
             {"role": "user", "content": "Count from 1 to 5, one number per message."}
         ],
         stream=True,
-        max_tokens=50
+        max_tokens=50,
     )
 
     print("Streaming response: ", end="")
@@ -206,15 +206,13 @@ def multiple_providers_example():
 
     # Wrap different providers
     openai_client = wrap_openai(
-        OpenAI(),
-        tags=["multi-provider", "openai"],
-        session_id="multi_session_111"
+        OpenAI(), tags=["multi-provider", "openai"], session_id="multi_session_111"
     )
 
     anthropic_client = wrap_anthropic(
         Anthropic(),
         tags=["multi-provider", "anthropic"],
-        session_id="multi_session_111"  # Same session for comparison
+        session_id="multi_session_111",  # Same session for comparison
     )
 
     # Compare responses from different providers
@@ -224,14 +222,14 @@ def multiple_providers_example():
     openai_response = openai_client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": question}],
-        max_tokens=50
+        max_tokens=50,
     )
 
     # Anthropic response
     anthropic_response = anthropic_client.messages.create(
         model="claude-3-haiku-20240307",
         max_tokens=50,
-        messages=[{"role": "user", "content": question}]
+        messages=[{"role": "user", "content": question}],
     )
 
     print(f"Question: {question}")
@@ -247,17 +245,13 @@ def error_handling_wrapper_example():
     print("-" * 40)
 
     wrapped_client = wrap_openai(
-        OpenAI(),
-        capture_content=True,
-        capture_metadata=True,
-        tags=["error-testing"]
+        OpenAI(), capture_content=True, capture_metadata=True, tags=["error-testing"]
     )
 
     try:
         # This will fail (invalid model name)
         response = wrapped_client.chat.completions.create(
-            model="invalid-model-name",
-            messages=[{"role": "user", "content": "Test"}]
+            model="invalid-model-name", messages=[{"role": "user", "content": "Test"}]
         )
     except Exception as e:
         print(f"Expected error: {type(e).__name__}")

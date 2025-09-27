@@ -8,7 +8,7 @@ enhanced @observe decorator for comprehensive LLM observability.
 import asyncio
 import time
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 # Import Brokle SDK
 import brokle
@@ -36,7 +36,7 @@ def process_data(data: List[Dict[str, Any]]) -> Dict[str, Any]:
     return {
         "processed_count": processed_count,
         "total_value": total_value,
-        "average": total_value / processed_count if processed_count > 0 else 0
+        "average": total_value / processed_count if processed_count > 0 else 0,
     }
 
 
@@ -47,7 +47,7 @@ def process_data(data: List[Dict[str, Any]]) -> Dict[str, Any]:
     model="gpt-4",
     provider="openai",
     capture_timing=True,
-    level="INFO"
+    level="INFO",
 )
 async def generate_ai_text(prompt: str, max_tokens: int = 100) -> str:
     """Generate text using AI with comprehensive observability."""
@@ -102,12 +102,14 @@ async def preprocess_query(query: str) -> Dict[str, Any]:
         "original_query": query,
         "processed_query": query.strip().lower(),
         "word_count": len(query.split()),
-        "preprocessing_timestamp": datetime.now(timezone.utc).isoformat()
+        "preprocessing_timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
 @observe_enhanced(name="response_postprocessing", as_type="span")
-async def postprocess_response(response: str, context: Dict[str, Any]) -> Dict[str, Any]:
+async def postprocess_response(
+    response: str, context: Dict[str, Any]
+) -> Dict[str, Any]:
     """Post-process AI response."""
     # Simulate post-processing
     await asyncio.sleep(0.1)
@@ -117,7 +119,7 @@ async def postprocess_response(response: str, context: Dict[str, Any]) -> Dict[s
         "processed_response": response.strip(),
         "context": context,
         "response_length": len(response),
-        "postprocessing_timestamp": datetime.now(timezone.utc).isoformat()
+        "postprocessing_timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -130,7 +132,7 @@ async def direct_observability_example():
         name="manual_trace_example",
         user_id="user123",
         session_id="session456",
-        metadata={"example": "direct_client_usage"}
+        metadata={"example": "direct_client_usage"},
     )
 
     print(f"Created trace: {trace.id}")
@@ -143,7 +145,7 @@ async def direct_observability_example():
         model="gpt-4",
         provider="openai",
         input_data={"prompt": "What is the capital of France?"},
-        prompt_tokens=10
+        prompt_tokens=10,
     )
 
     print(f"Created observation: {observation.id}")
@@ -157,7 +159,7 @@ async def direct_observability_example():
         output_data={"response": "The capital of France is Paris."},
         completion_tokens=8,
         total_tokens=18,
-        total_cost=0.0001
+        total_cost=0.0001,
     )
 
     print(f"Completed observation: {completed.id}")
@@ -175,7 +177,7 @@ async def direct_observability_example():
         data_type="NUMERIC",
         source="AUTO",
         evaluator_name="example_evaluator",
-        comment="High relevance score for geography question"
+        comment="High relevance score for geography question",
     )
 
     print(f"Created quality score: {quality_score.id}")
@@ -190,7 +192,7 @@ async def batch_operations_example():
         {
             "name": f"batch_trace_{i}",
             "external_trace_id": f"ext_trace_{i}",
-            "metadata": {"batch_index": i}
+            "metadata": {"batch_index": i},
         }
         for i in range(5)
     ]
@@ -207,12 +209,14 @@ async def batch_operations_example():
             "type": "llm",
             "start_time": datetime.now(timezone.utc).isoformat(),
             "model": "gpt-3.5-turbo",
-            "provider": "openai"
+            "provider": "openai",
         }
         for i in range(10)
     ]
 
-    observations = await client.observability.create_observations_batch(observation_data)
+    observations = await client.observability.create_observations_batch(
+        observation_data
+    )
     print(f"Created {len(observations)} observations in batch")
 
 
@@ -222,23 +226,19 @@ async def analytics_example():
 
     # List recent traces
     traces = await client.observability.list_traces(
-        limit=10,
-        sort_by="created_at",
-        sort_order="desc"
+        limit=10, sort_by="created_at", sort_order="desc"
     )
-    print(f"Found {traces.total} total traces, showing {len(traces.traces or [])} recent ones")
+    print(
+        f"Found {traces.total} total traces, showing {len(traces.traces or [])} recent ones"
+    )
 
     # List observations for a specific model
-    observations = await client.observability.list_observations(
-        model="gpt-4",
-        limit=5
-    )
+    observations = await client.observability.list_observations(model="gpt-4", limit=5)
     print(f"Found {observations.total} observations for GPT-4")
 
     # List quality scores
     quality_scores = await client.observability.list_quality_scores(
-        score_name="relevance",
-        limit=5
+        score_name="relevance", limit=5
     )
     print(f"Found {quality_scores.total} relevance scores")
 
@@ -252,7 +252,7 @@ async def main():
     sample_data = [
         {"value": 10, "category": "A"},
         {"value": 20, "category": "B"},
-        {"value": 15, "category": "A"}
+        {"value": 15, "category": "A"},
     ]
     result = process_data(sample_data)
     print(f"Processing result: {result}\n")

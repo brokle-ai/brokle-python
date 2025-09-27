@@ -5,28 +5,29 @@ These tests ensure that our mixins work correctly with Pydantic validation,
 serialization, and multiple inheritance patterns.
 """
 
-import pytest
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Any, Dict
+
+import pytest
 
 from brokle.types.responses.base import (
-    TimestampMixin,
-    MetadataMixin,
-    TokenUsageMixin,
-    CostTrackingMixin,
-    PaginationMixin,
-    ProviderMixin,
-    RequestTrackingMixin,
-    OrganizationContextMixin,
-    StatusMixin,
-    BrokleResponseBase,
-    TimestampedResponse,
-    ProviderResponse,
-    PaginatedResponse,
-    TrackedResponse,
-    FullContextResponse,
     BaseResponse,
     BrokleMetadata,
+    BrokleResponseBase,
+    CostTrackingMixin,
+    FullContextResponse,
+    MetadataMixin,
+    OrganizationContextMixin,
+    PaginatedResponse,
+    PaginationMixin,
+    ProviderMixin,
+    ProviderResponse,
+    RequestTrackingMixin,
+    StatusMixin,
+    TimestampedResponse,
+    TimestampMixin,
+    TokenUsageMixin,
+    TrackedResponse,
 )
 
 
@@ -86,10 +87,7 @@ class TestIndividualMixins:
 
         # Test with token values
         model = TestModel(
-            name="test",
-            prompt_tokens=100,
-            completion_tokens=50,
-            total_tokens=150
+            name="test", prompt_tokens=100, completion_tokens=50, total_tokens=150
         )
 
         assert model.prompt_tokens == 100
@@ -110,10 +108,7 @@ class TestIndividualMixins:
 
         # Test with cost values
         model = TestModel(
-            name="test",
-            input_cost=0.01,
-            output_cost=0.02,
-            total_cost_usd=0.03
+            name="test", input_cost=0.01, output_cost=0.02, total_cost_usd=0.03
         )
 
         assert model.input_cost == 0.01
@@ -126,12 +121,7 @@ class TestIndividualMixins:
         class TestModel(PaginationMixin):
             name: str
 
-        model = TestModel(
-            name="test",
-            total_count=100,
-            page=0,
-            page_size=20
-        )
+        model = TestModel(name="test", total_count=100, page=0, page_size=20)
 
         assert model.total_count == 100
         assert model.page == 0
@@ -165,7 +155,7 @@ class TestMultipleInheritance:
             TimestampMixin,
             ProviderMixin,
             TokenUsageMixin,
-            CostTrackingMixin
+            CostTrackingMixin,
         ):
             name: str
 
@@ -179,7 +169,7 @@ class TestMultipleInheritance:
             completion_tokens=50,
             total_tokens=150,
             input_cost=0.01,
-            output_cost=0.02
+            output_cost=0.02,
         )
 
         # Test all fields are accessible
@@ -221,7 +211,7 @@ class TestPrebuiltResponseClasses:
             provider="openai",
             model="gpt-4",
             prompt_tokens=10,
-            total_cost_usd=0.001
+            total_cost_usd=0.001,
         )
 
         assert response.result == "success"
@@ -236,12 +226,7 @@ class TestPrebuiltResponseClasses:
         class TestResponse(PaginatedResponse):
             items: list
 
-        response = TestResponse(
-            items=[1, 2, 3],
-            total_count=100,
-            page=0,
-            page_size=3
-        )
+        response = TestResponse(items=[1, 2, 3], total_count=100, page=0, page_size=3)
 
         assert response.items == [1, 2, 3]
         assert response.total_count == 100
@@ -262,7 +247,7 @@ class TestPrebuiltResponseClasses:
             organization_id="org_789",
             environment="production",
             created_at=now,
-            metadata={"source": "api"}
+            metadata={"source": "api"},
         )
 
         assert response.data == "test"
@@ -284,11 +269,7 @@ class TestSerialization:
             name: str
 
         now = datetime.now(timezone.utc)
-        model = TestModel(
-            name="test",
-            created_at=now,
-            metadata={"key": "value"}
-        )
+        model = TestModel(name="test", created_at=now, metadata={"key": "value"})
 
         # Test dict serialization
         data = model.model_dump()
@@ -391,7 +372,7 @@ class TestIndustryStandardBaseResponse:
             cached=True,
             evaluation_scores={"relevance": 0.9, "accuracy": 0.85},
             created_at=now,
-            custom_tags={"env": "production"}
+            custom_tags={"env": "production"},
         )
 
         # Clean BaseResponse with only brokle metadata field
@@ -455,44 +436,36 @@ class TestIndustryStandardBaseResponse:
         metadata = BrokleMetadata(
             # Request tracking
             request_id="req_123",
-
             # Provider and routing info
             provider="anthropic",
             model_used="claude-3-sonnet",
             routing_strategy="quality_optimized",
             routing_reason="High quality required",
             routing_decision={"score": 0.95, "alternatives": ["openai"]},
-
             # Performance metrics
             latency_ms=200.5,
-
             # Complete cost tracking
             cost_usd=0.005,
             cost_per_token=0.0001,
             input_cost_usd=0.003,
             output_cost_usd=0.002,
-
             # Token usage
             input_tokens=150,
             output_tokens=75,
             total_tokens=225,
-
             # Caching info
             cache_hit=True,
             cache_similarity_score=0.95,
             cached=True,
-
             # Quality assessment
             quality_score=0.92,
             evaluation_scores={"relevance": 0.95, "accuracy": 0.89},
-
             # Platform insights
             optimization_applied=["semantic_cache", "cost_optimization"],
             cost_savings_usd=0.003,
-
             # Metadata
             created_at=datetime.now(timezone.utc),
-            custom_tags={"project": "test", "env": "staging"}
+            custom_tags={"project": "test", "env": "staging"},
         )
 
         # Verify all comprehensive fields are accessible
@@ -537,7 +510,7 @@ class TestBackwardCompatibility:
             output_tokens=50,
             total_tokens=150,
             latency_ms=200.5,
-            routing_reason="cost_optimized"
+            routing_reason="cost_optimized",
         )
 
         response = BaseResponse(brokle=metadata)
@@ -593,7 +566,7 @@ class TestBackwardCompatibility:
             provider="anthropic",
             cost_usd=0.005,
             cache_hit=False,
-            quality_score=0.88
+            quality_score=0.88,
         )
 
         response = BaseResponse(brokle=metadata)

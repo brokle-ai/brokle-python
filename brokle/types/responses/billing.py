@@ -15,20 +15,21 @@ Models follow industry standard patterns with clean architecture using mixins
 for modular design and response.brokle.* namespace separation.
 """
 
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 # Import our mixins and base classes
 from .base import (
     BrokleResponseBase,
-    TimestampMixin,
-    MetadataMixin,
-    RequestTrackingMixin,
-    OrganizationContextMixin,
-    TokenUsageMixin,
     CostTrackingMixin,
+    MetadataMixin,
+    OrganizationContextMixin,
     ProviderMixin,
+    RequestTrackingMixin,
+    TimestampMixin,
+    TokenUsageMixin,
 )
 
 
@@ -76,9 +77,13 @@ class CostTrackingResponse(BaseModel):
     request_id: str = Field(description="Request ID")
     tracked: bool = Field(description="Successfully tracked")
     calculated_cost: float = Field(description="Calculated cost")
-    actual_cost: Optional[float] = Field(default=None, description="Actual provider cost")
+    actual_cost: Optional[float] = Field(
+        default=None, description="Actual provider cost"
+    )
     variance: Optional[float] = Field(default=None, description="Cost variance")
-    organization_total: Optional[float] = Field(default=None, description="Organization total cost")
+    organization_total: Optional[float] = Field(
+        default=None, description="Organization total cost"
+    )
 
 
 class BudgetResponse(BaseModel):
@@ -114,7 +119,9 @@ class CostComparisonResponse(BaseModel):
     costs: Dict[str, float] = Field(description="Cost per provider")
     best_option: str = Field(description="Most cost-effective provider")
     savings_potential: float = Field(description="Potential savings in USD")
-    comparison_details: Dict[str, Dict[str, Any]] = Field(description="Detailed comparison")
+    comparison_details: Dict[str, Dict[str, Any]] = Field(
+        description="Detailed comparison"
+    )
 
 
 class CostTrendResponse(BaseModel):
@@ -147,7 +154,9 @@ class UsageRecordingResponse(BaseModel):
     total_requests: int = Field(description="Total requests count")
     total_tokens: int = Field(description="Total tokens used")
     total_cost: float = Field(description="Total cost")
-    current_period_usage: Dict[str, Any] = Field(description="Current period usage summary")
+    current_period_usage: Dict[str, Any] = Field(
+        description="Current period usage summary"
+    )
 
 
 class QuotaCheckResponse(BaseModel):
@@ -164,7 +173,9 @@ class QuotaCheckResponse(BaseModel):
     quota_limit: int = Field(description="Quota limit")
     remaining: int = Field(description="Remaining quota")
     reset_date: Optional[datetime] = Field(default=None, description="Quota reset date")
-    warning_threshold: Optional[float] = Field(default=None, description="Warning threshold")
+    warning_threshold: Optional[float] = Field(
+        default=None, description="Warning threshold"
+    )
     is_warning: bool = Field(description="Warning threshold reached")
 
 
@@ -180,27 +191,25 @@ class BillingMetricsResponse(BaseModel):
     total_cost: float = Field(description="Total cost")
     total_requests: int = Field(description="Total requests")
     total_tokens: int = Field(description="Total tokens")
-    cost_breakdown: Dict[str, float] = Field(description="Cost breakdown by service/provider")
+    cost_breakdown: Dict[str, float] = Field(
+        description="Cost breakdown by service/provider"
+    )
     top_projects: List[Dict[str, Any]] = Field(description="Top projects by usage")
     usage_trends: List[Dict[str, Any]] = Field(description="Usage trend data")
-
-
 
 
 # Re-export for backward compatibility
 __all__ = [
     # Backward compatible models
-    'CostCalculationResponse',
-    'CostTrackingResponse',
-    'BudgetResponse',
-    'CostComparisonResponse',
-    'CostTrendResponse',
-    'UsageRecordingResponse',
-    'QuotaCheckResponse',
-    'BillingMetricsResponse',
-
-
+    "CostCalculationResponse",
+    "CostTrackingResponse",
+    "BudgetResponse",
+    "CostComparisonResponse",
+    "CostTrendResponse",
+    "UsageRecordingResponse",
+    "QuotaCheckResponse",
+    "BillingMetricsResponse",
     # Billing-specific mixins
-    'BudgetPeriodMixin',
-    'UsageStatsMixin',
+    "BudgetPeriodMixin",
+    "UsageStatsMixin",
 ]

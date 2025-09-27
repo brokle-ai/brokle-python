@@ -1,7 +1,9 @@
 """Integration tests for backward compatibility."""
 
 import warnings
+
 import pytest
+
 from brokle.types.responses import BaseResponse, BrokleMetadata
 
 
@@ -18,7 +20,7 @@ def test_end_to_end_compatibility():
         output_tokens=75,
         total_tokens=225,
         latency_ms=200.0,
-        routing_reason="balanced"
+        routing_reason="balanced",
     )
 
     response = BaseResponse(brokle=metadata)
@@ -61,7 +63,7 @@ def test_mixed_usage_patterns():
         cost_usd=0.003,
         cache_hit=True,
         quality_score=0.92,
-        latency_ms=150.5
+        latency_ms=150.5,
     )
 
     response = BaseResponse(brokle=metadata)
@@ -71,9 +73,13 @@ def test_mixed_usage_patterns():
 
         # Mix of old and new patterns
         old_provider = response.provider  # Should warn
-        new_cost = response.brokle.cost_usd if response.brokle else None  # Should not warn
+        new_cost = (
+            response.brokle.cost_usd if response.brokle else None
+        )  # Should not warn
         old_cache = response.cache_hit  # Should warn
-        new_quality = response.brokle.quality_score if response.brokle else None  # Should not warn
+        new_quality = (
+            response.brokle.quality_score if response.brokle else None
+        )  # Should not warn
 
         # Should have exactly 2 warnings (for the 2 legacy accesses)
         assert len(w) == 2
@@ -99,7 +105,7 @@ def test_type_consistency():
         output_tokens=50,
         total_tokens=150,
         latency_ms=200.5,
-        routing_reason="cost_optimized"
+        routing_reason="cost_optimized",
     )
 
     response = BaseResponse(brokle=metadata)
@@ -143,7 +149,11 @@ def test_none_safety():
 
 def test_inheritance_compatibility():
     """Test that inheritance works with compatibility properties."""
-    from brokle.types.responses.core import ChatCompletionResponse, ChatCompletionChoice, ChatCompletionMessage
+    from brokle.types.responses.core import (
+        ChatCompletionChoice,
+        ChatCompletionMessage,
+        ChatCompletionResponse,
+    )
 
     # Create a full chat completion response
     metadata = BrokleMetadata(
@@ -151,7 +161,7 @@ def test_inheritance_compatibility():
         provider="openai",
         cost_usd=0.004,
         cache_hit=False,
-        quality_score=0.89
+        quality_score=0.89,
     )
 
     message = ChatCompletionMessage(role="assistant", content="Hello!")
@@ -164,7 +174,7 @@ def test_inheritance_compatibility():
         model="gpt-4",
         choices=[choice],
         usage={"prompt_tokens": 10, "completion_tokens": 1, "total_tokens": 11},
-        brokle=metadata
+        brokle=metadata,
     )
 
     # Test that inherited compatibility properties work
@@ -172,7 +182,7 @@ def test_inheritance_compatibility():
         warnings.simplefilter("always")
 
         assert response.provider == "openai"  # Should work with warning
-        assert response.cost_usd == 0.004     # Should work with warning
+        assert response.cost_usd == 0.004  # Should work with warning
 
         assert len(w) == 2
         for warning in w:

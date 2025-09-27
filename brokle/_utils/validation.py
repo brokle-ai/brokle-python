@@ -27,10 +27,12 @@ def validate_environment(environment: str) -> bool:
     if len(environment) > 40:
         raise ValueError("Environment tag cannot exceed 40 characters")
 
-    if not re.match(r'^[a-z0-9_-]+$', environment):
-        raise ValueError("Environment tag must contain only lowercase letters, numbers, hyphens, and underscores")
+    if not re.match(r"^[a-z0-9_-]+$", environment):
+        raise ValueError(
+            "Environment tag must contain only lowercase letters, numbers, hyphens, and underscores"
+        )
 
-    if environment.startswith('brokle'):
+    if environment.startswith("brokle"):
         raise ValueError("Environment tag cannot start with 'brokle' prefix")
 
     return True
@@ -52,12 +54,10 @@ def validate_api_key(api_key: str) -> bool:
     if not api_key:
         raise ValueError("API key cannot be empty")
 
-    if not api_key.startswith('bk_'):
+    if not api_key.startswith("bk_"):
         raise ValueError("API key must start with 'bk_' prefix")
 
     if len(api_key) < 10:
         raise ValueError("API key is too short")
 
     return True
-
-

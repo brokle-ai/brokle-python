@@ -3,10 +3,11 @@ Smart retry logic with exponential backoff for network operations.
 """
 
 import asyncio
+import logging
 import random
 import time
-import logging
-from typing import Callable, Any, Optional, Type, Union, Tuple
+from typing import Any, Callable, Optional, Tuple, Type, Union
+
 import httpx
 
 from ..exceptions import RateLimitError
@@ -23,7 +24,7 @@ class RetryConfig:
         base_delay: float = 1.0,
         max_delay: float = 60.0,
         exponential_base: float = 2.0,
-        jitter: bool = True
+        jitter: bool = True,
     ):
         self.max_retries = max_retries
         self.base_delay = base_delay
@@ -77,8 +78,8 @@ def is_retryable_error(error: Exception) -> bool:
 
 def extract_retry_after(error: Exception) -> Optional[float]:
     """Extract Retry-After header value from error."""
-    if hasattr(error, 'response') and error.response:
-        retry_after = error.response.headers.get('Retry-After')
+    if hasattr(error, "response") and error.response:
+        retry_after = error.response.headers.get("Retry-After")
         if retry_after is not None:
             try:
                 return float(retry_after)
@@ -92,11 +93,13 @@ def retry_with_backoff(
     base_delay: float = 1.0,
     max_delay: float = 60.0,
     exponential_base: float = 2.0,
-    jitter: bool = True
+    jitter: bool = True,
 ):
     """Decorator for adding retry logic with exponential backoff."""
 
-    retry_config = RetryConfig(max_retries, base_delay, max_delay, exponential_base, jitter)
+    retry_config = RetryConfig(
+        max_retries, base_delay, max_delay, exponential_base, jitter
+    )
 
     def decorator(func: Callable) -> Callable:
         def wrapper(*args, **kwargs) -> Any:
@@ -134,6 +137,7 @@ def retry_with_backoff(
             raise last_error
 
         return wrapper
+
     return decorator
 
 
@@ -142,11 +146,13 @@ def async_retry_with_backoff(
     base_delay: float = 1.0,
     max_delay: float = 60.0,
     exponential_base: float = 2.0,
-    jitter: bool = True
+    jitter: bool = True,
 ):
     """Async decorator for adding retry logic with exponential backoff."""
 
-    retry_config = RetryConfig(max_retries, base_delay, max_delay, exponential_base, jitter)
+    retry_config = RetryConfig(
+        max_retries, base_delay, max_delay, exponential_base, jitter
+    )
 
     def decorator(func: Callable) -> Callable:
         async def wrapper(*args, **kwargs) -> Any:
@@ -184,13 +190,16 @@ def async_retry_with_backoff(
             raise last_error
 
         return wrapper
+
     return decorator
 
 
 class RetryableHTTPClient:
     """HTTP client with built-in retry logic."""
 
-    def __init__(self, client: httpx.Client, retry_config: Optional[RetryConfig] = None):
+    def __init__(
+        self, client: httpx.Client, retry_config: Optional[RetryConfig] = None
+    ):
         self.client = client
         self.retry_config = retry_config or RetryConfig()
 
@@ -202,7 +211,7 @@ class RetryableHTTPClient:
             base_delay=self.retry_config.base_delay,
             max_delay=self.retry_config.max_delay,
             exponential_base=self.retry_config.exponential_base,
-            jitter=self.retry_config.jitter
+            jitter=self.retry_config.jitter,
         )
         def _request():
             return self.client.request(method, url, **kwargs)
@@ -213,7 +222,9 @@ class RetryableHTTPClient:
 class AsyncRetryableHTTPClient:
     """Async HTTP client with built-in retry logic."""
 
-    def __init__(self, client: httpx.AsyncClient, retry_config: Optional[RetryConfig] = None):
+    def __init__(
+        self, client: httpx.AsyncClient, retry_config: Optional[RetryConfig] = None
+    ):
         self.client = client
         self.retry_config = retry_config or RetryConfig()
 
@@ -225,7 +236,7 @@ class AsyncRetryableHTTPClient:
             base_delay=self.retry_config.base_delay,
             max_delay=self.retry_config.max_delay,
             exponential_base=self.retry_config.exponential_base,
-            jitter=self.retry_config.jitter
+            jitter=self.retry_config.jitter,
         )
         async def _request():
             return await self.client.request(method, url, **kwargs)

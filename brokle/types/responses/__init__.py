@@ -8,227 +8,178 @@ industry standard patterns with clean namespace separation via response.brokle.*
 # Import and re-export core models using industry standard pattern
 
 # Import base classes and mixins
-from .base import (
-    BrokleResponseBase,
-    TimestampMixin,
-    MetadataMixin,
-    TokenUsageMixin,
-    CostTrackingMixin,
-    PaginationMixin,
-    ProviderMixin,
-    RequestTrackingMixin,
-    OrganizationContextMixin,
-    StatusMixin,
-    TimestampedResponse,
-    ProviderResponse,
-    PaginatedResponse,
-    TrackedResponse,
-    FullContextResponse,
-
-    # Industry standard response models
+from .base import (  # Industry standard response models
     BaseResponse,
     BrokleMetadata,
-)
-
-# Import core AI models
-from .core import (
-    # Core Response Models
-    ChatCompletionResponse,
-    EmbeddingResponse,
-    CompletionResponse,
-
-    # Supporting Models
-    ChatCompletionMessage,
-    ChatCompletionChoice,
-    EmbeddingData,
-    CompletionChoice,
-
-)
-
-# Import telemetry models
-from .telemetry import (
-    # Telemetry Response Models
-    TelemetryTraceResponse,
-    TelemetrySpanResponse,
-    TelemetryEventBatchResponse,
-
-
-    # New telemetry models
-    TelemetryPerformanceResponse,
-
-    # Telemetry mixins
-    TelemetryTimingMixin,
+    BrokleResponseBase,
+    CostTrackingMixin,
+    FullContextResponse,
+    MetadataMixin,
+    OrganizationContextMixin,
+    PaginatedResponse,
+    PaginationMixin,
+    ProviderMixin,
+    ProviderResponse,
+    RequestTrackingMixin,
+    StatusMixin,
+    TimestampedResponse,
+    TimestampMixin,
+    TokenUsageMixin,
+    TrackedResponse,
 )
 
 # Import billing models
-from .billing import (
-    # Billing & Cost Response Models
-    CostCalculationResponse,
-    CostTrackingResponse,
-    BudgetResponse,
-    CostComparisonResponse,
-    CostTrendResponse,
-    UsageRecordingResponse,
-    QuotaCheckResponse,
+from .billing import (  # Billing & Cost Response Models; Billing-specific mixins
     BillingMetricsResponse,
-
-
-    # Billing-specific mixins
     BudgetPeriodMixin,
+    BudgetResponse,
+    CostCalculationResponse,
+    CostComparisonResponse,
+    CostTrackingResponse,
+    CostTrendResponse,
+    QuotaCheckResponse,
+    UsageRecordingResponse,
     UsageStatsMixin,
 )
 
-# Import observability models
-from .observability import (
-    # Observability Response Models
-    ObservabilityTraceResponse,
-    ObservabilityObservationResponse,
-    ObservabilityQualityScoreResponse,
-    ObservabilityStatsResponse,
-    ObservabilityListResponse,
-    ObservabilityBatchResponse,
+# Import core AI models
+from .core import (  # Core Response Models; Supporting Models
+    ChatCompletionChoice,
+    ChatCompletionMessage,
+    ChatCompletionResponse,
+    CompletionChoice,
+    CompletionResponse,
+    EmbeddingData,
+    EmbeddingResponse,
+)
 
-    # Analytics & Evaluation Models
+# Import observability models
+from .observability import (  # Observability Response Models; Analytics & Evaluation Models; Supporting models; Observability mixins
+    AnalyticsMetric,
     AnalyticsResponse,
     EvaluationResponse,
-
-    # Supporting models
-    AnalyticsMetric,
     EvaluationScore,
-
-    # Observability mixins
-    ObservabilityTimingMixin,
-    QualityScoreMixin,
+    ObservabilityBatchResponse,
+    ObservabilityListResponse,
+    ObservabilityObservationResponse,
+    ObservabilityQualityScoreResponse,
     ObservabilityStatsCore,
+    ObservabilityStatsResponse,
+    ObservabilityTimingMixin,
+    ObservabilityTraceResponse,
+    QualityScoreMixin,
 )
 
 # Import remaining models
-from .remaining import (
-    # Error Handling
-    ErrorResponse,
+from .remaining import (  # Error Handling; Caching; Embeddings & Search; ML & Routing; Configuration; Usage & Billing; Notifications; Remaining mixins
     APIResponse,
-
-    # Caching
+    CacheMetricsMixin,
     CacheResponse,
     CacheStatsResponse,
-
-    # Embeddings & Search
-    EmbeddingGenerationResponse,
-    SemanticSearchResponse,
-
-    # ML & Routing
-    MLRoutingResponse,
-    MLModelInfoResponse,
-
-    # Configuration
     ConfigResponse,
+    EmbeddingGenerationResponse,
+    ErrorResponse,
     FeatureFlagResponse,
-
-    # Usage & Billing
-    SubscriptionLimitResponse,
-
-    # Notifications
+    MLModelInfoResponse,
+    MLRoutingResponse,
+    NotificationDeliveryMixin,
+    NotificationHistoryResponse,
     NotificationResponse,
     NotificationStatusResponse,
-    NotificationHistoryResponse,
-
-
-    # Remaining mixins
-    CacheMetricsMixin,
-    NotificationDeliveryMixin,
     SearchResultMixin,
+    SemanticSearchResponse,
+    SubscriptionLimitResponse,
 )
 
+# Import telemetry models
+from .telemetry import (  # Telemetry Response Models; New telemetry models; Telemetry mixins
+    TelemetryEventBatchResponse,
+    TelemetryPerformanceResponse,
+    TelemetrySpanResponse,
+    TelemetryTimingMixin,
+    TelemetryTraceResponse,
+)
 
 __all__ = [
     # Phase 1: Base classes and mixins
-    'BrokleResponseBase',
-    'TimestampMixin',
-    'MetadataMixin',
-    'TokenUsageMixin',
-    'CostTrackingMixin',
-    'PaginationMixin',
-    'ProviderMixin',
-    'RequestTrackingMixin',
-    'OrganizationContextMixin',
-    'StatusMixin',
-    'TimestampedResponse',
-    'ProviderResponse',
-    'PaginatedResponse',
-    'TrackedResponse',
-    'FullContextResponse',
-
+    "BrokleResponseBase",
+    "TimestampMixin",
+    "MetadataMixin",
+    "TokenUsageMixin",
+    "CostTrackingMixin",
+    "PaginationMixin",
+    "ProviderMixin",
+    "RequestTrackingMixin",
+    "OrganizationContextMixin",
+    "StatusMixin",
+    "TimestampedResponse",
+    "ProviderResponse",
+    "PaginatedResponse",
+    "TrackedResponse",
+    "FullContextResponse",
     # Phase 2: Core AI Response Models
-    'ChatCompletionResponse',
-    'EmbeddingResponse',
-    'CompletionResponse',
-    'ChatCompletionMessage',
-    'ChatCompletionChoice',
-    'EmbeddingData',
-    'CompletionChoice',
-
-
+    "ChatCompletionResponse",
+    "EmbeddingResponse",
+    "CompletionResponse",
+    "ChatCompletionMessage",
+    "ChatCompletionChoice",
+    "EmbeddingData",
+    "CompletionChoice",
     # Phase 3: Telemetry & Tracing Models
-    'TelemetryTraceResponse',
-    'TelemetrySpanResponse',
-    'TelemetryEventBatchResponse',
-
-    'TelemetryPerformanceResponse',
-
+    "TelemetryTraceResponse",
+    "TelemetrySpanResponse",
+    "TelemetryEventBatchResponse",
+    "TelemetryPerformanceResponse",
     # Telemetry mixins
-    'TelemetryTimingMixin',
-
+    "TelemetryTimingMixin",
     # Phase 4: Billing & Cost Models
-    'CostCalculationResponse',
-    'CostTrackingResponse',
-    'BudgetResponse',
-    'CostComparisonResponse',
-    'CostTrendResponse',
-    'UsageRecordingResponse',
-    'QuotaCheckResponse',
-    'BillingMetricsResponse',
-
-
+    "CostCalculationResponse",
+    "CostTrackingResponse",
+    "BudgetResponse",
+    "CostComparisonResponse",
+    "CostTrendResponse",
+    "UsageRecordingResponse",
+    "QuotaCheckResponse",
+    "BillingMetricsResponse",
     # Billing mixins
-    'BudgetPeriodMixin',
-    'UsageStatsMixin',
-
+    "BudgetPeriodMixin",
+    "UsageStatsMixin",
     # Phase 5: Observability & Analytics Models
-    'ObservabilityTraceResponse',
-    'ObservabilityObservationResponse',
-    'ObservabilityQualityScoreResponse',
-    'ObservabilityStatsResponse',
-    'ObservabilityListResponse',
-    'ObservabilityBatchResponse',
-    'AnalyticsResponse',
-    'EvaluationResponse',
-
+    "ObservabilityTraceResponse",
+    "ObservabilityObservationResponse",
+    "ObservabilityQualityScoreResponse",
+    "ObservabilityStatsResponse",
+    "ObservabilityListResponse",
+    "ObservabilityBatchResponse",
+    "AnalyticsResponse",
+    "EvaluationResponse",
     # Supporting models
-    'AnalyticsMetric',
-    'EvaluationScore',
-
-
+    "AnalyticsMetric",
+    "EvaluationScore",
     # Observability mixins
-    'ObservabilityTimingMixin',
-    'QualityScoreMixin',
-    'ObservabilityStatsCore',
-
+    "ObservabilityTimingMixin",
+    "QualityScoreMixin",
+    "ObservabilityStatsCore",
     # Phase 6: Remaining Models
-    'ErrorResponse', 'APIResponse',
-    'CacheResponse', 'CacheStatsResponse',
-    'EmbeddingGenerationResponse', 'SemanticSearchResponse',
-    'MLRoutingResponse', 'MLModelInfoResponse',
-    'ConfigResponse', 'FeatureFlagResponse',
-    'SubscriptionLimitResponse',
-    'NotificationResponse', 'NotificationStatusResponse', 'NotificationHistoryResponse',
-
-
+    "ErrorResponse",
+    "APIResponse",
+    "CacheResponse",
+    "CacheStatsResponse",
+    "EmbeddingGenerationResponse",
+    "SemanticSearchResponse",
+    "MLRoutingResponse",
+    "MLModelInfoResponse",
+    "ConfigResponse",
+    "FeatureFlagResponse",
+    "SubscriptionLimitResponse",
+    "NotificationResponse",
+    "NotificationStatusResponse",
+    "NotificationHistoryResponse",
     # Remaining mixins
-    'CacheMetricsMixin',
-    'NotificationDeliveryMixin',
-    'SearchResultMixin',
-
+    "CacheMetricsMixin",
+    "NotificationDeliveryMixin",
+    "SearchResultMixin",
     # Industry standard response models
-    'BaseResponse',
-    'BrokleMetadata',
+    "BaseResponse",
+    "BrokleMetadata",
 ]

@@ -5,6 +5,7 @@ Provides configuration access for Pattern 1/2 compatibility.
 """
 
 from typing import Optional
+
 from pydantic import BaseModel
 
 from ..config import Config as BrokleConfig
@@ -16,6 +17,7 @@ class ObservabilityConfig(BaseModel):
 
     Maintains compatibility with existing Pattern 1/2 code.
     """
+
     telemetry_enabled: bool = True
     debug: bool = False
     sample_rate: float = 1.0
@@ -58,7 +60,7 @@ def configure_observability(
     debug: bool = False,
     sample_rate: float = 1.0,
     batch_size: int = 100,
-    flush_interval: int = 10000
+    flush_interval: int = 10000,
 ) -> None:
     """
     Configure observability settings.
@@ -77,7 +79,7 @@ def configure_observability(
         debug=debug,
         sample_rate=sample_rate,
         batch_size=batch_size,
-        flush_interval=flush_interval
+        flush_interval=flush_interval,
     )
 
 

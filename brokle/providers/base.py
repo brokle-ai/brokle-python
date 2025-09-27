@@ -8,10 +8,10 @@ NOTE: This is for observability/telemetry only. Business logic (routing, caching
 evaluation) is handled by the backend.
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
 import logging
 import re
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -144,22 +144,25 @@ class BaseProvider(ABC):
         total_chars = 0
 
         # Handle different input formats
-        if 'messages' in kwargs:
-            messages = kwargs['messages']
+        if "messages" in kwargs:
+            messages = kwargs["messages"]
             if isinstance(messages, list):
                 for msg in messages:
                     if isinstance(msg, dict):
-                        content = msg.get('content', '')
+                        content = msg.get("content", "")
                         if isinstance(content, str):
                             total_chars += len(content)
                         elif isinstance(content, list):
                             # Handle multimodal content
                             for item in content:
-                                if isinstance(item, dict) and item.get('type') == 'text':
-                                    total_chars += len(item.get('text', ''))
+                                if (
+                                    isinstance(item, dict)
+                                    and item.get("type") == "text"
+                                ):
+                                    total_chars += len(item.get("text", ""))
 
-        elif 'prompt' in kwargs:
-            prompt = kwargs['prompt']
+        elif "prompt" in kwargs:
+            prompt = kwargs["prompt"]
             if isinstance(prompt, str):
                 total_chars += len(prompt)
             elif isinstance(prompt, list):
@@ -167,7 +170,6 @@ class BaseProvider(ABC):
 
         # Rough token estimation (4 characters ≈ 1 token)
         return max(1, total_chars // 4)
-
 
     def normalize_model_name(self, model: str) -> str:
         """
@@ -184,8 +186,8 @@ class BaseProvider(ABC):
         - 'claude-3-opus-20240229' → 'claude-3-opus'
         """
         # Remove version suffixes and normalize
-        normalized = re.sub(r'-\d{8}$', '', model)  # Remove date suffixes
-        normalized = re.sub(r'-\d+k$', '', normalized)  # Remove context length suffixes
+        normalized = re.sub(r"-\d{8}$", "", model)  # Remove date suffixes
+        normalized = re.sub(r"-\d+k$", "", normalized)  # Remove context length suffixes
         return normalized.lower()
 
     def handle_streaming_response(self, response_stream: Any) -> Dict[str, Any]:
@@ -202,7 +204,6 @@ class BaseProvider(ABC):
         Providers should override for streaming support.
         """
         return {}
-
 
     def get_error_mapping(self) -> Dict[str, str]:
         """
@@ -229,10 +230,10 @@ class BaseProvider(ABC):
             Dictionary with provider-specific instrumentation settings
         """
         return {
-            'provider': self.name,
-            'capture_content': self.config.get('capture_content', True),
-            'capture_metadata': self.config.get('capture_metadata', True),
-            'tags': self.config.get('tags', []),
-            'session_id': self.config.get('session_id'),
-            'user_id': self.config.get('user_id'),
+            "provider": self.name,
+            "capture_content": self.config.get("capture_content", True),
+            "capture_metadata": self.config.get("capture_metadata", True),
+            "tags": self.config.get("tags", []),
+            "session_id": self.config.get("session_id"),
+            "user_id": self.config.get("user_id"),
         }

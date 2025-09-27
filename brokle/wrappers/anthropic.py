@@ -6,12 +6,14 @@ Wraps existing Anthropic client instances with Brokle observability.
 """
 
 import logging
-from typing import Optional, TypeVar, cast, Union
 import warnings
+from typing import Optional, TypeVar, Union, cast
 
 try:
     import anthropic
-    from anthropic import Anthropic as _Anthropic, AsyncAnthropic as _AsyncAnthropic
+    from anthropic import Anthropic as _Anthropic
+    from anthropic import AsyncAnthropic as _AsyncAnthropic
+
     HAS_ANTHROPIC = True
 except ImportError:
     anthropic = None
@@ -19,16 +21,16 @@ except ImportError:
     _AsyncAnthropic = None
     HAS_ANTHROPIC = False
 
-from ..integrations.instrumentation import UniversalInstrumentation
-from ..providers import get_provider
-from ..exceptions import ProviderError, ValidationError
 from .._utils.validation import validate_environment
+from ..exceptions import ProviderError, ValidationError
+from ..integrations.instrumentation import UniversalInstrumentation
 from ..observability import get_client
+from ..providers import get_provider
 
 logger = logging.getLogger(__name__)
 
 # Type variables for maintaining client types
-AnthropicType = TypeVar('AnthropicType', bound=Union[_Anthropic, _AsyncAnthropic])
+AnthropicType = TypeVar("AnthropicType", bound=Union[_Anthropic, _AsyncAnthropic])
 
 
 def wrap_anthropic(
@@ -39,7 +41,7 @@ def wrap_anthropic(
     tags: Optional[list] = None,
     session_id: Optional[str] = None,
     user_id: Optional[str] = None,
-    **config
+    **config,
 ) -> AnthropicType:
     """
     Wrap Anthropic client with Brokle observability.
@@ -120,11 +122,11 @@ def wrap_anthropic(
             pass
 
     # Check if already wrapped
-    if hasattr(client, '_brokle_instrumented') and client._brokle_instrumented:
+    if hasattr(client, "_brokle_instrumented") and client._brokle_instrumented:
         warnings.warn(
             "Anthropic client is already wrapped with Brokle. "
             "Multiple wrapping may cause duplicate telemetry.",
-            UserWarning
+            UserWarning,
         )
         return client
 
@@ -136,13 +138,14 @@ def wrap_anthropic(
 
     # Validate wrapper configuration
     from .._utils.wrapper_validation import validate_wrapper_config
+
     validate_wrapper_config(
         capture_content=capture_content,
         capture_metadata=capture_metadata,
         tags=tags,
         session_id=session_id,
         user_id=user_id,
-        **config
+        **config,
     )
 
     # Check Brokle client availability (optional)
@@ -150,18 +153,20 @@ def wrap_anthropic(
     try:
         brokle_client = get_client()
         if not brokle_client:
-            logger.info("No Brokle client configured. Using default observability settings.")
+            logger.info(
+                "No Brokle client configured. Using default observability settings."
+            )
     except Exception as e:
         logger.debug(f"Brokle client not available: {e}")
 
     # Configure provider with wrapper settings
     provider_config = {
-        'capture_content': capture_content,
-        'capture_metadata': capture_metadata,
-        'tags': tags or [],
-        'session_id': session_id,
-        'user_id': user_id,
-        **config
+        "capture_content": capture_content,
+        "capture_metadata": capture_metadata,
+        "tags": tags or [],
+        "session_id": session_id,
+        "user_id": user_id,
+        **config,
     }
 
     # Create provider and instrumentation
@@ -173,10 +178,10 @@ def wrap_anthropic(
         wrapped_client = instrumentation.instrument_client(client)
 
         # Add wrapper metadata
-        setattr(wrapped_client, '_brokle_instrumented', True)
-        setattr(wrapped_client, '_brokle_provider', 'anthropic')
-        setattr(wrapped_client, '_brokle_config', provider_config)
-        setattr(wrapped_client, '_brokle_wrapper_version', '2.0.0')
+        setattr(wrapped_client, "_brokle_instrumented", True)
+        setattr(wrapped_client, "_brokle_provider", "anthropic")
+        setattr(wrapped_client, "_brokle_config", provider_config)
+        setattr(wrapped_client, "_brokle_wrapper_version", "2.0.0")
 
         logger.info(
             f"Anthropic client successfully wrapped with Brokle observability. "
@@ -188,8 +193,6 @@ def wrap_anthropic(
     except Exception as e:
         logger.error(f"Failed to wrap Anthropic client: {e}")
         raise ProviderError(f"Failed to instrument Anthropic client: {e}")
-
-
 
 
 # Export public API

@@ -13,14 +13,15 @@ from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Callable, Union
-from queue import Queue, PriorityQueue, Empty, Full
+from queue import Empty, Full, PriorityQueue, Queue
+from typing import Any, Callable, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
 
 class TaskPriority(Enum):
     """Task priority levels."""
+
     LOW = 0
     NORMAL = 1
     HIGH = 2
@@ -29,6 +30,7 @@ class TaskPriority(Enum):
 
 class TaskStatus(Enum):
     """Task status enumeration."""
+
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -40,6 +42,7 @@ class TaskStatus(Enum):
 @dataclass
 class TaskResult:
     """Task execution result."""
+
     task_id: str
     status: TaskStatus
     result: Any = None
@@ -56,6 +59,7 @@ class Task:
 
     Inspired by Optik's task structure but enhanced for AI workloads.
     """
+
     id: str
     task_type: str
     data: Dict[str, Any]
@@ -125,7 +129,9 @@ class Task:
         if self.attempts == 0:
             return self.retry_delay_seconds
 
-        delay = self.retry_delay_seconds * (self.retry_backoff_multiplier ** (self.attempts - 1))
+        delay = self.retry_delay_seconds * (
+            self.retry_backoff_multiplier ** (self.attempts - 1)
+        )
         return min(delay, self.max_retry_delay_seconds)
 
     def schedule_retry(self) -> None:
@@ -147,16 +153,20 @@ class Task:
             "retry_backoff_multiplier": self.retry_backoff_multiplier,
             "max_retry_delay_seconds": self.max_retry_delay_seconds,
             "created_at": self.created_at.isoformat(),
-            "scheduled_at": self.scheduled_at.isoformat() if self.scheduled_at else None,
+            "scheduled_at": (
+                self.scheduled_at.isoformat() if self.scheduled_at else None
+            ),
             "deadline": self.deadline.isoformat() if self.deadline else None,
             "attempts": self.attempts,
-            "last_attempt_at": self.last_attempt_at.isoformat() if self.last_attempt_at else None,
+            "last_attempt_at": (
+                self.last_attempt_at.isoformat() if self.last_attempt_at else None
+            ),
             "last_error": self.last_error,
             "metadata": self.metadata,
             "tags": self.tags,
             "user_id": self.user_id,
             "organization_id": self.organization_id,
-            "trace_id": self.trace_id
+            "trace_id": self.trace_id,
         }
 
 
@@ -173,7 +183,7 @@ class TaskQueue:
         max_size: int = 10000,
         enable_dead_letter_queue: bool = True,
         dead_letter_ttl_hours: int = 24,
-        enable_metrics: bool = True
+        enable_metrics: bool = True,
     ):
         self.name = name
         self.max_size = max_size
@@ -201,7 +211,7 @@ class TaskQueue:
             "total_processing_time_ms": 0.0,
             "queue_size": 0,
             "retry_queue_size": 0,
-            "dead_letter_queue_size": 0
+            "dead_letter_queue_size": 0,
         }
 
         # Configuration
@@ -220,7 +230,7 @@ class TaskQueue:
         delay_seconds: float = 0.0,
         deadline_seconds: Optional[float] = None,
         max_retries: int = 3,
-        **kwargs
+        **kwargs,
     ) -> str:
         """
         Enqueue a new task.
@@ -247,15 +257,19 @@ class TaskQueue:
             data=data,
             priority=priority,
             max_retries=max_retries,
-            **kwargs
+            **kwargs,
         )
 
         # Set scheduling
         if delay_seconds > 0:
-            task.scheduled_at = datetime.now(timezone.utc) + timedelta(seconds=delay_seconds)
+            task.scheduled_at = datetime.now(timezone.utc) + timedelta(
+                seconds=delay_seconds
+            )
 
         if deadline_seconds:
-            task.deadline = datetime.now(timezone.utc) + timedelta(seconds=deadline_seconds)
+            task.deadline = datetime.now(timezone.utc) + timedelta(
+                seconds=deadline_seconds
+            )
 
         # Enqueue task
         try:
@@ -350,12 +364,14 @@ class TaskQueue:
             status=TaskStatus.COMPLETED,
             result=result,
             attempts=task.attempts + 1,
-            completed_at=datetime.now(timezone.utc)
+            completed_at=datetime.now(timezone.utc),
         )
 
         # Calculate execution time
         if task.last_attempt_at:
-            execution_time = (datetime.now(timezone.utc) - task.last_attempt_at).total_seconds() * 1000
+            execution_time = (
+                datetime.now(timezone.utc) - task.last_attempt_at
+            ).total_seconds() * 1000
             task_result.execution_time_ms = execution_time
             self._metrics["total_processing_time_ms"] += execution_time
 
@@ -383,10 +399,14 @@ class TaskQueue:
                 self._metrics["tasks_retried"] += 1
                 self._metrics["retry_queue_size"] = self._retry_queue.qsize()
 
-                logger.info(f"Task {task_id} scheduled for retry {task.attempts}/{task.max_retries}")
+                logger.info(
+                    f"Task {task_id} scheduled for retry {task.attempts}/{task.max_retries}"
+                )
 
             except Full:
-                logger.error(f"Retry queue full, moving task {task_id} to dead letter queue")
+                logger.error(
+                    f"Retry queue full, moving task {task_id} to dead letter queue"
+                )
                 self._move_to_dead_letter(task, "Retry queue full")
         else:
             # Move to dead letter queue
@@ -403,7 +423,8 @@ class TaskQueue:
             "task": task.to_dict(),
             "reason": reason,
             "dead_lettered_at": datetime.now(timezone.utc).isoformat(),
-            "ttl": datetime.now(timezone.utc) + timedelta(hours=self.dead_letter_ttl_hours)
+            "ttl": datetime.now(timezone.utc)
+            + timedelta(hours=self.dead_letter_ttl_hours),
         }
 
         self._dead_letter_queue.append(dead_letter_entry)
@@ -420,7 +441,9 @@ class TaskQueue:
             return self._completed_tasks[task_id].status
         else:
             # Check queues
-            return TaskStatus.PENDING  # Simplified - would need queue scanning for exact status
+            return (
+                TaskStatus.PENDING
+            )  # Simplified - would need queue scanning for exact status
 
     def get_task_result(self, task_id: str) -> Optional[TaskResult]:
         """Get result of completed task."""
@@ -437,7 +460,8 @@ class TaskQueue:
         # Calculate averages
         if self._metrics["tasks_processed"] > 0:
             self._metrics["avg_processing_time_ms"] = (
-                self._metrics["total_processing_time_ms"] / self._metrics["tasks_processed"]
+                self._metrics["total_processing_time_ms"]
+                / self._metrics["tasks_processed"]
             )
 
         return self._metrics.copy()
@@ -466,10 +490,18 @@ class TaskQueue:
         original_size = len(self._dead_letter_queue)
 
         # Remove expired entries
-        self._dead_letter_queue = deque([
-            entry for entry in self._dead_letter_queue
-            if entry.get("ttl") and datetime.fromisoformat(entry["ttl"].replace("Z", "+00:00").replace("+00:00", "")) > now
-        ], maxlen=self._dead_letter_queue.maxlen)
+        self._dead_letter_queue = deque(
+            [
+                entry
+                for entry in self._dead_letter_queue
+                if entry.get("ttl")
+                and datetime.fromisoformat(
+                    entry["ttl"].replace("Z", "+00:00").replace("+00:00", "")
+                )
+                > now
+            ],
+            maxlen=self._dead_letter_queue.maxlen,
+        )
 
         cleaned = original_size - len(self._dead_letter_queue)
         self._metrics["dead_letter_queue_size"] = len(self._dead_letter_queue)
@@ -491,9 +523,11 @@ class TaskQueue:
         start_time = time.time()
 
         while time.time() - start_time < timeout:
-            if (self._priority_queue.empty() and
-                self._retry_queue.empty() and
-                not self._processing_tasks):
+            if (
+                self._priority_queue.empty()
+                and self._retry_queue.empty()
+                and not self._processing_tasks
+            ):
                 break
             time.sleep(0.1)
 
@@ -522,7 +556,7 @@ class TaskQueueManager:
         name: str,
         max_size: int = 10000,
         enable_dead_letter_queue: bool = True,
-        **kwargs
+        **kwargs,
     ) -> TaskQueue:
         """Create a new task queue."""
         if name in self._queues:
@@ -532,7 +566,7 @@ class TaskQueueManager:
             name=name,
             max_size=max_size,
             enable_dead_letter_queue=enable_dead_letter_queue,
-            **kwargs
+            **kwargs,
         )
 
         self._queues[name] = queue
@@ -554,22 +588,14 @@ class TaskQueueManager:
         return self._queues[queue_name]
 
     def enqueue_to_queue(
-        self,
-        queue_name: str,
-        task_type: str,
-        data: Dict[str, Any],
-        **kwargs
+        self, queue_name: str, task_type: str, data: Dict[str, Any], **kwargs
     ) -> str:
         """Enqueue task to specific queue."""
         queue = self.get_queue(queue_name)
         return queue.enqueue(task_type, data, **kwargs)
 
     def enqueue(
-        self,
-        task_type: str,
-        data: Dict[str, Any],
-        queue_name: str = None,
-        **kwargs
+        self, task_type: str, data: Dict[str, Any], queue_name: str = None, **kwargs
     ) -> str:
         """Enqueue task with automatic queue routing."""
         # Route to appropriate queue based on task type
@@ -594,10 +620,7 @@ class TaskQueueManager:
 
     def get_all_metrics(self) -> Dict[str, Dict[str, Any]]:
         """Get metrics for all queues."""
-        return {
-            name: queue.get_metrics()
-            for name, queue in self._queues.items()
-        }
+        return {name: queue.get_metrics() for name, queue in self._queues.items()}
 
     def cleanup_all_queues(self) -> None:
         """Run cleanup on all queues."""

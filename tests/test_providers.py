@@ -4,12 +4,15 @@ Test suite for provider implementations.
 Tests the provider-specific logic for OpenAI and Anthropic.
 """
 
-import pytest
 from unittest.mock import Mock
 
-from brokle.providers.openai import OpenAIProvider
+import pytest
+
+from brokle.observability.attributes import (
+    BrokleOtelSpanAttributes as BrokleInstrumentationAttributes,
+)
 from brokle.providers.anthropic import AnthropicProvider
-from brokle.observability.attributes import BrokleOtelSpanAttributes as BrokleInstrumentationAttributes
+from brokle.providers.openai import OpenAIProvider
 
 
 class TestOpenAIProvider:
@@ -29,35 +32,35 @@ class TestOpenAIProvider:
         assert len(methods) > 0
 
         # Check for key methods
-        method_paths = [method['path'] for method in methods]
-        assert 'chat.completions.create' in method_paths
-        assert 'embeddings.create' in method_paths
+        method_paths = [method["path"] for method in methods]
+        assert "chat.completions.create" in method_paths
+        assert "embeddings.create" in method_paths
 
         # Check method structure
         for method in methods:
-            assert 'path' in method
-            assert 'operation' in method
-            assert 'async' in method
-            assert 'stream_support' in method
-            assert 'cost_tracked' in method
+            assert "path" in method
+            assert "operation" in method
+            assert "async" in method
+            assert "stream_support" in method
+            assert "cost_tracked" in method
 
     def test_extract_request_attributes_chat(self):
         """Test request attribute extraction for chat completion."""
         provider = OpenAIProvider()
         kwargs = {
-            'model': 'gpt-4',
-            'messages': [
-                {'role': 'system', 'content': 'You are a helpful assistant.'},
-                {'role': 'user', 'content': 'Hello!'}
+            "model": "gpt-4",
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "Hello!"},
             ],
-            'max_tokens': 100,
-            'temperature': 0.7,
-            'stream': True
+            "max_tokens": 100,
+            "temperature": 0.7,
+            "stream": True,
         }
 
         attributes = provider.extract_request_attributes(kwargs)
 
-        assert attributes[BrokleInstrumentationAttributes.MODEL_NAME] == 'gpt-4'
+        assert attributes[BrokleInstrumentationAttributes.MODEL_NAME] == "gpt-4"
         assert attributes[BrokleInstrumentationAttributes.MESSAGE_COUNT] == 2
         assert attributes[BrokleInstrumentationAttributes.MAX_TOKENS] == 100
         assert attributes[BrokleInstrumentationAttributes.TEMPERATURE] == 0.7
@@ -100,16 +103,15 @@ class TestOpenAIProvider:
         assert provider.normalize_model_name("gpt-3.5-turbo-0125") == "gpt-3.5-turbo"
         assert provider.normalize_model_name("gpt-4") == "gpt-4"
 
-
     def test_error_mapping(self):
         """Test error mapping for OpenAI errors."""
         provider = OpenAIProvider()
         error_mapping = provider.get_error_mapping()
 
-        assert error_mapping['AuthenticationError'] == 'AuthenticationError'
-        assert error_mapping['RateLimitError'] == 'RateLimitError'
-        assert error_mapping['BadRequestError'] == 'ValidationError'
-        assert error_mapping['InternalServerError'] == 'ProviderError'
+        assert error_mapping["AuthenticationError"] == "AuthenticationError"
+        assert error_mapping["RateLimitError"] == "RateLimitError"
+        assert error_mapping["BadRequestError"] == "ValidationError"
+        assert error_mapping["InternalServerError"] == "ProviderError"
 
 
 class TestAnthropicProvider:
@@ -129,34 +131,35 @@ class TestAnthropicProvider:
         assert len(methods) > 0
 
         # Check for key methods
-        method_paths = [method['path'] for method in methods]
-        assert 'messages.create' in method_paths
+        method_paths = [method["path"] for method in methods]
+        assert "messages.create" in method_paths
 
         # Check method structure
         for method in methods:
-            assert 'path' in method
-            assert 'operation' in method
-            assert 'async' in method
-            assert 'stream_support' in method
-            assert 'cost_tracked' in method
+            assert "path" in method
+            assert "operation" in method
+            assert "async" in method
+            assert "stream_support" in method
+            assert "cost_tracked" in method
 
     def test_extract_request_attributes_messages(self):
         """Test request attribute extraction for messages."""
         provider = AnthropicProvider()
         kwargs = {
-            'model': 'claude-3-opus-20240229',
-            'messages': [
-                {'role': 'user', 'content': 'Hello Claude!'}
-            ],
-            'max_tokens': 1000,
-            'temperature': 0.7,
-            'system': 'You are Claude, an AI assistant.',
-            'stream': False
+            "model": "claude-3-opus-20240229",
+            "messages": [{"role": "user", "content": "Hello Claude!"}],
+            "max_tokens": 1000,
+            "temperature": 0.7,
+            "system": "You are Claude, an AI assistant.",
+            "stream": False,
         }
 
         attributes = provider.extract_request_attributes(kwargs)
 
-        assert attributes[BrokleInstrumentationAttributes.MODEL_NAME] == 'claude-3-opus-20240229'
+        assert (
+            attributes[BrokleInstrumentationAttributes.MODEL_NAME]
+            == "claude-3-opus-20240229"
+        )
         assert attributes[BrokleInstrumentationAttributes.MESSAGE_COUNT] == 1
         assert attributes[BrokleInstrumentationAttributes.MAX_TOKENS] == 1000
         assert attributes[BrokleInstrumentationAttributes.TEMPERATURE] == 0.7
@@ -188,31 +191,37 @@ class TestAnthropicProvider:
         assert attributes[BrokleInstrumentationAttributes.RESPONSE_CONTENT_LENGTH] == 44
         assert BrokleInstrumentationAttributes.COST_USD not in attributes
 
-
     def test_normalize_model_name(self):
         """Test model name normalization for Anthropic."""
         provider = AnthropicProvider()
 
-        assert provider.normalize_model_name("claude-3-opus-20240229") == "claude-3-opus"
-        assert provider.normalize_model_name("claude-3-sonnet-20240229") == "claude-3-sonnet"
+        assert (
+            provider.normalize_model_name("claude-3-opus-20240229") == "claude-3-opus"
+        )
+        assert (
+            provider.normalize_model_name("claude-3-sonnet-20240229")
+            == "claude-3-sonnet"
+        )
         assert provider.normalize_model_name("claude-3-haiku") == "claude-3-haiku"
-
 
     def test_estimate_input_tokens_multimodal(self):
         """Test input token estimation with multimodal content."""
         provider = AnthropicProvider()
 
         kwargs = {
-            'messages': [
+            "messages": [
                 {
-                    'role': 'user',
-                    'content': [
-                        {'type': 'text', 'text': 'What do you see in this image?'},
-                        {'type': 'image', 'source': {'type': 'base64', 'data': 'fake_image_data'}}
-                    ]
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "What do you see in this image?"},
+                        {
+                            "type": "image",
+                            "source": {"type": "base64", "data": "fake_image_data"},
+                        },
+                    ],
                 }
             ],
-            'system': 'You are a helpful assistant.'
+            "system": "You are a helpful assistant.",
         }
 
         tokens = provider.estimate_input_tokens(kwargs)
@@ -224,10 +233,10 @@ class TestAnthropicProvider:
         provider = AnthropicProvider()
         error_mapping = provider.get_error_mapping()
 
-        assert error_mapping['AuthenticationError'] == 'AuthenticationError'
-        assert error_mapping['RateLimitError'] == 'RateLimitError'
-        assert error_mapping['BadRequestError'] == 'ValidationError'
-        assert error_mapping['InternalServerError'] == 'ProviderError'
+        assert error_mapping["AuthenticationError"] == "AuthenticationError"
+        assert error_mapping["RateLimitError"] == "RateLimitError"
+        assert error_mapping["BadRequestError"] == "ValidationError"
+        assert error_mapping["InternalServerError"] == "ProviderError"
 
 
 class TestBaseProviderInterface:
@@ -238,10 +247,10 @@ class TestBaseProviderInterface:
         provider = OpenAIProvider()
 
         # Check all abstract methods are implemented
-        assert hasattr(provider, 'get_provider_name')
-        assert hasattr(provider, 'get_methods_to_instrument')
-        assert hasattr(provider, 'extract_request_attributes')
-        assert hasattr(provider, 'extract_response_attributes')
+        assert hasattr(provider, "get_provider_name")
+        assert hasattr(provider, "get_methods_to_instrument")
+        assert hasattr(provider, "extract_request_attributes")
+        assert hasattr(provider, "extract_response_attributes")
 
         # Check they're callable
         assert callable(provider.get_provider_name)
@@ -254,10 +263,10 @@ class TestBaseProviderInterface:
         provider = AnthropicProvider()
 
         # Check all abstract methods are implemented
-        assert hasattr(provider, 'get_provider_name')
-        assert hasattr(provider, 'get_methods_to_instrument')
-        assert hasattr(provider, 'extract_request_attributes')
-        assert hasattr(provider, 'extract_response_attributes')
+        assert hasattr(provider, "get_provider_name")
+        assert hasattr(provider, "get_methods_to_instrument")
+        assert hasattr(provider, "extract_request_attributes")
+        assert hasattr(provider, "extract_response_attributes")
 
         # Check they're callable
         assert callable(provider.get_provider_name)

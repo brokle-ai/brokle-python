@@ -5,11 +5,12 @@ This example shows how to use Brokle's wrapper functions for OpenAI.
 Explicit wrapping approach with comprehensive observability for all OpenAI usage.
 """
 
-import os
 import asyncio
+import os
 
 # ✨ Wrapper Functions - explicit wrapping approach!
-from openai import OpenAI, AsyncOpenAI
+from openai import AsyncOpenAI, OpenAI
+
 from brokle import wrap_openai
 
 # Set up environment variables
@@ -29,7 +30,7 @@ def sync_chat_example():
         capture_content=True,
         capture_metadata=True,
         tags=["example", "sync", "chat"],
-        session_id="demo_session_001"
+        session_id="demo_session_001",
     )
 
     # Use wrapped client exactly like normal OpenAI
@@ -37,10 +38,10 @@ def sync_chat_example():
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "What is the capital of France?"}
+            {"role": "user", "content": "What is the capital of France?"},
         ],
         temperature=0.7,
-        max_tokens=150
+        max_tokens=150,
     )
 
     print("Response:", response.choices[0].message.content)
@@ -59,14 +60,14 @@ def sync_completion_example():
         OpenAI(),
         capture_content=True,
         tags=["completion", "creative"],
-        user_id="demo_user_123"
+        user_id="demo_user_123",
     )
 
     response = wrapped_client.completions.create(
         model="gpt-3.5-turbo-instruct",
         prompt="Once upon a time in a galaxy far, far away",
         max_tokens=50,
-        temperature=0.7
+        temperature=0.7,
     )
 
     print("Completion:", response.choices[0].text)
@@ -84,12 +85,12 @@ def sync_embedding_example():
         OpenAI(),
         capture_content=False,  # Don't capture embeddings content
         capture_metadata=True,
-        tags=["embeddings", "similarity"]
+        tags=["embeddings", "similarity"],
     )
 
     response = wrapped_client.embeddings.create(
         model="text-embedding-ada-002",
-        input="The quick brown fox jumps over the lazy dog"
+        input="The quick brown fox jumps over the lazy dog",
     )
 
     print("Embedding dimensions:", len(response.data[0].embedding))
@@ -109,7 +110,7 @@ async def async_chat_example():
         capture_content=True,
         capture_metadata=True,
         tags=["async", "creative", "story"],
-        session_id="async_session_002"
+        session_id="async_session_002",
     )
 
     async with wrapped_client:
@@ -117,10 +118,13 @@ async def async_chat_example():
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a creative writer."},
-                {"role": "user", "content": "Write a short story about a robot learning to love."}
+                {
+                    "role": "user",
+                    "content": "Write a short story about a robot learning to love.",
+                },
             ],
             max_tokens=200,
-            temperature=0.8
+            temperature=0.8,
         )
 
         print("Story:", response.choices[0].message.content)
@@ -138,16 +142,14 @@ async def async_streaming_example():
         AsyncOpenAI(),
         capture_content=False,  # Don't capture streaming content
         capture_metadata=True,
-        tags=["streaming", "realtime", "counting"]
+        tags=["streaming", "realtime", "counting"],
     )
 
     async with wrapped_client:
         stream = await wrapped_client.chat.completions.create(
             model="gpt-4",
-            messages=[
-                {"role": "user", "content": "Count from 1 to 10 slowly."}
-            ],
-            stream=True
+            messages=[{"role": "user", "content": "Count from 1 to 10 slowly."}],
+            stream=True,
         )
 
         print("Streaming response:")
@@ -169,14 +171,14 @@ def batch_processing_example():
         capture_content=True,
         capture_metadata=True,
         tags=["batch", "education", "tech-explanations"],
-        session_id="batch_session_003"
+        session_id="batch_session_003",
     )
 
     prompts = [
         "What is machine learning?",
         "Explain quantum computing.",
         "How does blockchain work?",
-        "What is artificial intelligence?"
+        "What is artificial intelligence?",
     ]
 
     responses = []
@@ -186,7 +188,7 @@ def batch_processing_example():
             messages=[{"role": "user", "content": prompt}],
             max_tokens=100,
             # Add batch-specific metadata
-            metadata={"batch_index": i, "batch_total": len(prompts)}
+            metadata={"batch_index": i, "batch_total": len(prompts)},
         )
         responses.append(response)
 
@@ -208,7 +210,7 @@ def function_calling_example():
         OpenAI(),
         capture_content=True,
         capture_metadata=True,
-        tags=["function-calling", "tools", "weather"]
+        tags=["function-calling", "tools", "weather"],
     )
 
     # Define a function for the model to call
@@ -234,7 +236,7 @@ def function_calling_example():
         model="gpt-4",
         messages=[{"role": "user", "content": "What's the weather like in Boston?"}],
         functions=functions,
-        function_call="auto"
+        function_call="auto",
     )
 
     message = response.choices[0].message
@@ -257,14 +259,13 @@ def error_handling_example():
         OpenAI(),
         capture_content=True,
         capture_metadata=True,
-        tags=["error-testing", "debugging"]
+        tags=["error-testing", "debugging"],
     )
 
     try:
         # This will fail due to invalid model
         response = wrapped_client.chat.completions.create(
-            model="invalid-model-name",
-            messages=[{"role": "user", "content": "Test"}]
+            model="invalid-model-name", messages=[{"role": "user", "content": "Test"}]
         )
         print("Response:", response.choices[0].message.content)
 
@@ -284,7 +285,7 @@ def cost_tracking_example():
         OpenAI(),
         capture_content=True,
         capture_metadata=True,
-        tags=["cost-tracking", "budget-monitoring"]
+        tags=["cost-tracking", "budget-monitoring"],
     )
 
     # Multiple calls to demonstrate cost tracking
@@ -295,7 +296,7 @@ def cost_tracking_example():
             messages=[
                 {"role": "user", "content": f"Tell me a fact about number {i+1}"}
             ],
-            max_tokens=50
+            max_tokens=50,
         )
         print(f"Call {i+1}: {response.choices[0].message.content.strip()}")
 

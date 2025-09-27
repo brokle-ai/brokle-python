@@ -5,13 +5,15 @@ Provides OpenAI-compatible embeddings interface with Brokle extensions.
 """
 
 from typing import Any, Dict, List, Optional, Union
+
 from pydantic import BaseModel
 
-from .base import BaseResource, AsyncBaseResource
+from .base import AsyncBaseResource, BaseResource
 
 
 class EmbeddingData(BaseModel):
     """Embedding data point."""
+
     object: str = "embedding"
     index: int
     embedding: List[float]
@@ -19,6 +21,7 @@ class EmbeddingData(BaseModel):
 
 class EmbeddingUsage(BaseModel):
     """Embedding usage information."""
+
     prompt_tokens: int
     total_tokens: int
 
@@ -28,6 +31,7 @@ class EmbeddingResponse(BaseModel):
 
     class BrokleMetadata(BaseModel):
         """Brokle-specific metadata."""
+
         provider: str
         request_id: str
         latency_ms: int
@@ -63,7 +67,7 @@ class EmbeddingsResource(BaseResource):
         cache_strategy: Optional[str] = None,
         environment: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        **kwargs
+        **kwargs,
     ) -> EmbeddingResponse:
         """
         Create embeddings with OpenAI-compatible interface.
@@ -137,7 +141,7 @@ class AsyncEmbeddingsResource(AsyncBaseResource):
         cache_strategy: Optional[str] = None,
         environment: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        **kwargs
+        **kwargs,
     ) -> EmbeddingResponse:
         """
         Create async embeddings with OpenAI-compatible interface.

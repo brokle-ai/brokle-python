@@ -4,8 +4,9 @@ Clean Decorator Tests
 Tests the actual @observe decorator functionality without deprecated mocking patterns.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from brokle import observe
 from brokle.decorators import trace_workflow
@@ -55,9 +56,9 @@ class TestTraceWorkflow:
         """Test that trace_workflow returns a BrokleSpan object."""
         with trace_workflow("test-workflow") as span:
             # Should return a BrokleSpan object, not a mock
-            assert hasattr(span, 'span_id')
-            assert hasattr(span, 'name')
-            assert hasattr(span, 'attributes')
+            assert hasattr(span, "span_id")
+            assert hasattr(span, "name")
+            assert hasattr(span, "attributes")
             assert span.name == "workflow.test-workflow"
 
     def test_trace_workflow_with_metadata(self):
@@ -67,7 +68,7 @@ class TestTraceWorkflow:
         with trace_workflow("test-workflow", metadata=metadata) as span:
             # Verify span exists and has expected structure
             assert span is not None
-            assert hasattr(span, 'attributes')
+            assert hasattr(span, "attributes")
 
     def test_trace_workflow_error_handling(self):
         """Test trace_workflow handles exceptions properly."""

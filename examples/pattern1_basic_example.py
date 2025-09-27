@@ -11,7 +11,7 @@ from typing import List
 
 # Import Brokle SDK
 import brokle
-from brokle.auto_instrumentation import auto_instrument, print_status, get_status
+from brokle.auto_instrumentation import auto_instrument, get_status, print_status
 
 # Create Brokle client with explicit configuration
 client = brokle.Brokle(
@@ -58,10 +58,8 @@ def openai_example():
         # This call will be automatically traced by Brokle
         response = openai_client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[
-                {"role": "user", "content": "What is artificial intelligence?"}
-            ],
-            max_tokens=100
+            messages=[{"role": "user", "content": "What is artificial intelligence?"}],
+            max_tokens=100,
         )
 
         print(f"📝 Response: {response.choices[0].message.content[:100]}...")
@@ -95,7 +93,7 @@ async def openai_async_example():
             messages=[
                 {"role": "user", "content": "Explain machine learning in simple terms."}
             ],
-            max_tokens=100
+            max_tokens=100,
         )
 
         print(f"📝 Response: {response.choices[0].message.content[:100]}...")
@@ -126,10 +124,8 @@ def anthropic_example():
         # This call will be automatically traced by Brokle
         response = anthropic_client.messages.create(
             model="claude-3-sonnet-20240229",
-            messages=[
-                {"role": "user", "content": "What is the future of AI?"}
-            ],
-            max_tokens=100
+            messages=[{"role": "user", "content": "What is the future of AI?"}],
+            max_tokens=100,
         )
 
         print(f"📝 Response: {response.content[0].text[:100]}...")
@@ -150,22 +146,19 @@ def langchain_example():
     print("\n=== LangChain Auto-Instrumentation Example ===")
 
     try:
-        from langchain.llms import OpenAI
         from langchain.chains import LLMChain
+        from langchain.llms import OpenAI
         from langchain.prompts import PromptTemplate
 
         print("🔗 Creating LangChain components (automatically instrumented)...")
 
         # Create LLM
-        llm = OpenAI(
-            openai_api_key="your-openai-api-key",
-            temperature=0.7
-        )
+        llm = OpenAI(openai_api_key="your-openai-api-key", temperature=0.7)
 
         # Create prompt template
         prompt = PromptTemplate(
             input_variables=["topic"],
-            template="Write a brief explanation about {topic}:"
+            template="Write a brief explanation about {topic}:",
         )
 
         # Create chain
@@ -210,7 +203,9 @@ def multiple_providers_example():
     if langchain_result:
         results.append(("LangChain", langchain_result))
 
-    print(f"\n📊 Completed {len(results)} provider examples with automatic observability")
+    print(
+        f"\n📊 Completed {len(results)} provider examples with automatic observability"
+    )
 
     return results
 
@@ -222,9 +217,7 @@ async def check_observability_data():
     try:
         # Get recent traces
         traces = await client.observability.list_traces(
-            limit=10,
-            sort_by="created_at",
-            sort_order="desc"
+            limit=10, sort_by="created_at", sort_order="desc"
         )
 
         print(f"📈 Found {traces.total} total traces")
@@ -236,9 +229,7 @@ async def check_observability_data():
 
         # Get recent observations
         observations = await client.observability.list_observations(
-            limit=10,
-            sort_by="created_at",
-            sort_order="desc"
+            limit=10, sort_by="created_at", sort_order="desc"
         )
 
         print(f"\n📊 Found {observations.total} total observations")
@@ -259,7 +250,7 @@ def selective_instrumentation_example():
     """Example of selective instrumentation."""
     print("\n=== Selective Auto-Instrumentation Example ===")
 
-    from brokle.auto_instrumentation import instrument, uninstrument, get_registry
+    from brokle.auto_instrumentation import get_registry, instrument, uninstrument
 
     registry = get_registry()
 

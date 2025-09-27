@@ -14,17 +14,18 @@ Models are refactored to use mixins for reduced duplication while maintaining
 complete backward compatibility.
 """
 
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 # Import our mixins and base classes
 from .base import (
     BrokleResponseBase,
-    TimestampMixin,
     MetadataMixin,
-    StatusMixin,
     PaginationMixin,
+    StatusMixin,
+    TimestampMixin,
 )
 
 
@@ -41,9 +42,13 @@ class NotificationDeliveryMixin(BaseModel):
     """Mixin for notification delivery tracking."""
 
     sent_at: datetime = Field(description="Sent timestamp")
-    delivered_at: Optional[datetime] = Field(default=None, description="Delivery timestamp")
+    delivered_at: Optional[datetime] = Field(
+        default=None, description="Delivery timestamp"
+    )
     read_at: Optional[datetime] = Field(default=None, description="Read timestamp")
-    error_message: Optional[str] = Field(default=None, description="Error message if failed")
+    error_message: Optional[str] = Field(
+        default=None, description="Error message if failed"
+    )
     retry_count: int = Field(description="Retry attempts")
 
 
@@ -78,7 +83,9 @@ class APIResponse(BaseModel):
     success: bool = Field(description="Success status")
     data: Optional[Any] = Field(default=None, description="Response data")
     error: Optional[Dict[str, Any]] = Field(default=None, description="Error details")
-    meta: Optional[Dict[str, Any]] = Field(default=None, description="Response metadata")
+    meta: Optional[Dict[str, Any]] = Field(
+        default=None, description="Response metadata"
+    )
 
 
 # Caching Models
@@ -93,10 +100,18 @@ class CacheResponse(BaseModel):
     key: Optional[str] = Field(default=None, description="Cache key")
     value: Optional[Dict[str, Any]] = Field(default=None, description="Cache value")
     ttl: Optional[int] = Field(default=None, description="Time to live remaining")
-    similarity_score: Optional[float] = Field(default=None, description="Similarity score for semantic cache")
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Cache metadata")
-    created_at: Optional[datetime] = Field(default=None, description="Cache creation timestamp")
-    accessed_at: Optional[datetime] = Field(default=None, description="Last access timestamp")
+    similarity_score: Optional[float] = Field(
+        default=None, description="Similarity score for semantic cache"
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="Cache metadata"
+    )
+    created_at: Optional[datetime] = Field(
+        default=None, description="Cache creation timestamp"
+    )
+    accessed_at: Optional[datetime] = Field(
+        default=None, description="Last access timestamp"
+    )
 
 
 class CacheStatsResponse(BaseModel):
@@ -111,8 +126,12 @@ class CacheStatsResponse(BaseModel):
     miss_rate: float = Field(description="Cache miss rate (0.0-1.0)")
     total_hits: int = Field(description="Total cache hits")
     total_misses: int = Field(description="Total cache misses")
-    average_access_time_ms: Optional[float] = Field(default=None, description="Average access time")
-    memory_usage_mb: Optional[float] = Field(default=None, description="Memory usage in MB")
+    average_access_time_ms: Optional[float] = Field(
+        default=None, description="Average access time"
+    )
+    memory_usage_mb: Optional[float] = Field(
+        default=None, description="Memory usage in MB"
+    )
     cache_size_mb: Optional[float] = Field(default=None, description="Cache size in MB")
     eviction_count: int = Field(description="Number of evictions")
 
@@ -131,9 +150,13 @@ class EmbeddingGenerationResponse(BaseModel):
     model: str = Field(description="Model used")
     dimensions: int = Field(description="Embedding dimensions")
     token_count: Optional[int] = Field(default=None, description="Input token count")
-    processing_time_ms: Optional[float] = Field(default=None, description="Processing time")
+    processing_time_ms: Optional[float] = Field(
+        default=None, description="Processing time"
+    )
     cost_usd: Optional[float] = Field(default=None, description="Cost in USD")
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Generation metadata")
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="Generation metadata"
+    )
     created_at: datetime = Field(description="Creation timestamp")
 
 
@@ -148,9 +171,15 @@ class SemanticSearchResponse(BaseModel):
     results: List[Dict[str, Any]] = Field(description="Search results")
     total_results: int = Field(description="Total number of results")
     search_time_ms: float = Field(description="Search time in milliseconds")
-    filters_applied: Optional[Dict[str, Any]] = Field(default=None, description="Applied filters")
-    similarity_threshold: Optional[float] = Field(default=None, description="Similarity threshold used")
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Search metadata")
+    filters_applied: Optional[Dict[str, Any]] = Field(
+        default=None, description="Applied filters"
+    )
+    similarity_threshold: Optional[float] = Field(
+        default=None, description="Similarity threshold used"
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="Search metadata"
+    )
 
 
 # ML & Routing Models
@@ -166,11 +195,19 @@ class MLRoutingResponse(BaseModel):
     selected_model: str = Field(description="Selected model")
     routing_strategy: str = Field(description="Routing strategy used")
     confidence_score: float = Field(description="Routing confidence score")
-    alternative_providers: Optional[List[str]] = Field(default=None, description="Alternative providers considered")
-    routing_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Routing metadata")
+    alternative_providers: Optional[List[str]] = Field(
+        default=None, description="Alternative providers considered"
+    )
+    routing_metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="Routing metadata"
+    )
     decision_time_ms: float = Field(description="Decision time in milliseconds")
-    cost_estimate_usd: Optional[float] = Field(default=None, description="Estimated cost")
-    quality_prediction: Optional[float] = Field(default=None, description="Predicted quality score")
+    cost_estimate_usd: Optional[float] = Field(
+        default=None, description="Estimated cost"
+    )
+    quality_prediction: Optional[float] = Field(
+        default=None, description="Predicted quality score"
+    )
 
 
 class MLModelInfoResponse(BaseModel):
@@ -184,16 +221,28 @@ class MLModelInfoResponse(BaseModel):
     provider: str = Field(description="Model provider")
     model_type: str = Field(description="Model type")
     capabilities: List[str] = Field(description="Model capabilities")
-    input_cost_per_token: Optional[float] = Field(default=None, description="Input cost per token")
-    output_cost_per_token: Optional[float] = Field(default=None, description="Output cost per token")
+    input_cost_per_token: Optional[float] = Field(
+        default=None, description="Input cost per token"
+    )
+    output_cost_per_token: Optional[float] = Field(
+        default=None, description="Output cost per token"
+    )
     context_length: Optional[int] = Field(default=None, description="Context length")
-    max_output_tokens: Optional[int] = Field(default=None, description="Max output tokens")
+    max_output_tokens: Optional[int] = Field(
+        default=None, description="Max output tokens"
+    )
     supports_streaming: bool = Field(description="Streaming support")
     supports_function_calling: bool = Field(description="Function calling support")
-    latency_p50_ms: Optional[float] = Field(default=None, description="50th percentile latency")
-    latency_p95_ms: Optional[float] = Field(default=None, description="95th percentile latency")
+    latency_p50_ms: Optional[float] = Field(
+        default=None, description="50th percentile latency"
+    )
+    latency_p95_ms: Optional[float] = Field(
+        default=None, description="95th percentile latency"
+    )
     availability: float = Field(description="Model availability (0.0-1.0)")
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Model metadata")
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="Model metadata"
+    )
 
 
 # Configuration Models
@@ -207,10 +256,14 @@ class ConfigResponse(BaseModel):
     config_key: str = Field(description="Configuration key")
     config_value: Any = Field(description="Configuration value")
     data_type: str = Field(description="Value data type")
-    description: Optional[str] = Field(default=None, description="Configuration description")
+    description: Optional[str] = Field(
+        default=None, description="Configuration description"
+    )
     is_sensitive: bool = Field(description="Whether config is sensitive")
     scope: str = Field(description="Configuration scope")
-    last_updated: Optional[datetime] = Field(default=None, description="Last update timestamp")
+    last_updated: Optional[datetime] = Field(
+        default=None, description="Last update timestamp"
+    )
     updated_by: Optional[str] = Field(default=None, description="Updated by user")
 
 
@@ -224,11 +277,19 @@ class FeatureFlagResponse(BaseModel):
     flag_key: str = Field(description="Feature flag key")
     enabled: bool = Field(description="Flag enabled status")
     description: Optional[str] = Field(default=None, description="Flag description")
-    rollout_percentage: Optional[float] = Field(default=None, description="Rollout percentage")
-    target_groups: Optional[List[str]] = Field(default=None, description="Target user groups")
-    conditions: Optional[Dict[str, Any]] = Field(default=None, description="Flag conditions")
+    rollout_percentage: Optional[float] = Field(
+        default=None, description="Rollout percentage"
+    )
+    target_groups: Optional[List[str]] = Field(
+        default=None, description="Target user groups"
+    )
+    conditions: Optional[Dict[str, Any]] = Field(
+        default=None, description="Flag conditions"
+    )
     created_at: datetime = Field(description="Creation timestamp")
-    updated_at: Optional[datetime] = Field(default=None, description="Last update timestamp")
+    updated_at: Optional[datetime] = Field(
+        default=None, description="Last update timestamp"
+    )
 
 
 # Usage & Billing Models
@@ -247,7 +308,9 @@ class SubscriptionLimitResponse(BaseModel):
     limit_type: str = Field(description="Type of limit")
     reset_date: Optional[datetime] = Field(default=None, description="Limit reset date")
     overage_allowed: bool = Field(description="Overage allowed")
-    overage_cost_per_unit: Optional[float] = Field(default=None, description="Overage cost per unit")
+    overage_cost_per_unit: Optional[float] = Field(
+        default=None, description="Overage cost per unit"
+    )
 
 
 # Notification Models
@@ -263,11 +326,17 @@ class NotificationResponse(BaseModel):
     recipient: str = Field(description="Recipient")
     channel: str = Field(description="Notification channel")
     sent_at: datetime = Field(description="Sent timestamp")
-    delivered_at: Optional[datetime] = Field(default=None, description="Delivery timestamp")
+    delivered_at: Optional[datetime] = Field(
+        default=None, description="Delivery timestamp"
+    )
     read_at: Optional[datetime] = Field(default=None, description="Read timestamp")
-    error_message: Optional[str] = Field(default=None, description="Error message if failed")
+    error_message: Optional[str] = Field(
+        default=None, description="Error message if failed"
+    )
     retry_count: int = Field(description="Retry attempts")
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Notification metadata")
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="Notification metadata"
+    )
 
 
 class NotificationStatusResponse(BaseModel):
@@ -297,36 +366,34 @@ class NotificationHistoryResponse(BaseModel):
     organization_id: str = Field(description="Organization ID")
     total_notifications: int = Field(description="Total notifications sent")
     date_range: Dict[str, str] = Field(description="Date range for history")
-    notifications: List[Dict[str, Any]] = Field(description="Notification history entries")
+    notifications: List[Dict[str, Any]] = Field(
+        description="Notification history entries"
+    )
     summary: Dict[str, Any] = Field(description="History summary statistics")
     page: int = Field(description="Current page")
     per_page: int = Field(description="Items per page")
     total_pages: int = Field(description="Total pages")
 
 
-
-
 # Re-export for backward compatibility
 __all__ = [
     # Backward compatible models
-    'ErrorResponse',
-    'APIResponse',
-    'CacheResponse',
-    'CacheStatsResponse',
-    'EmbeddingGenerationResponse',
-    'SemanticSearchResponse',
-    'MLRoutingResponse',
-    'MLModelInfoResponse',
-    'ConfigResponse',
-    'FeatureFlagResponse',
-    'SubscriptionLimitResponse',
-    'NotificationResponse',
-    'NotificationStatusResponse',
-    'NotificationHistoryResponse',
-
-
+    "ErrorResponse",
+    "APIResponse",
+    "CacheResponse",
+    "CacheStatsResponse",
+    "EmbeddingGenerationResponse",
+    "SemanticSearchResponse",
+    "MLRoutingResponse",
+    "MLModelInfoResponse",
+    "ConfigResponse",
+    "FeatureFlagResponse",
+    "SubscriptionLimitResponse",
+    "NotificationResponse",
+    "NotificationStatusResponse",
+    "NotificationHistoryResponse",
     # Remaining-specific mixins
-    'CacheMetricsMixin',
-    'NotificationDeliveryMixin',
-    'SearchResultMixin',
+    "CacheMetricsMixin",
+    "NotificationDeliveryMixin",
+    "SearchResultMixin",
 ]

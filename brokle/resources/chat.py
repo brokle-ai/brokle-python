@@ -5,13 +5,15 @@ Provides OpenAI-compatible chat completions interface with Brokle extensions.
 """
 
 from typing import Any, Dict, List, Optional, Union
+
 from pydantic import BaseModel
 
-from .base import BaseResource, AsyncBaseResource
+from .base import AsyncBaseResource, BaseResource
 
 
 class Message(BaseModel):
     """Chat message model."""
+
     role: str
     content: str
     name: Optional[str] = None
@@ -19,6 +21,7 @@ class Message(BaseModel):
 
 class Choice(BaseModel):
     """Chat completion choice."""
+
     index: int
     message: Message
     finish_reason: Optional[str] = None
@@ -26,6 +29,7 @@ class Choice(BaseModel):
 
 class Usage(BaseModel):
     """Token usage information."""
+
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
@@ -36,6 +40,7 @@ class ChatCompletionResponse(BaseModel):
 
     class BrokleMetadata(BaseModel):
         """Brokle-specific metadata."""
+
         provider: str
         request_id: str
         latency_ms: int
@@ -78,7 +83,7 @@ class ChatCompletions(BaseResource):
         cache_strategy: Optional[str] = None,
         environment: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        **kwargs
+        **kwargs,
     ) -> ChatCompletionResponse:
         """
         Create chat completion with OpenAI-compatible interface.
@@ -168,7 +173,7 @@ class AsyncChatCompletions(AsyncBaseResource):
         cache_strategy: Optional[str] = None,
         environment: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        **kwargs
+        **kwargs,
     ) -> ChatCompletionResponse:
         """
         Create async chat completion with OpenAI-compatible interface.

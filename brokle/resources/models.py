@@ -5,13 +5,15 @@ Provides OpenAI-compatible models interface with Brokle extensions.
 """
 
 from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel
 
-from .base import BaseResource, AsyncBaseResource
+from .base import AsyncBaseResource, BaseResource
 
 
 class ModelInfo(BaseModel):
     """Model information."""
+
     id: str
     object: str = "model"
     created: int
@@ -29,6 +31,7 @@ class ModelInfo(BaseModel):
 
 class ModelsResponse(BaseModel):
     """Models list response."""
+
     object: str = "list"
     data: List[ModelInfo]
 
@@ -42,7 +45,7 @@ class ModelsResource(BaseResource):
         provider: Optional[str] = None,
         category: Optional[str] = None,
         available_only: bool = True,
-        **kwargs
+        **kwargs,
     ) -> ModelsResponse:
         """
         List available models with OpenAI-compatible interface.
@@ -101,7 +104,7 @@ class AsyncModelsResource(AsyncBaseResource):
         provider: Optional[str] = None,
         category: Optional[str] = None,
         available_only: bool = True,
-        **kwargs
+        **kwargs,
     ) -> ModelsResponse:
         """
         List available models with OpenAI-compatible interface (async).
@@ -145,7 +148,9 @@ class AsyncModelsResource(AsyncBaseResource):
             Model information
         """
         # Make async request to Go backend
-        response_data = await self._request("GET", f"/v1/models/{model_id}", params=kwargs)
+        response_data = await self._request(
+            "GET", f"/v1/models/{model_id}", params=kwargs
+        )
 
         # Return typed response
         return ModelInfo(**response_data)

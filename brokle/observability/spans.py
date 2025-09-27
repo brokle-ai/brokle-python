@@ -4,11 +4,11 @@ Span management for observability.
 Provides span creation and management for Pattern 1/2 compatibility.
 """
 
-from typing import Optional, Dict, Any, List
-from datetime import datetime, timezone
-from contextlib import contextmanager
 import time
 import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
@@ -21,6 +21,7 @@ class BrokleSpan(BaseModel):
 
     Maintains compatibility with existing Pattern 1/2 code.
     """
+
     span_id: str
     trace_id: Optional[str] = None
     parent_span_id: Optional[str] = None
@@ -33,10 +34,10 @@ class BrokleSpan(BaseModel):
     tags: List[str] = []
 
     def __init__(self, **data):
-        if 'span_id' not in data:
-            data['span_id'] = f"span_{uuid.uuid4().hex[:16]}"
-        if 'start_time' not in data:
-            data['start_time'] = datetime.now(timezone.utc)
+        if "span_id" not in data:
+            data["span_id"] = f"span_{uuid.uuid4().hex[:16]}"
+        if "start_time" not in data:
+            data["start_time"] = datetime.now(timezone.utc)
         super().__init__(**data)
 
     def set_attribute(self, key: str, value: Any) -> None:
@@ -47,7 +48,7 @@ class BrokleSpan(BaseModel):
         """Set span status."""
         self.status = status
         if description:
-            self.attributes['status_description'] = description
+            self.attributes["status_description"] = description
 
     def add_tag(self, tag: str) -> None:
         """Add tag to span."""
@@ -67,16 +68,16 @@ class BrokleSpan(BaseModel):
     def to_dict(self) -> Dict[str, Any]:
         """Convert span to dictionary."""
         return {
-            'span_id': self.span_id,
-            'trace_id': self.trace_id,
-            'parent_span_id': self.parent_span_id,
-            'name': self.name,
-            'start_time': self.start_time.isoformat() if self.start_time else None,
-            'end_time': self.end_time.isoformat() if self.end_time else None,
-            'status': self.status,
-            'attributes': self.attributes,
-            'metadata': self.metadata,
-            'tags': self.tags
+            "span_id": self.span_id,
+            "trace_id": self.trace_id,
+            "parent_span_id": self.parent_span_id,
+            "name": self.name,
+            "start_time": self.start_time.isoformat() if self.start_time else None,
+            "end_time": self.end_time.isoformat() if self.end_time else None,
+            "status": self.status,
+            "attributes": self.attributes,
+            "metadata": self.metadata,
+            "tags": self.tags,
         }
 
 
@@ -86,6 +87,7 @@ class BrokleGeneration(BrokleSpan):
 
     Extends BrokleSpan with generation-specific fields.
     """
+
     model: Optional[str] = None
     provider: Optional[str] = None
     input_tokens: Optional[int] = None
@@ -98,7 +100,7 @@ class BrokleGeneration(BrokleSpan):
         provider: str,
         input_tokens: Optional[int] = None,
         output_tokens: Optional[int] = None,
-        cost_usd: Optional[float] = None
+        cost_usd: Optional[float] = None,
     ) -> None:
         """Set model information."""
         self.model = model
@@ -120,24 +122,25 @@ class BrokleGeneration(BrokleSpan):
     @classmethod
     def create_from_ai_request(cls, request_data: Dict[str, Any], **kwargs):
         """Create a generation span from AI request data."""
-        name = kwargs.pop('name', 'ai_generation')
+        name = kwargs.pop("name", "ai_generation")
         generation = cls(name=name, **kwargs)
 
         # Extract common fields from request
-        if 'model' in request_data:
-            generation.model = request_data['model']
+        if "model" in request_data:
+            generation.model = request_data["model"]
 
         return generation
 
 
 # Thread-local current span storage
 import threading
+
 _current_span = threading.local()
 
 
 def get_current_span() -> Optional[BrokleSpan]:
     """Get current active span."""
-    return getattr(_current_span, 'span', None)
+    return getattr(_current_span, "span", None)
 
 
 def _set_current_span(span: Optional[BrokleSpan]) -> None:
@@ -150,7 +153,7 @@ def create_span(
     trace_id: Optional[str] = None,
     parent_span_id: Optional[str] = None,
     attributes: Optional[Dict[str, Any]] = None,
-    tags: Optional[List[str]] = None
+    tags: Optional[List[str]] = None,
 ) -> BrokleSpan:
     """
     Create a new span.
@@ -181,7 +184,7 @@ def create_span(
         trace_id=trace_id,
         parent_span_id=parent_span_id,
         attributes=attributes or {},
-        tags=tags or []
+        tags=tags or [],
     )
 
     return span
@@ -223,11 +226,13 @@ def record_span(span: BrokleSpan) -> None:
             client.submit_telemetry(telemetry_data)
 
             import logging
+
             logger = logging.getLogger(__name__)
             logger.debug(f"Submitted span telemetry: {span.name} ({span.span_id})")
     except Exception as e:
         # Don't let observability failures break the application
         import logging
+
         logger = logging.getLogger(__name__)
         logger.debug(f"Failed to record span: {e}")
         pass
@@ -238,7 +243,7 @@ def span_context(
     name: str,
     trace_id: Optional[str] = None,
     attributes: Optional[Dict[str, Any]] = None,
-    tags: Optional[List[str]] = None
+    tags: Optional[List[str]] = None,
 ):
     """
     Context manager for span management.

@@ -7,13 +7,13 @@ Provides common functionality for sync and async resource implementations.
 from typing import TYPE_CHECKING, Any, Dict
 
 if TYPE_CHECKING:
-    from ..client import Brokle, AsyncBrokle
+    from ..client import AsyncBrokle, Brokle
 
 
 class BaseResource:
     """Base class for sync resources."""
 
-    def __init__(self, client: 'Brokle'):
+    def __init__(self, client: "Brokle"):
         """
         Initialize base resource.
 
@@ -40,7 +40,7 @@ class BaseResource:
 class AsyncBaseResource:
     """Base class for async resources."""
 
-    def __init__(self, client: 'AsyncBrokle'):
+    def __init__(self, client: "AsyncBrokle"):
         """
         Initialize async base resource.
 

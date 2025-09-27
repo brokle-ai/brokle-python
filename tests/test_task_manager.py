@@ -1,9 +1,10 @@
 """Tests for task manager background processor."""
 
-import pytest
 from unittest.mock import Mock, patch
 
-from brokle._task_manager.processor import get_background_processor, BackgroundProcessor
+import pytest
+
+from brokle._task_manager.processor import BackgroundProcessor, get_background_processor
 from brokle.config import Config
 
 
@@ -16,7 +17,7 @@ class TestBackgroundProcessor:
         config = Mock(spec=Config)
 
         # Reset any existing processor
-        with patch('brokle._task_manager.processor._background_processor', None):
+        with patch("brokle._task_manager.processor._background_processor", None):
             processor1 = get_background_processor(config=config)
             processor2 = get_background_processor(config=config)
 
@@ -31,7 +32,7 @@ class TestBackgroundProcessor:
         config_factory = Mock(return_value=mock_config)
 
         # Reset any existing processor
-        with patch('brokle._task_manager.processor._background_processor', None):
+        with patch("brokle._task_manager.processor._background_processor", None):
             processor1 = get_background_processor(config_factory=config_factory)
             processor2 = get_background_processor(config_factory=config_factory)
 
@@ -45,9 +46,11 @@ class TestBackgroundProcessor:
     def test_singleton_requires_config_or_factory(self):
         """Test that function requires either config or config_factory."""
         # Reset any existing processor
-        with patch('brokle._task_manager.processor._background_processor', None):
+        with patch("brokle._task_manager.processor._background_processor", None):
             # Should raise ValueError when neither config nor config_factory provided
-            with pytest.raises(ValueError, match="Either config or config_factory must be provided"):
+            with pytest.raises(
+                ValueError, match="Either config or config_factory must be provided"
+            ):
                 get_background_processor()
 
     def test_config_takes_precedence_over_factory(self):
@@ -58,8 +61,10 @@ class TestBackgroundProcessor:
         config_factory = Mock(return_value=factory_config)
 
         # Reset any existing processor
-        with patch('brokle._task_manager.processor._background_processor', None):
-            processor = get_background_processor(config=explicit_config, config_factory=config_factory)
+        with patch("brokle._task_manager.processor._background_processor", None):
+            processor = get_background_processor(
+                config=explicit_config, config_factory=config_factory
+            )
 
             # Should use explicit config, not call factory
             assert isinstance(processor, BackgroundProcessor)
@@ -154,10 +159,18 @@ class TestBackgroundProcessorPublicAPI:
 
             # Verify required keys exist
             required_keys = [
-                "queue_depth", "queue_max_size", "items_processed",
-                "items_failed", "batches_processed", "uptime_seconds",
-                "processing_rate", "error_rate", "worker_alive",
-                "shutdown", "last_error", "last_error_time"
+                "queue_depth",
+                "queue_max_size",
+                "items_processed",
+                "items_failed",
+                "batches_processed",
+                "uptime_seconds",
+                "processing_rate",
+                "error_rate",
+                "worker_alive",
+                "shutdown",
+                "last_error",
+                "last_error_time",
             ]
 
             for key in required_keys:
@@ -202,6 +215,7 @@ class TestBackgroundProcessorPublicAPI:
 
             # Allow some processing time
             import time
+
             time.sleep(0.5)
 
             metrics = processor.get_metrics()
@@ -257,4 +271,3 @@ class TestBackgroundProcessorPublicAPI:
 
         # Queue should remain empty since processor is shutdown
         assert processor._queue.qsize() == 0
-

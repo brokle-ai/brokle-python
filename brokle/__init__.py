@@ -45,46 +45,45 @@ Three Integration Patterns:
    ```
 """
 
-# === PATTERN 1: WRAPPER FUNCTIONS (NEW IN 2.0) ===
-from .wrappers import (
-    wrap_openai,
-    wrap_anthropic,
-    wrap_google,    # Future
-    wrap_cohere,    # Future
-)
+from ._version import __version__
+from .auth import AuthManager
+
+# === PATTERN 3: NATIVE SDK ===
+from .client import AsyncBrokle, Brokle, get_client
+from .config import Config
 
 # === PATTERN 2: UNIVERSAL DECORATOR (UNCHANGED) ===
 from .decorators import (
+    ObserveConfig,
     observe,
-    trace_workflow,
     observe_llm,
     observe_retrieval,
-    ObserveConfig,
+    trace_workflow,
 )
 
-# === PATTERN 3: NATIVE SDK ===
-from .client import Brokle, AsyncBrokle, get_client
-from .config import Config
-from .auth import AuthManager
-from .observability.attributes import BrokleOtelSpanAttributes
-
-from ._version import __version__
-
 # Exception classes
-from .exceptions import (
-    BrokleError,
-    AuthenticationError,
-    RateLimitError,
-    ConfigurationError,
+from .exceptions import (  # EvaluationError removed - evaluation moved to backend
     APIError,
+    AuthenticationError,
+    BrokleError,
+    CacheError,
+    ConfigurationError,
     NetworkError,
-    ValidationError,
+    ProviderError,
+    QuotaExceededError,
+    RateLimitError,
     TimeoutError,
     UnsupportedOperationError,
-    QuotaExceededError,
-    ProviderError,
-    CacheError,
-    # EvaluationError removed - evaluation moved to backend
+    ValidationError,
+)
+from .observability.attributes import BrokleOtelSpanAttributes
+
+# === PATTERN 1: WRAPPER FUNCTIONS (NEW IN 2.0) ===
+from .wrappers import wrap_cohere  # Future
+from .wrappers import wrap_google  # Future
+from .wrappers import (
+    wrap_anthropic,
+    wrap_openai,
 )
 
 # These advanced features are available through the Native SDK Pattern 3
@@ -92,26 +91,23 @@ from .exceptions import (
 # Main exports - Clean 3-Pattern Architecture
 __all__ = [
     # === PATTERN 1: WRAPPER FUNCTIONS ===
-    "wrap_openai",               # OpenAI client wrapper
-    "wrap_anthropic",            # Anthropic client wrapper
-    "wrap_google",               # Google AI wrapper (future)
-    "wrap_cohere",               # Cohere wrapper (future)
-
+    "wrap_openai",  # OpenAI client wrapper
+    "wrap_anthropic",  # Anthropic client wrapper
+    "wrap_google",  # Google AI wrapper (future)
+    "wrap_cohere",  # Cohere wrapper (future)
     # === PATTERN 2: UNIVERSAL DECORATOR (Framework-Agnostic) ===
-    "observe",                   # Universal @observe() decorator
-    "trace_workflow",            # Workflow context manager
-    "observe_llm",               # LLM-specific decorator
-    "observe_retrieval",         # Retrieval-specific decorator
-    "ObserveConfig",             # Decorator configuration
-
+    "observe",  # Universal @observe() decorator
+    "trace_workflow",  # Workflow context manager
+    "observe_llm",  # LLM-specific decorator
+    "observe_retrieval",  # Retrieval-specific decorator
+    "ObserveConfig",  # Decorator configuration
     # === PATTERN 3: NATIVE SDK (OpenAI-Compatible + Brokle Features) ===
-    "Brokle",                    # Main sync client class
-    "AsyncBrokle",               # Async client class
-    "get_client",                # Client accessor
-    "Config",                    # Configuration management
-    "AuthManager",               # Authentication handling
+    "Brokle",  # Main sync client class
+    "AsyncBrokle",  # Async client class
+    "get_client",  # Client accessor
+    "Config",  # Configuration management
+    "AuthManager",  # Authentication handling
     "BrokleOtelSpanAttributes",  # Telemetry attributes
-
     # === SHARED: EXCEPTION CLASSES ===
     "BrokleError",
     "AuthenticationError",
@@ -126,16 +122,11 @@ __all__ = [
     "ProviderError",
     "CacheError",
     # "EvaluationError" removed - evaluation moved to backend
-
     # === NOTE: EVALUATION FRAMEWORK MOVED TO BACKEND ===
     # All evaluation logic is now handled by the backend
-
     # === NATIVE SDK: ADVANCED FEATURES (Integrated into main client) ===
     # Advanced features are available through Brokle() and AsyncBrokle() clients
     # No separate exports needed - clean architecture with unified interface
-
     # === METADATA ===
     "__version__",
 ]
-
-

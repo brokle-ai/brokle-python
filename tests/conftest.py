@@ -1,8 +1,9 @@
 """Pytest configuration and fixtures for Brokle SDK tests."""
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock
 import asyncio
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from brokle.config import Config
 
@@ -19,9 +20,7 @@ def event_loop():
 def test_config():
     """Create a test configuration."""
     return Config(
-        api_key="bk_test_secret",
-        host="https://test.brokle.com",
-        environment="test"
+        api_key="bk_test_secret", host="https://test.brokle.com", environment="test"
     )
 
 
@@ -58,19 +57,17 @@ def sample_openai_response():
         "object": "chat.completion",
         "created": 1677652288,
         "model": "gpt-3.5-turbo",
-        "choices": [{
-            "index": 0,
-            "message": {
-                "role": "assistant",
-                "content": "Hello! How can I help you today?"
-            },
-            "finish_reason": "stop"
-        }],
-        "usage": {
-            "prompt_tokens": 12,
-            "completion_tokens": 9,
-            "total_tokens": 21
-        }
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Hello! How can I help you today?",
+                },
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {"prompt_tokens": 12, "completion_tokens": 9, "total_tokens": 21},
     }
 
 
@@ -83,34 +80,26 @@ def sample_streaming_chunks():
             "object": "chat.completion.chunk",
             "created": 1677652288,
             "model": "gpt-3.5-turbo",
-            "choices": [{
-                "index": 0,
-                "delta": {"content": "Hello"},
-                "finish_reason": None
-            }]
+            "choices": [
+                {"index": 0, "delta": {"content": "Hello"}, "finish_reason": None}
+            ],
         },
         {
             "id": "chatcmpl-123",
             "object": "chat.completion.chunk",
             "created": 1677652288,
             "model": "gpt-3.5-turbo",
-            "choices": [{
-                "index": 0,
-                "delta": {"content": " there!"},
-                "finish_reason": None
-            }]
+            "choices": [
+                {"index": 0, "delta": {"content": " there!"}, "finish_reason": None}
+            ],
         },
         {
             "id": "chatcmpl-123",
             "object": "chat.completion.chunk",
             "created": 1677652288,
             "model": "gpt-3.5-turbo",
-            "choices": [{
-                "index": 0,
-                "delta": {},
-                "finish_reason": "stop"
-            }]
-        }
+            "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+        },
     ]
 
 
@@ -119,16 +108,11 @@ def sample_embeddings_response():
     """Create a sample embeddings response."""
     return {
         "object": "list",
-        "data": [{
-            "object": "embedding",
-            "embedding": [0.1, 0.2, 0.3, 0.4, 0.5],
-            "index": 0
-        }],
+        "data": [
+            {"object": "embedding", "embedding": [0.1, 0.2, 0.3, 0.4, 0.5], "index": 0}
+        ],
         "model": "text-embedding-ada-002",
-        "usage": {
-            "prompt_tokens": 5,
-            "total_tokens": 5
-        }
+        "usage": {"prompt_tokens": 5, "total_tokens": 5},
     }
 
 
@@ -139,15 +123,9 @@ def sample_analytics_response():
         "total_requests": 1500,
         "total_cost": 12.50,
         "average_latency": 250.5,
-        "requests_by_model": {
-            "gpt-3.5-turbo": 1200,
-            "gpt-4": 300
-        },
-        "cost_by_provider": {
-            "openai": 8.75,
-            "anthropic": 3.75
-        },
-        "cache_hit_rate": 0.85
+        "requests_by_model": {"gpt-3.5-turbo": 1200, "gpt-4": 300},
+        "cost_by_provider": {"openai": 8.75, "anthropic": 3.75},
+        "cache_hit_rate": 0.85,
     }
 
 
@@ -160,13 +138,13 @@ def sample_evaluation_response():
             "relevance": 0.95,
             "accuracy": 0.88,
             "helpfulness": 0.92,
-            "safety": 1.0
+            "safety": 1.0,
         },
         "feedback": "High quality response with accurate information",
         "recommendations": [
             "Consider adding more specific examples",
-            "Response could be more concise"
-        ]
+            "Response could be more concise",
+        ],
     }
 
 
@@ -181,6 +159,7 @@ async def async_mock_client(mock_http_client):
 @pytest.fixture
 def generate_chat_messages():
     """Generate chat messages for testing."""
+
     def _generate(count=3):
         messages = []
         for i in range(count):
@@ -188,20 +167,23 @@ def generate_chat_messages():
             content = f"Test message {i + 1}"
             messages.append({"role": role, "content": content})
         return messages
+
     return _generate
 
 
 @pytest.fixture
 def generate_test_metadata():
     """Generate test metadata."""
+
     def _generate(user_id="user_123", session_id="session_456"):
         return {
             "user_id": user_id,
             "session_id": session_id,
             "timestamp": "2024-01-15T10:30:00Z",
             "environment": "test",
-            "version": "1.0.0"
+            "version": "1.0.0",
         }
+
     return _generate
 
 
@@ -211,10 +193,12 @@ def reset_client_state():
     """Reset client state before and after each test."""
     # Clear singleton instance
     import brokle.client
+
     brokle.client._client_singleton = None
 
     # Clear observability context
     from brokle.observability.context import clear_context
+
     clear_context()
 
     yield

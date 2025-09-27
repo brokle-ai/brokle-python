@@ -4,12 +4,11 @@ Context management for observability.
 Provides client context for Pattern 1/2 compatibility.
 """
 
-from typing import Optional, Dict, Any
 import threading
 from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from ..client import Brokle
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     pass
@@ -27,24 +26,28 @@ class ObservabilityContext:
 
     def get_client(self) -> Optional[Brokle]:
         """Get client for current thread."""
-        return getattr(self._local, 'client', None)
+        return getattr(self._local, "client", None)
 
     def clear(self) -> None:
         """Clear context for current thread."""
-        if hasattr(self._local, 'client'):
-            delattr(self._local, 'client')
+        if hasattr(self._local, "client"):
+            delattr(self._local, "client")
 
     def get_info(self) -> Dict[str, Any]:
         """Get context information."""
         client = self.get_client()
         if client:
             return {
-                'has_client': True,
-                'api_key': client.config.api_key[:10] + "..." if client.config.api_key else None,
-                'environment': client.config.environment,
-                'host': client.config.host
+                "has_client": True,
+                "api_key": (
+                    client.config.api_key[:10] + "..."
+                    if client.config.api_key
+                    else None
+                ),
+                "environment": client.config.environment,
+                "host": client.config.host,
             }
-        return {'has_client': False}
+        return {"has_client": False}
 
 
 # Global context instance
@@ -68,7 +71,7 @@ def get_client(
     cache_enabled: Optional[bool] = None,
     routing_enabled: Optional[bool] = None,
     evaluation_enabled: Optional[bool] = None,
-    **kwargs
+    **kwargs,
 ) -> Brokle:
     """
     Get or create Brokle client for observability.
@@ -99,14 +102,27 @@ def get_client(
         Brokle client instance
     """
     # Check if any explicit credentials/config provided
-    explicit_config = any([
-        api_key, host, environment,
-        otel_enabled is not None, otel_endpoint, otel_service_name, otel_headers,
-        telemetry_enabled is not None, telemetry_batch_size is not None, telemetry_flush_interval is not None,
-        debug is not None, timeout is not None, max_retries is not None,
-        cache_enabled is not None, routing_enabled is not None, evaluation_enabled is not None,
-        kwargs
-    ])
+    explicit_config = any(
+        [
+            api_key,
+            host,
+            environment,
+            otel_enabled is not None,
+            otel_endpoint,
+            otel_service_name,
+            otel_headers,
+            telemetry_enabled is not None,
+            telemetry_batch_size is not None,
+            telemetry_flush_interval is not None,
+            debug is not None,
+            timeout is not None,
+            max_retries is not None,
+            cache_enabled is not None,
+            routing_enabled is not None,
+            evaluation_enabled is not None,
+            kwargs,
+        ]
+    )
 
     # If explicit credentials provided, create dedicated client (thread-safe)
     if explicit_config:
@@ -114,37 +130,37 @@ def get_client(
         client_kwargs = {}
 
         if api_key is not None:
-            client_kwargs['api_key'] = api_key
+            client_kwargs["api_key"] = api_key
         if host is not None:
-            client_kwargs['host'] = host
+            client_kwargs["host"] = host
         if environment is not None:
-            client_kwargs['environment'] = environment
+            client_kwargs["environment"] = environment
         if otel_enabled is not None:
-            client_kwargs['otel_enabled'] = otel_enabled
+            client_kwargs["otel_enabled"] = otel_enabled
         if otel_endpoint is not None:
-            client_kwargs['otel_endpoint'] = otel_endpoint
+            client_kwargs["otel_endpoint"] = otel_endpoint
         if otel_service_name is not None:
-            client_kwargs['otel_service_name'] = otel_service_name
+            client_kwargs["otel_service_name"] = otel_service_name
         if otel_headers is not None:
-            client_kwargs['otel_headers'] = otel_headers
+            client_kwargs["otel_headers"] = otel_headers
         if telemetry_enabled is not None:
-            client_kwargs['telemetry_enabled'] = telemetry_enabled
+            client_kwargs["telemetry_enabled"] = telemetry_enabled
         if telemetry_batch_size is not None:
-            client_kwargs['telemetry_batch_size'] = telemetry_batch_size
+            client_kwargs["telemetry_batch_size"] = telemetry_batch_size
         if telemetry_flush_interval is not None:
-            client_kwargs['telemetry_flush_interval'] = telemetry_flush_interval
+            client_kwargs["telemetry_flush_interval"] = telemetry_flush_interval
         if debug is not None:
-            client_kwargs['debug'] = debug
+            client_kwargs["debug"] = debug
         if timeout is not None:
-            client_kwargs['timeout'] = timeout
+            client_kwargs["timeout"] = timeout
         if max_retries is not None:
-            client_kwargs['max_retries'] = max_retries
+            client_kwargs["max_retries"] = max_retries
         if cache_enabled is not None:
-            client_kwargs['cache_enabled'] = cache_enabled
+            client_kwargs["cache_enabled"] = cache_enabled
         if routing_enabled is not None:
-            client_kwargs['routing_enabled'] = routing_enabled
+            client_kwargs["routing_enabled"] = routing_enabled
         if evaluation_enabled is not None:
-            client_kwargs['evaluation_enabled'] = evaluation_enabled
+            client_kwargs["evaluation_enabled"] = evaluation_enabled
 
         # Add any additional kwargs
         client_kwargs.update(kwargs)
@@ -177,8 +193,6 @@ def get_client_context() -> Optional[Brokle]:
 def clear_context() -> None:
     """Clear the current context."""
     _context.clear()
-
-
 
 
 def get_context_info() -> Dict[str, Any]:

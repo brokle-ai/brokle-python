@@ -11,18 +11,19 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Callable, Union
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Union
 
-from .queue import Task, TaskQueue, TaskResult, TaskStatus, TaskPriority
+from .queue import Task, TaskPriority, TaskQueue, TaskResult, TaskStatus
 
 logger = logging.getLogger(__name__)
 
 
 class WorkerStatus(Enum):
     """Worker status enumeration."""
+
     STARTING = "starting"
     RUNNING = "running"
     IDLE = "idle"
@@ -35,6 +36,7 @@ class WorkerStatus(Enum):
 @dataclass
 class WorkerMetrics:
     """Worker performance metrics."""
+
     worker_id: str
     status: WorkerStatus
     tasks_processed: int = 0
@@ -82,7 +84,7 @@ class BaseWorker(ABC):
         queue: TaskQueue,
         task_handlers: Optional[Dict[str, Callable]] = None,
         max_task_time_seconds: float = 300.0,
-        health_check_interval_seconds: float = 30.0
+        health_check_interval_seconds: float = 30.0,
     ):
         self.worker_id = worker_id
         self.queue = queue
@@ -122,7 +124,7 @@ class BaseWorker(ABC):
         self._worker_thread = threading.Thread(
             target=self._worker_loop,
             name=f"brokle-worker-{self.worker_id}",
-            daemon=True
+            daemon=True,
         )
         self._worker_thread.start()
 
@@ -130,7 +132,7 @@ class BaseWorker(ABC):
         self._health_check_thread = threading.Thread(
             target=self._health_check_loop,
             name=f"brokle-health-{self.worker_id}",
-            daemon=True
+            daemon=True,
         )
         self._health_check_thread.start()
 
@@ -146,8 +148,7 @@ class BaseWorker(ABC):
 
         # Wait for current task to complete
         start_time = time.time()
-        while (self._current_task is not None and
-               time.time() - start_time < timeout):
+        while self._current_task is not None and time.time() - start_time < timeout:
             time.sleep(0.1)
 
         # Wait for threads to finish
@@ -196,7 +197,9 @@ class BaseWorker(ABC):
             # Find handler
             handler = self.task_handlers.get(task.task_type)
             if not handler:
-                raise ValueError(f"No handler registered for task type: {task.task_type}")
+                raise ValueError(
+                    f"No handler registered for task type: {task.task_type}"
+                )
 
             # Execute task with timeout
             result = self._execute_with_timeout(handler, task)
@@ -210,7 +213,9 @@ class BaseWorker(ABC):
             self.metrics.total_processing_time_ms += processing_time_ms
             self.metrics.last_task_at = datetime.now(timezone.utc)
 
-            logger.debug(f"Worker {self.worker_id} completed task {task.id} in {processing_time_ms:.1f}ms")
+            logger.debug(
+                f"Worker {self.worker_id} completed task {task.id} in {processing_time_ms:.1f}ms"
+            )
 
         except Exception as e:
             # Mark as failed
@@ -239,13 +244,16 @@ class BaseWorker(ABC):
     def _update_health_metrics(self) -> None:
         """Update health and performance metrics."""
         if self._start_time:
-            self.metrics.uptime_seconds = (datetime.now(timezone.utc) - self._start_time).total_seconds()
+            self.metrics.uptime_seconds = (
+                datetime.now(timezone.utc) - self._start_time
+            ).total_seconds()
 
         self.metrics.status = self.status
 
         # Optional: Add memory and CPU monitoring
         try:
             import psutil
+
             process = psutil.Process()
             self.metrics.memory_usage_mb = process.memory_info().rss / 1024 / 1024
             self.metrics.cpu_usage_percent = process.cpu_percent()
@@ -267,7 +275,9 @@ class ThreadWorker(BaseWorker):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"task-{self.worker_id}")
+        self._executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix=f"task-{self.worker_id}"
+        )
 
     def _execute_with_timeout(self, handler: Callable, task: Task) -> Any:
         """Execute handler in thread with timeout."""
@@ -277,7 +287,9 @@ class ThreadWorker(BaseWorker):
             return future.result(timeout=self.max_task_time_seconds)
         except TimeoutError:
             future.cancel()
-            raise TimeoutError(f"Task {task.id} timed out after {self.max_task_time_seconds} seconds")
+            raise TimeoutError(
+                f"Task {task.id} timed out after {self.max_task_time_seconds} seconds"
+            )
 
     def stop(self, timeout: float = 30.0) -> None:
         """Stop worker and shutdown executor."""
@@ -345,7 +357,9 @@ class AsyncWorker(BaseWorker):
             # Find handler
             handler = self.task_handlers.get(task.task_type)
             if not handler:
-                raise ValueError(f"No handler registered for task type: {task.task_type}")
+                raise ValueError(
+                    f"No handler registered for task type: {task.task_type}"
+                )
 
             # Execute with timeout
             result = await self._execute_with_timeout(handler, task)
@@ -359,7 +373,9 @@ class AsyncWorker(BaseWorker):
             self.metrics.total_processing_time_ms += processing_time_ms
             self.metrics.last_task_at = datetime.now(timezone.utc)
 
-            logger.debug(f"Async worker {self.worker_id} completed task {task.id} in {processing_time_ms:.1f}ms")
+            logger.debug(
+                f"Async worker {self.worker_id} completed task {task.id} in {processing_time_ms:.1f}ms"
+            )
 
         except Exception as e:
             # Mark as failed
@@ -376,15 +392,14 @@ class AsyncWorker(BaseWorker):
         if asyncio.iscoroutinefunction(handler):
             # Async handler
             return await asyncio.wait_for(
-                handler(task),
-                timeout=self.max_task_time_seconds
+                handler(task), timeout=self.max_task_time_seconds
             )
         else:
             # Sync handler - run in executor
             loop = asyncio.get_event_loop()
             return await asyncio.wait_for(
                 loop.run_in_executor(None, handler, task),
-                timeout=self.max_task_time_seconds
+                timeout=self.max_task_time_seconds,
             )
 
 
@@ -404,7 +419,7 @@ class WorkerPool:
         scale_up_threshold: float = 0.8,
         scale_down_threshold: float = 0.2,
         scale_check_interval_seconds: float = 30.0,
-        task_handlers: Optional[Dict[str, Callable]] = None
+        task_handlers: Optional[Dict[str, Callable]] = None,
     ):
         self.queue = queue
         self.worker_class = worker_class
@@ -435,9 +450,7 @@ class WorkerPool:
 
         # Start scaling thread
         self._scaling_thread = threading.Thread(
-            target=self._scaling_loop,
-            name="brokle-scaling",
-            daemon=True
+            target=self._scaling_loop, name="brokle-scaling", daemon=True
         )
         self._scaling_thread.start()
 
@@ -465,7 +478,9 @@ class WorkerPool:
         for worker in self.workers.values():
             worker.register_handler(task_type, handler)
 
-        logger.info(f"Registered handler for {task_type} with {len(self.workers)} workers")
+        logger.info(
+            f"Registered handler for {task_type} with {len(self.workers)} workers"
+        )
 
     def _add_worker(self) -> str:
         """Add a new worker to the pool."""
@@ -475,7 +490,7 @@ class WorkerPool:
         worker = self.worker_class(
             worker_id=worker_id,
             queue=self.queue,
-            task_handlers=self.task_handlers.copy()
+            task_handlers=self.task_handlers.copy(),
         )
 
         worker.start()
@@ -516,22 +531,26 @@ class WorkerPool:
 
         # Calculate metrics
         queue_metrics = self.queue.get_metrics()
-        total_queue_size = queue_metrics.get("queue_size", 0) + queue_metrics.get("retry_queue_size", 0)
+        total_queue_size = queue_metrics.get("queue_size", 0) + queue_metrics.get(
+            "retry_queue_size", 0
+        )
 
-        busy_workers = sum(1 for w in self.workers.values() if w.status == WorkerStatus.BUSY)
+        busy_workers = sum(
+            1 for w in self.workers.values() if w.status == WorkerStatus.BUSY
+        )
         worker_utilization = busy_workers / len(self.workers) if self.workers else 0
 
         # Scale up conditions
         should_scale_up = (
-            worker_utilization > self.scale_up_threshold and
-            total_queue_size > 0 and
-            len(self.workers) < self.max_workers
+            worker_utilization > self.scale_up_threshold
+            and total_queue_size > 0
+            and len(self.workers) < self.max_workers
         )
 
         # Scale down conditions
         should_scale_down = (
-            worker_utilization < self.scale_down_threshold and
-            len(self.workers) > self.min_workers
+            worker_utilization < self.scale_down_threshold
+            and len(self.workers) > self.min_workers
         )
 
         if should_scale_up:
@@ -555,12 +574,14 @@ class WorkerPool:
 
         avg_processing_time = (
             total_processing_time / total_tasks_processed
-            if total_tasks_processed > 0 else 0.0
+            if total_tasks_processed > 0
+            else 0.0
         )
 
         success_rate = (
             total_tasks_processed / (total_tasks_processed + total_tasks_failed)
-            if (total_tasks_processed + total_tasks_failed) > 0 else 1.0
+            if (total_tasks_processed + total_tasks_failed) > 0
+            else 1.0
         )
 
         return {
@@ -578,8 +599,8 @@ class WorkerPool:
                     "tasks_failed": metric.tasks_failed,
                     "avg_processing_time_ms": metric.average_processing_time_ms,
                     "success_rate": metric.success_rate,
-                    "uptime_seconds": metric.uptime_seconds
+                    "uptime_seconds": metric.uptime_seconds,
                 }
                 for worker_id, metric in zip(self.workers.keys(), worker_metrics)
-            }
+            },
         }
