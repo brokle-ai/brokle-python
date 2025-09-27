@@ -6,7 +6,7 @@ serialization, and multiple inheritance patterns.
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 from brokle.types.responses.base import (
@@ -40,14 +40,14 @@ class TestIndividualMixins:
             name: str
 
         # Test with required created_at
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         model = TestModel(name="test", created_at=now)
 
         assert model.created_at == now
         assert model.updated_at is None
 
         # Test with both timestamps
-        updated = datetime.utcnow()
+        updated = datetime.now(timezone.utc)
         model = TestModel(name="test", created_at=now, updated_at=updated)
 
         assert model.created_at == now
@@ -169,7 +169,7 @@ class TestMultipleInheritance:
         ):
             name: str
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         model = TestModel(
             name="test",
             created_at=now,
@@ -203,7 +203,7 @@ class TestPrebuiltResponseClasses:
         class TestResponse(TimestampedResponse):
             message: str
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         response = TestResponse(message="hello", created_at=now)
 
         assert response.message == "hello"
@@ -254,7 +254,7 @@ class TestPrebuiltResponseClasses:
         class TestResponse(FullContextResponse):
             data: str
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         response = TestResponse(
             data="test",
             request_id="req_123",
@@ -285,7 +285,7 @@ class TestSerialization:
         class TestModel(TimestampMixin, MetadataMixin):
             name: str
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         model = TestModel(
             name="test",
             created_at=now,
@@ -336,7 +336,7 @@ class TestValidation:
             TestModel(name="test")
 
         # Should succeed with created_at
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         model = TestModel(name="test", created_at=now)
         assert model.created_at == now
 
@@ -376,7 +376,7 @@ class TestIndustryStandardBaseResponse:
         """Test BaseResponse follows industry standard pattern like AWS, Google Cloud."""
 
         # Create BrokleMetadata with comprehensive platform data
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         metadata = BrokleMetadata(
             request_id="req_123",
             provider="openai",
@@ -493,7 +493,7 @@ class TestIndustryStandardBaseResponse:
             cost_savings_usd=0.003,
 
             # Metadata
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             custom_tags={"project": "test", "env": "staging"}
         )
 

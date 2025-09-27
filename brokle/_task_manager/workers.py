@@ -11,7 +11,7 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Callable, Union
 from dataclasses import dataclass
 from enum import Enum
@@ -116,7 +116,7 @@ class BaseWorker(ABC):
 
         self.status = WorkerStatus.STARTING
         self._shutdown = False
-        self._start_time = datetime.utcnow()
+        self._start_time = datetime.now(timezone.utc)
 
         # Start worker thread
         self._worker_thread = threading.Thread(
@@ -208,7 +208,7 @@ class BaseWorker(ABC):
             processing_time_ms = (time.time() - start_time) * 1000
             self.metrics.tasks_processed += 1
             self.metrics.total_processing_time_ms += processing_time_ms
-            self.metrics.last_task_at = datetime.utcnow()
+            self.metrics.last_task_at = datetime.now(timezone.utc)
 
             logger.debug(f"Worker {self.worker_id} completed task {task.id} in {processing_time_ms:.1f}ms")
 
@@ -239,7 +239,7 @@ class BaseWorker(ABC):
     def _update_health_metrics(self) -> None:
         """Update health and performance metrics."""
         if self._start_time:
-            self.metrics.uptime_seconds = (datetime.utcnow() - self._start_time).total_seconds()
+            self.metrics.uptime_seconds = (datetime.now(timezone.utc) - self._start_time).total_seconds()
 
         self.metrics.status = self.status
 
@@ -357,7 +357,7 @@ class AsyncWorker(BaseWorker):
             processing_time_ms = (time.time() - start_time) * 1000
             self.metrics.tasks_processed += 1
             self.metrics.total_processing_time_ms += processing_time_ms
-            self.metrics.last_task_at = datetime.utcnow()
+            self.metrics.last_task_at = datetime.now(timezone.utc)
 
             logger.debug(f"Async worker {self.worker_id} completed task {task.id} in {processing_time_ms:.1f}ms")
 

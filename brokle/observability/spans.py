@@ -5,7 +5,7 @@ Provides span creation and management for Pattern 1/2 compatibility.
 """
 
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 from contextlib import contextmanager
 import time
 import uuid
@@ -36,7 +36,7 @@ class BrokleSpan(BaseModel):
         if 'span_id' not in data:
             data['span_id'] = f"span_{uuid.uuid4().hex[:16]}"
         if 'start_time' not in data:
-            data['start_time'] = datetime.utcnow()
+            data['start_time'] = datetime.now(timezone.utc)
         super().__init__(**data)
 
     def set_attribute(self, key: str, value: Any) -> None:
@@ -56,7 +56,7 @@ class BrokleSpan(BaseModel):
 
     def finish(self) -> None:
         """Finish the span."""
-        self.end_time = datetime.utcnow()
+        self.end_time = datetime.now(timezone.utc)
         if self.status == "started":
             self.status = "completed"
 
