@@ -23,7 +23,6 @@ from ..integrations.instrumentation import UniversalInstrumentation
 from ..providers import get_provider
 from ..exceptions import ProviderError, ValidationError
 from .._utils.validation import validate_environment
-from .._utils.wrapper_validation import validate_wrapper_config
 from ..observability import get_client
 
 logger = logging.getLogger(__name__)
@@ -134,18 +133,16 @@ def wrap_openai(
     except Exception as e:
         logger.warning(f"Environment validation failed: {e}")
 
-    # Validate configuration parameters
-    try:
-        validate_wrapper_config(
-            capture_content=capture_content,
-            capture_metadata=capture_metadata,
-            tags=tags,
-            session_id=session_id,
-            user_id=user_id,
-            **config
-        )
-    except Exception as e:
-        raise ValidationError(f"Invalid wrapper configuration: {e}")
+    # Validate wrapper configuration
+    from .._utils.wrapper_validation import validate_wrapper_config
+    validate_wrapper_config(
+        capture_content=capture_content,
+        capture_metadata=capture_metadata,
+        tags=tags,
+        session_id=session_id,
+        user_id=user_id,
+        **config
+    )
 
     # Check Brokle client availability (optional)
     brokle_client = None

@@ -223,21 +223,21 @@ class TestConfiguration:
     def test_invalid_capture_content_type(self):
         """Test validation of capture_content parameter."""
         from brokle._utils.wrapper_validation import validate_wrapper_config
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             validate_wrapper_config(capture_content="not_a_bool")
         assert "capture_content must be a boolean" in str(exc_info.value)
 
     def test_invalid_tags_not_list(self):
         """Test validation of tags parameter type."""
         from brokle._utils.wrapper_validation import validate_wrapper_config
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             validate_wrapper_config(tags="not_a_list")
         assert "tags must be a list" in str(exc_info.value)
 
     def test_invalid_tag_not_string(self):
         """Test validation of individual tag types."""
         from brokle._utils.wrapper_validation import validate_wrapper_config
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             validate_wrapper_config(tags=[123, "valid_tag"])
         assert "tags[0] must be a string" in str(exc_info.value)
 
@@ -245,7 +245,7 @@ class TestConfiguration:
         """Test validation of tag length."""
         from brokle._utils.wrapper_validation import validate_wrapper_config
         long_tag = "a" * 51  # 51 characters, over the limit
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             validate_wrapper_config(tags=[long_tag])
         assert "must be <= 50 characters" in str(exc_info.value)
 
@@ -253,7 +253,7 @@ class TestConfiguration:
         """Test validation of session_id length."""
         from brokle._utils.wrapper_validation import validate_wrapper_config
         long_session_id = "a" * 101  # 101 characters, over the limit
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             validate_wrapper_config(session_id=long_session_id)
         assert "must be <= 100 characters" in str(exc_info.value)
 
@@ -261,6 +261,8 @@ class TestConfiguration:
         """Test validation of user_id length."""
         from brokle._utils.wrapper_validation import validate_wrapper_config
         long_user_id = "a" * 101  # 101 characters, over the limit
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             validate_wrapper_config(user_id=long_user_id)
         assert "must be <= 100 characters" in str(exc_info.value)
+
+

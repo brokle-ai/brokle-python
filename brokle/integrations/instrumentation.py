@@ -60,11 +60,6 @@ class InstrumentationContext:
         self.start_time = time.time()
 
         try:
-            # Validate request if provider supports it
-            is_valid, error_msg = self.provider.validate_request(self.kwargs)
-            if not is_valid:
-                logger.warning(f"Request validation failed: {error_msg}")
-                # Continue with instrumentation but log the issue
 
             # Create span with initial attributes
             span_name = f"{self.provider.name}.{self.method_def['operation']}"

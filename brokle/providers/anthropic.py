@@ -1,34 +1,24 @@
 """
-Anthropic Provider Implementation
+Anthropic Provider Implementation - Observability Only
 
-Specific instrumentation logic for Anthropic SDK with comprehensive
-support for messages API and multimodal content.
+Specific telemetry and instrumentation logic for Anthropic SDK.
+Focused on request/response attribute extraction for observability.
+
+Business logic (cost calculation, routing, caching) is handled by backend.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 import re
 
 from .base import BaseProvider
 from ..observability.attributes import BrokleOtelSpanAttributes as BrokleInstrumentationAttributes
-from ..exceptions import ProviderError, ValidationError
 
 logger = logging.getLogger(__name__)
 
 
 class AnthropicProvider(BaseProvider):
-    """Anthropic-specific provider implementation."""
-
-    # Anthropic pricing per 1K tokens (as of 2024)
-    MODEL_PRICING = {
-        'claude-3-opus': {'input': 0.015, 'output': 0.075},
-        'claude-3-sonnet': {'input': 0.003, 'output': 0.015},
-        'claude-3-haiku': {'input': 0.00025, 'output': 0.00125},
-        'claude-3-5-sonnet': {'input': 0.003, 'output': 0.015},
-        'claude-2.1': {'input': 0.008, 'output': 0.024},
-        'claude-2.0': {'input': 0.008, 'output': 0.024},
-        'claude-instant-1.2': {'input': 0.0008, 'output': 0.0024},
-    }
+    """Anthropic-specific provider implementation for observability."""
 
     def get_provider_name(self) -> str:
         """Return Anthropic provider identifier."""
@@ -160,11 +150,6 @@ class AnthropicProvider(BaseProvider):
                 output_tokens = getattr(usage, 'output_tokens', 0)
                 attributes[BrokleInstrumentationAttributes.TOTAL_TOKENS] = input_tokens + output_tokens
 
-                # Calculate cost
-                if hasattr(response, 'model'):
-                    cost = self.calculate_cost(response.model, input_tokens, output_tokens)
-                    if cost > 0:
-                        attributes[BrokleInstrumentationAttributes.COST_USD] = cost
 
             # Model from response
             if hasattr(response, 'model'):
@@ -237,26 +222,6 @@ class AnthropicProvider(BaseProvider):
         # Rough token estimation (4 characters ≈ 1 token)
         return max(1, total_chars // 4)
 
-    def calculate_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
-        """Calculate Anthropic API cost based on current pricing."""
-        normalized_model = self.normalize_model_name(model)
-
-        if normalized_model not in self.MODEL_PRICING:
-            logger.warning(f"Unknown Anthropic model for cost calculation: {model}")
-            return 0.0
-
-        pricing = self.MODEL_PRICING[normalized_model]
-
-        # Calculate cost per 1K tokens
-        input_cost = (input_tokens / 1000) * pricing['input']
-        output_cost = (output_tokens / 1000) * pricing['output']
-
-        total_cost = input_cost + output_cost
-        return round(total_cost, 6)  # Round to 6 decimal places for accuracy
-
-    def get_supported_models(self) -> List[str]:
-        """Return list of supported Anthropic models."""
-        return list(self.MODEL_PRICING.keys())
 
     def normalize_model_name(self, model: str) -> str:
         """Normalize Anthropic model names for consistent telemetry."""
@@ -274,49 +239,6 @@ class AnthropicProvider(BaseProvider):
 
         return model_aliases.get(normalized, normalized)
 
-    def validate_request(self, kwargs: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
-        """Validate Anthropic request parameters."""
-        # Check required parameters
-        if 'model' not in kwargs:
-            return False, "Missing required parameter: model"
-
-        # Validate messages format (for messages API)
-        if 'messages' in kwargs:
-            messages = kwargs['messages']
-            if not isinstance(messages, list):
-                return False, "Messages must be a list"
-
-            if not messages:
-                return False, "Messages list cannot be empty"
-
-            for i, msg in enumerate(messages):
-                if not isinstance(msg, dict):
-                    return False, f"Message {i} must be a dictionary"
-
-                if 'role' not in msg:
-                    return False, f"Message {i} missing required 'role' field"
-
-                if msg['role'] not in ['user', 'assistant']:
-                    return False, f"Message {i} has invalid role: {msg['role']} (Anthropic only supports 'user' and 'assistant')"
-
-                if 'content' not in msg:
-                    return False, f"Message {i} missing required 'content' field"
-
-        # Validate legacy completion format
-        elif 'prompt' in kwargs:
-            prompt = kwargs['prompt']
-            if not isinstance(prompt, str):
-                return False, "Prompt must be a string for Anthropic completions"
-
-        # Validate max_tokens (required for Anthropic)
-        if 'max_tokens' not in kwargs:
-            return False, "Missing required parameter: max_tokens"
-
-        max_tokens = kwargs['max_tokens']
-        if not isinstance(max_tokens, int) or max_tokens <= 0:
-            return False, "max_tokens must be a positive integer"
-
-        return True, None
 
     def get_error_mapping(self) -> Dict[str, str]:
         """Map Anthropic errors to Brokle error types."""

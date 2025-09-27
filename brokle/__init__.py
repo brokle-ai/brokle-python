@@ -84,24 +84,9 @@ from .exceptions import (
     QuotaExceededError,
     ProviderError,
     CacheError,
-    EvaluationError,
+    # EvaluationError removed - evaluation moved to backend
 )
 
-# Evaluation framework exports
-from .evaluation import (
-    evaluate,
-    aevaluate,
-    BaseEvaluator,
-    EvaluationResult,
-    EvaluationConfig,
-    AccuracyEvaluator,
-    RelevanceEvaluator,
-    CostEfficiencyEvaluator,
-    LatencyEvaluator,
-    QualityEvaluator,
-)
-
-# NOTE: AI Platform features are now integrated into the main Brokle client
 # These advanced features are available through the Native SDK Pattern 3
 
 # Main exports - Clean 3-Pattern Architecture
@@ -140,19 +125,10 @@ __all__ = [
     "QuotaExceededError",
     "ProviderError",
     "CacheError",
-    "EvaluationError",
+    # "EvaluationError" removed - evaluation moved to backend
 
-    # === SHARED: EVALUATION FRAMEWORK ===
-    "evaluate",
-    "aevaluate",
-    "BaseEvaluator",
-    "EvaluationResult",
-    "EvaluationConfig",
-    "AccuracyEvaluator",
-    "RelevanceEvaluator",
-    "CostEfficiencyEvaluator",
-    "LatencyEvaluator",
-    "QualityEvaluator",
+    # === NOTE: EVALUATION FRAMEWORK MOVED TO BACKEND ===
+    # All evaluation logic is now handled by the backend
 
     # === NATIVE SDK: ADVANCED FEATURES (Integrated into main client) ===
     # Advanced features are available through Brokle() and AsyncBrokle() clients

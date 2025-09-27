@@ -89,20 +89,7 @@ class TestOpenAIProvider:
         assert attributes[BrokleInstrumentationAttributes.TOTAL_TOKENS] == 35
         assert attributes[BrokleInstrumentationAttributes.FINISH_REASON] == "stop"
         assert attributes[BrokleInstrumentationAttributes.RESPONSE_CONTENT_LENGTH] == 26
-        assert BrokleInstrumentationAttributes.COST_USD in attributes
-
-    def test_calculate_cost(self):
-        """Test cost calculation for known models."""
-        provider = OpenAIProvider()
-
-        # Test GPT-4 cost calculation
-        cost = provider.calculate_cost("gpt-4", 1000, 500)
-        expected_cost = (1000 / 1000) * 0.03 + (500 / 1000) * 0.06  # GPT-4 pricing
-        assert cost == round(expected_cost, 6)
-
-        # Test unknown model
-        cost = provider.calculate_cost("unknown-model", 1000, 500)
-        assert cost == 0.0
+        assert BrokleInstrumentationAttributes.COST_USD not in attributes
 
     def test_normalize_model_name(self):
         """Test model name normalization."""
@@ -113,30 +100,6 @@ class TestOpenAIProvider:
         assert provider.normalize_model_name("gpt-3.5-turbo-0125") == "gpt-3.5-turbo"
         assert provider.normalize_model_name("gpt-4") == "gpt-4"
 
-    def test_validate_request_chat(self):
-        """Test request validation for chat completion."""
-        provider = OpenAIProvider()
-
-        # Valid request
-        valid_kwargs = {
-            'model': 'gpt-4',
-            'messages': [{'role': 'user', 'content': 'Hello'}]
-        }
-        is_valid, error = provider.validate_request(valid_kwargs)
-        assert is_valid is True
-        assert error is None
-
-        # Missing model
-        invalid_kwargs = {'messages': [{'role': 'user', 'content': 'Hello'}]}
-        is_valid, error = provider.validate_request(invalid_kwargs)
-        assert is_valid is False
-        assert "Missing required parameter: model" in error
-
-        # Empty messages
-        invalid_kwargs = {'model': 'gpt-4', 'messages': []}
-        is_valid, error = provider.validate_request(invalid_kwargs)
-        assert is_valid is False
-        assert "Messages list cannot be empty" in error
 
     def test_error_mapping(self):
         """Test error mapping for OpenAI errors."""
@@ -223,20 +186,8 @@ class TestAnthropicProvider:
         assert attributes[BrokleInstrumentationAttributes.TOTAL_TOKENS] == 60
         assert attributes[BrokleInstrumentationAttributes.STOP_REASON] == "end_turn"
         assert attributes[BrokleInstrumentationAttributes.RESPONSE_CONTENT_LENGTH] == 44
-        assert BrokleInstrumentationAttributes.COST_USD in attributes
+        assert BrokleInstrumentationAttributes.COST_USD not in attributes
 
-    def test_calculate_cost(self):
-        """Test cost calculation for Anthropic models."""
-        provider = AnthropicProvider()
-
-        # Test Claude-3 Opus cost calculation
-        cost = provider.calculate_cost("claude-3-opus", 1000, 500)
-        expected_cost = (1000 / 1000) * 0.015 + (500 / 1000) * 0.075  # Claude-3 Opus pricing
-        assert cost == round(expected_cost, 6)
-
-        # Test unknown model
-        cost = provider.calculate_cost("unknown-model", 1000, 500)
-        assert cost == 0.0
 
     def test_normalize_model_name(self):
         """Test model name normalization for Anthropic."""
@@ -246,38 +197,6 @@ class TestAnthropicProvider:
         assert provider.normalize_model_name("claude-3-sonnet-20240229") == "claude-3-sonnet"
         assert provider.normalize_model_name("claude-3-haiku") == "claude-3-haiku"
 
-    def test_validate_request_messages(self):
-        """Test request validation for messages API."""
-        provider = AnthropicProvider()
-
-        # Valid request
-        valid_kwargs = {
-            'model': 'claude-3-opus',
-            'messages': [{'role': 'user', 'content': 'Hello'}],
-            'max_tokens': 1000
-        }
-        is_valid, error = provider.validate_request(valid_kwargs)
-        assert is_valid is True
-        assert error is None
-
-        # Missing max_tokens
-        invalid_kwargs = {
-            'model': 'claude-3-opus',
-            'messages': [{'role': 'user', 'content': 'Hello'}]
-        }
-        is_valid, error = provider.validate_request(invalid_kwargs)
-        assert is_valid is False
-        assert "Missing required parameter: max_tokens" in error
-
-        # Invalid role
-        invalid_kwargs = {
-            'model': 'claude-3-opus',
-            'messages': [{'role': 'system', 'content': 'Hello'}],  # Anthropic doesn't support system role in messages
-            'max_tokens': 1000
-        }
-        is_valid, error = provider.validate_request(invalid_kwargs)
-        assert is_valid is False
-        assert "invalid role: system" in error
 
     def test_estimate_input_tokens_multimodal(self):
         """Test input token estimation with multimodal content."""

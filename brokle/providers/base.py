@@ -1,8 +1,11 @@
 """
-Abstract Base Provider Interface
+Abstract Base Provider Interface - Observability Only
 
 Defines the contract that all AI provider integrations must implement.
 Ensures consistent observability patterns across OpenAI, Anthropic, Google, etc.
+
+NOTE: This is for observability/telemetry only. Business logic (routing, caching,
+evaluation) is handled by the backend.
 """
 
 from abc import ABC, abstractmethod
@@ -17,8 +20,8 @@ class BaseProvider(ABC):
     """
     Abstract base class for all AI provider integrations.
 
-    Each provider must implement this interface to ensure consistent
-    observability, error handling, and instrumentation patterns.
+    Focused on observability, telemetry, and instrumentation patterns.
+    Business logic (cost calculation, caching, routing) is handled by backend.
     """
 
     def __init__(self, **config):
@@ -30,7 +33,6 @@ class BaseProvider(ABC):
         """
         self.config = config
         self.name = self.get_provider_name()
-        self._cost_cache: Dict[str, float] = {}
 
     @abstractmethod
     def get_provider_name(self) -> str:
@@ -166,41 +168,6 @@ class BaseProvider(ABC):
         # Rough token estimation (4 characters ≈ 1 token)
         return max(1, total_chars // 4)
 
-    def calculate_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
-        """
-        Calculate cost in USD for the request.
-
-        Args:
-            model: Model name (e.g., 'gpt-4', 'claude-3-opus')
-            input_tokens: Number of input tokens
-            output_tokens: Number of output tokens
-
-        Returns:
-            Cost in USD
-
-        Default implementation returns 0.0.
-        Providers should override with actual pricing data.
-        """
-        # Cache key for pricing lookup
-        cache_key = f"{model}_{input_tokens}_{output_tokens}"
-        if cache_key in self._cost_cache:
-            return self._cost_cache[cache_key]
-
-        # Default implementation - providers should override
-        cost = 0.0
-        self._cost_cache[cache_key] = cost
-        return cost
-
-    def get_supported_models(self) -> List[str]:
-        """
-        Return list of supported models for this provider.
-
-        Returns:
-            List of model identifiers
-
-        Used for validation and cost calculation.
-        """
-        return []
 
     def normalize_model_name(self, model: str) -> str:
         """
@@ -236,20 +203,6 @@ class BaseProvider(ABC):
         """
         return {}
 
-    def validate_request(self, kwargs: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
-        """
-        Validate request parameters before instrumentation.
-
-        Args:
-            kwargs: Method call arguments
-
-        Returns:
-            Tuple of (is_valid, error_message)
-
-        Default implementation always returns (True, None).
-        Providers can override for request validation.
-        """
-        return True, None
 
     def get_error_mapping(self) -> Dict[str, str]:
         """

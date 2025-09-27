@@ -1,40 +1,24 @@
 """
-OpenAI Provider Implementation
+OpenAI Provider Implementation - Observability Only
 
-Specific instrumentation logic for OpenAI SDK with comprehensive
-support for chat, completions, embeddings, and future capabilities.
+Specific telemetry and instrumentation logic for OpenAI SDK.
+Focused on request/response attribute extraction for observability.
+
+Business logic (cost calculation, routing, caching) is handled by backend.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 import re
 
 from .base import BaseProvider
 from ..observability.attributes import BrokleOtelSpanAttributes as BrokleInstrumentationAttributes
-from ..exceptions import ProviderError, ValidationError
 
 logger = logging.getLogger(__name__)
 
 
 class OpenAIProvider(BaseProvider):
-    """OpenAI-specific provider implementation."""
-
-    # OpenAI pricing per 1K tokens (as of 2024)
-    MODEL_PRICING = {
-        'gpt-4': {'input': 0.03, 'output': 0.06},
-        'gpt-4-turbo': {'input': 0.01, 'output': 0.03},
-        'gpt-4o': {'input': 0.005, 'output': 0.015},
-        'gpt-4o-mini': {'input': 0.00015, 'output': 0.0006},
-        'gpt-3.5-turbo': {'input': 0.0015, 'output': 0.002},
-        'text-embedding-3-small': {'input': 0.00002, 'output': 0.0},
-        'text-embedding-3-large': {'input': 0.00013, 'output': 0.0},
-        'text-embedding-ada-002': {'input': 0.0001, 'output': 0.0},
-        'dall-e-3': {'input': 0.04, 'output': 0.0},  # Per image
-        'dall-e-2': {'input': 0.02, 'output': 0.0},  # Per image
-        'whisper-1': {'input': 0.006, 'output': 0.0},  # Per minute
-        'tts-1': {'input': 0.015, 'output': 0.0},  # Per 1K characters
-        'tts-1-hd': {'input': 0.030, 'output': 0.0},  # Per 1K characters
-    }
+    """OpenAI-specific provider implementation for observability."""
 
     def get_provider_name(self) -> str:
         """Return OpenAI provider identifier."""
@@ -207,15 +191,6 @@ class OpenAIProvider(BaseProvider):
                 if hasattr(usage, 'total_tokens'):
                     attributes[BrokleInstrumentationAttributes.TOTAL_TOKENS] = usage.total_tokens
 
-                # Calculate cost
-                if hasattr(response, 'model') and hasattr(usage, 'prompt_tokens') and hasattr(usage, 'completion_tokens'):
-                    cost = self.calculate_cost(
-                        response.model,
-                        usage.prompt_tokens,
-                        usage.completion_tokens
-                    )
-                    if cost > 0:
-                        attributes[BrokleInstrumentationAttributes.COST_USD] = cost
 
             # Model from response
             if hasattr(response, 'model'):
@@ -266,26 +241,6 @@ class OpenAIProvider(BaseProvider):
 
         return attributes
 
-    def calculate_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
-        """Calculate OpenAI API cost based on current pricing."""
-        normalized_model = self.normalize_model_name(model)
-
-        if normalized_model not in self.MODEL_PRICING:
-            logger.warning(f"Unknown OpenAI model for cost calculation: {model}")
-            return 0.0
-
-        pricing = self.MODEL_PRICING[normalized_model]
-
-        # Calculate cost per 1K tokens
-        input_cost = (input_tokens / 1000) * pricing['input']
-        output_cost = (output_tokens / 1000) * pricing['output']
-
-        total_cost = input_cost + output_cost
-        return round(total_cost, 6)  # Round to 6 decimal places for accuracy
-
-    def get_supported_models(self) -> List[str]:
-        """Return list of supported OpenAI models."""
-        return list(self.MODEL_PRICING.keys())
 
     def normalize_model_name(self, model: str) -> str:
         """Normalize OpenAI model names for consistent telemetry."""
@@ -307,38 +262,6 @@ class OpenAIProvider(BaseProvider):
 
         return model_aliases.get(normalized, normalized)
 
-    def validate_request(self, kwargs: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
-        """Validate OpenAI request parameters."""
-        # Check required parameters
-        if 'model' not in kwargs:
-            return False, "Missing required parameter: model"
-
-        # Validate chat completion format
-        if 'messages' in kwargs:
-            messages = kwargs['messages']
-            if not isinstance(messages, list):
-                return False, "Messages must be a list"
-
-            if not messages:
-                return False, "Messages list cannot be empty"
-
-            for i, msg in enumerate(messages):
-                if not isinstance(msg, dict):
-                    return False, f"Message {i} must be a dictionary"
-
-                if 'role' not in msg:
-                    return False, f"Message {i} missing required 'role' field"
-
-                if msg['role'] not in ['system', 'user', 'assistant', 'function', 'tool']:
-                    return False, f"Message {i} has invalid role: {msg['role']}"
-
-        # Validate legacy completion format
-        elif 'prompt' in kwargs:
-            prompt = kwargs['prompt']
-            if not isinstance(prompt, (str, list)):
-                return False, "Prompt must be string or list of strings"
-
-        return True, None
 
     def get_error_mapping(self) -> Dict[str, str]:
         """Map OpenAI errors to Brokle error types."""
