@@ -66,16 +66,21 @@ class Brokle(HTTPBase):
         # Initialize HTTP client
         self._client: Optional[httpx.Client] = None
 
-        # Initialize background processor for telemetry
-        if background_processor is not None:
-            self._background_processor = background_processor
-            self._owns_processor = False  # We don't own it, don't shut it down
+        # Handle disabled state
+        if getattr(self, '_disabled', False):
+            self._background_processor = None
+            self._owns_processor = False
         else:
-            # Create default processor using our config
-            self._background_processor = get_background_processor(config=self.config)
-            self._owns_processor = True  # We created it, we should shut it down
+            # Initialize background processor for telemetry
+            if background_processor is not None:
+                self._background_processor = background_processor
+                self._owns_processor = False  # We don't own it, don't shut it down
+            else:
+                # Create default processor using our config
+                self._background_processor = get_background_processor(config=self.config)
+                self._owns_processor = True  # We created it, we should shut it down
 
-        # Initialize resources (will be created in next step)
+        # Initialize resources (always, even when disabled)
         from .resources.chat import ChatResource
         from .resources.embeddings import EmbeddingsResource
         from .resources.models import ModelsResource
@@ -90,6 +95,11 @@ class Brokle(HTTPBase):
 
         return create_span(name=name, **kwargs)
 
+    @property
+    def is_disabled(self) -> bool:
+        """Check if client is operating in disabled mode."""
+        return getattr(self, '_disabled', False)
+
     def submit_telemetry(self, data: Dict[str, Any]) -> None:
         """
         Submit telemetry data for background processing.
@@ -97,6 +107,8 @@ class Brokle(HTTPBase):
         Args:
             data: Telemetry data to submit
         """
+        if self.is_disabled or not self._background_processor:
+            return  # Skip telemetry when disabled
         self._background_processor.submit_telemetry(data)
 
     def submit_analytics(self, data: Dict[str, Any]) -> None:
@@ -106,6 +118,8 @@ class Brokle(HTTPBase):
         Args:
             data: Analytics data to submit
         """
+        if self.is_disabled or not self._background_processor:
+            return  # Skip analytics when disabled
         self._background_processor.submit_analytics(data)
 
     def submit_evaluation(self, data: Dict[str, Any]) -> None:
@@ -115,6 +129,8 @@ class Brokle(HTTPBase):
         Args:
             data: Evaluation data to submit
         """
+        if self.is_disabled or not self._background_processor:
+            return  # Skip evaluation when disabled
         self._background_processor.submit_evaluation(data)
 
     def get_processor_metrics(self) -> Dict[str, Any]:
@@ -124,6 +140,8 @@ class Brokle(HTTPBase):
         Returns:
             Dictionary containing processor metrics
         """
+        if self.is_disabled or not self._background_processor:
+            return {}  # Return empty metrics when disabled
         return self._background_processor.get_metrics()
 
     def is_processor_healthy(self) -> bool:
@@ -133,6 +151,8 @@ class Brokle(HTTPBase):
         Returns:
             True if processor is healthy
         """
+        if self.is_disabled or not self._background_processor:
+            return False  # Processor not healthy when disabled
         return self._background_processor.is_healthy()
 
     def flush_processor(self, timeout: Optional[float] = None) -> bool:
@@ -145,6 +165,8 @@ class Brokle(HTTPBase):
         Returns:
             True if all items processed, False if timeout reached
         """
+        if self.is_disabled or not self._background_processor:
+            return True  # Nothing to flush when disabled
         return self._background_processor.flush(timeout=timeout)
 
     def _get_client(self) -> httpx.Client:
@@ -171,6 +193,10 @@ class Brokle(HTTPBase):
         Raises:
             NetworkError: For connection errors
         """
+        # Return empty dict if client is disabled (graceful degradation)
+        if self.is_disabled:
+            return {}
+
         import time
 
         from ._utils.retry import is_retryable_error, retry_with_backoff
@@ -309,22 +335,28 @@ class AsyncBrokle(HTTPBase):
             **kwargs,
         )
 
-        # Initialize persistent HTTP client (performance optimization)
-        self._client = httpx.AsyncClient(
-            timeout=httpx.Timeout(self.config.timeout),
-            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
-        )
-
-        # Initialize background processor for telemetry
-        if background_processor is not None:
-            self._background_processor = background_processor
-            self._owns_processor = False  # We don't own it, don't shut it down
+        # Handle disabled state
+        if getattr(self, '_disabled', False):
+            self._client = None
+            self._background_processor = None
+            self._owns_processor = False
         else:
-            # Create default processor using our config
-            self._background_processor = get_background_processor(config=self.config)
-            self._owns_processor = True  # We created it, we should shut it down
+            # Initialize persistent HTTP client (performance optimization)
+            self._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(self.config.timeout),
+                limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
+            )
 
-        # Initialize async resources (will be created in next step)
+            # Initialize background processor for telemetry
+            if background_processor is not None:
+                self._background_processor = background_processor
+                self._owns_processor = False  # We don't own it, don't shut it down
+            else:
+                # Create default processor using our config
+                self._background_processor = get_background_processor(config=self.config)
+                self._owns_processor = True  # We created it, we should shut it down
+
+        # Initialize async resources (always, even when disabled)
         from .resources.chat import AsyncChatResource
         from .resources.embeddings import AsyncEmbeddingsResource
         from .resources.models import AsyncModelsResource
@@ -333,6 +365,11 @@ class AsyncBrokle(HTTPBase):
         self.embeddings = AsyncEmbeddingsResource(self)
         self.models = AsyncModelsResource(self)
 
+    @property
+    def is_disabled(self) -> bool:
+        """Check if client is operating in disabled mode."""
+        return getattr(self, '_disabled', False)
+
     def submit_telemetry(self, data: Dict[str, Any]) -> None:
         """
         Submit telemetry data for background processing.
@@ -340,6 +377,8 @@ class AsyncBrokle(HTTPBase):
         Args:
             data: Telemetry data to submit
         """
+        if self.is_disabled or not self._background_processor:
+            return  # Skip telemetry when disabled
         self._background_processor.submit_telemetry(data)
 
     def submit_analytics(self, data: Dict[str, Any]) -> None:
@@ -349,6 +388,8 @@ class AsyncBrokle(HTTPBase):
         Args:
             data: Analytics data to submit
         """
+        if self.is_disabled or not self._background_processor:
+            return  # Skip analytics when disabled
         self._background_processor.submit_analytics(data)
 
     def submit_evaluation(self, data: Dict[str, Any]) -> None:
@@ -358,6 +399,8 @@ class AsyncBrokle(HTTPBase):
         Args:
             data: Evaluation data to submit
         """
+        if self.is_disabled or not self._background_processor:
+            return  # Skip evaluation when disabled
         self._background_processor.submit_evaluation(data)
 
     def get_processor_metrics(self) -> Dict[str, Any]:
@@ -367,6 +410,8 @@ class AsyncBrokle(HTTPBase):
         Returns:
             Dictionary containing processor metrics
         """
+        if self.is_disabled or not self._background_processor:
+            return {}  # Return empty metrics when disabled
         return self._background_processor.get_metrics()
 
     def is_processor_healthy(self) -> bool:
@@ -376,6 +421,8 @@ class AsyncBrokle(HTTPBase):
         Returns:
             True if processor is healthy
         """
+        if self.is_disabled or not self._background_processor:
+            return False  # Processor not healthy when disabled
         return self._background_processor.is_healthy()
 
     def flush_processor(self, timeout: Optional[float] = None) -> bool:
@@ -388,6 +435,8 @@ class AsyncBrokle(HTTPBase):
         Returns:
             True if all items processed, False if timeout reached
         """
+        if self.is_disabled or not self._background_processor:
+            return True  # Nothing to flush when disabled
         return self._background_processor.flush(timeout=timeout)
 
     async def request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
@@ -405,6 +454,10 @@ class AsyncBrokle(HTTPBase):
         Raises:
             NetworkError: For connection errors
         """
+        # Return empty dict if client is disabled (graceful degradation)
+        if self.is_disabled:
+            return {}
+
         import time
 
         from ._utils.retry import async_retry_with_backoff

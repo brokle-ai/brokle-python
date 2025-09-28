@@ -71,13 +71,19 @@ class HTTPBase:
                 **kwargs,
             )
 
-        # Validate required fields
+        # Handle missing API key with warning
         if not self.config.api_key:
-            raise AuthenticationError(
-                "API key is required. Set BROKLE_API_KEY or pass api_key parameter."
+            import logging
+            logger = logging.getLogger("brokle")
+            logger.warning(
+                "Authentication error: Brokle client initialized without api_key. "
+                "Client will be disabled. Provide an api_key parameter or set BROKLE_API_KEY environment variable."
             )
+            self._disabled = True
+        else:
+            self._disabled = False
 
-        # Build default headers
+        # Build default headers (safe headers even when disabled)
         self.default_headers = self._build_headers()
 
     def _build_headers(self) -> Dict[str, str]:
@@ -87,13 +93,20 @@ class HTTPBase:
         Returns:
             Dictionary of headers
         """
-        return {
+        headers = {
             "Content-Type": "application/json",
             "User-Agent": f"brokle-python/{__version__}",
-            "X-API-Key": self.config.api_key,
-            "X-Environment": self.config.environment,
             "X-SDK-Version": __version__,
         }
+
+        # Only add auth headers if we have an API key
+        if self.config.api_key:
+            headers["X-API-Key"] = self.config.api_key
+
+        # Always include environment (falls back to "default")
+        headers["X-Environment"] = self.config.environment
+
+        return headers
 
     def _prepare_url(self, endpoint: str) -> str:
         """
