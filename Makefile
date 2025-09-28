@@ -117,3 +117,16 @@ ci-test:
 	python -m pytest tests/ --cov=brokle --cov-report=xml
 
 ci-check: lint type-check ci-test
+
+# Release automation
+release-patch:
+	python scripts/release.py patch
+
+release-minor:
+	python scripts/release.py minor
+
+release-major:
+	python scripts/release.py major
+
+release-patch-skip-tests:
+	python scripts/release.py patch --skip-tests
