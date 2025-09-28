@@ -8,17 +8,19 @@ on:
       target:
         description: 'Publish target'
         required: true
-        default: 'testpypi'
+        default: 'pypi'
         type: choice
         options:
-        - testpypi
         - pypi
+        - testpypi
 
 jobs:
   publish:
     name: Publish to ${{ github.event.inputs.target || 'PyPI' }}
     runs-on: ubuntu-latest
-# Remove environment requirement for now - can be added later for production
+    permissions:
+      contents: read
+      actions: read
 
     steps:
     - name: Checkout code
@@ -28,6 +30,18 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: "3.11"
+
+    - name: Extract version information
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "release" ]; then
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"  # Remove 'v' prefix if present
+        else
+          VERSION=$(python -c "from brokle._version import __version__; print(__version__)")
+        fi
+        echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+        echo "Publishing version: ${VERSION}"
 
     - name: Install dependencies
       run: |
