@@ -59,6 +59,10 @@ class ModelsResource(BaseResource):
         Returns:
             Models response
         """
+        # Return None if client is disabled
+        if self._client.is_disabled:
+            return None
+
         # Prepare query parameters
         params = {}
         if provider is not None:
@@ -88,6 +92,10 @@ class ModelsResource(BaseResource):
         Returns:
             Model information
         """
+        # Return None if client is disabled
+        if self._client.is_disabled:
+            return None
+
         # Make request to Go backend
         response_data = self._request("GET", f"/v1/models/{model_id}", params=kwargs)
 
@@ -118,6 +126,10 @@ class AsyncModelsResource(AsyncBaseResource):
         Returns:
             Models response
         """
+        # Return None if client is disabled
+        if self._client.is_disabled:
+            return None
+
         # Prepare query parameters
         params = {}
         if provider is not None:
@@ -147,6 +159,10 @@ class AsyncModelsResource(AsyncBaseResource):
         Returns:
             Model information
         """
+        # Return None if client is disabled
+        if self._client.is_disabled:
+            return None
+
         # Make async request to Go backend
         response_data = await self._request(
             "GET", f"/v1/models/{model_id}", params=kwargs

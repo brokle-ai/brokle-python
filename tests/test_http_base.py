@@ -29,10 +29,18 @@ class TestHTTPBase:
         assert base.config.environment == "test"
         assert base.config.timeout == 30  # default
 
-    def test_init_missing_api_key(self):
-        """Test initialization fails without API key."""
-        with pytest.raises(AuthenticationError, match="API key is required"):
-            HTTPBase(environment="test")
+    def test_init_missing_api_key(self, caplog):
+        """Test initialization creates disabled client without API key."""
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="brokle"):
+            base = HTTPBase(environment="test")
+
+        # Should be disabled and log warning
+        assert getattr(base, '_disabled', False) is True
+        assert "Authentication error:" in caplog.text
+        assert "initialized without api_key" in caplog.text
+        assert "Client will be disabled" in caplog.text
 
     def test_build_headers(self):
         """Test default headers are built correctly."""

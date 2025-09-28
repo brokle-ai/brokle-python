@@ -95,14 +95,22 @@ class TestV2Integration:
 
         assert client2.config.host == "https://custom.brokle.ai"
 
-    def test_error_handling_patterns(self, monkeypatch):
+    def test_error_handling_patterns(self, monkeypatch, caplog):
         """Test error handling patterns."""
+        import logging
+
         # Clear environment variables
         monkeypatch.delenv("BROKLE_API_KEY", raising=False)
 
-        # Should raise AuthenticationError when no credentials
-        with pytest.raises(AuthenticationError, match="API key is required"):
-            Brokle(otel_enabled=False)
+        # Should create disabled client and log warning when no credentials
+        with caplog.at_level(logging.WARNING, logger="brokle"):
+            client = Brokle(otel_enabled=False)
+
+        # Should be disabled and log warning
+        assert client.is_disabled is True
+        assert "Authentication error:" in caplog.text
+        assert "initialized without api_key" in caplog.text
+        assert "Client will be disabled" in caplog.text
 
     def test_configuration_precedence(self, monkeypatch):
         """Test configuration precedence (explicit > env vars)."""

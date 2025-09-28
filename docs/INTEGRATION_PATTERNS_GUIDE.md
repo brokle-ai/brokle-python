@@ -14,7 +14,7 @@ The Brokle Python SDK provides three elegant patterns for adding AI observabilit
 ### Pattern 2: Universal Decorator
 **Best for**: Custom AI workflows and business logic
 - Framework-agnostic `@observe()` decorator for any function
-- Automatic hierarchical tracing (like Langfuse)
+- Automatic hierarchical tracing
 - Works with any AI library or custom logic
 - Ideal for complex multi-step workflows
 
@@ -231,7 +231,7 @@ results = compare_providers("Explain quantum computing in simple terms")
 
 ## Overview
 
-The `@observe()` decorator provides framework-agnostic observability for any Python function with automatic hierarchical tracing. Works like Langfuse's `@observe()` but with enhanced AI intelligence.
+The `@observe()` decorator provides framework-agnostic observability for any Python function with automatic hierarchical tracing and enhanced AI intelligence.
 
 ### Key Benefits
 - ✅ **Automatic Hierarchical Tracing**: Nested functions create proper span hierarchy

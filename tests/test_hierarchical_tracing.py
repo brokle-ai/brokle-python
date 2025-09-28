@@ -1,8 +1,8 @@
 """
 Test hierarchical tracing capabilities of the @observe() decorator.
 
-This test suite verifies that Brokle's @observe() decorator works like Langfuse's
-with automatic parent-child span relationships without requiring trace_workflow.
+This test suite verifies that Brokle's @observe() decorator provides
+automatic parent-child span relationships without requiring trace_workflow.
 """
 
 import pytest
@@ -168,8 +168,8 @@ class TestHierarchicalTracing:
         assert child2_span_id is not None
         assert child2_parent_id == parent_span_id
 
-    def test_complex_workflow_like_langfuse(self):
-        """Test complex workflow similar to Langfuse examples."""
+    def test_complex_workflow(self):
+        """Test complex workflow with hierarchical tracing."""
 
         @observe(name="ai-analysis-workflow")
         def ai_analysis_workflow(prompt: str):

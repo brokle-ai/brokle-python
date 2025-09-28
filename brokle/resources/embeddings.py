@@ -87,6 +87,10 @@ class EmbeddingsResource(BaseResource):
         Returns:
             Embedding response with Brokle metadata
         """
+        # Return None if client is disabled
+        if self._client.is_disabled:
+            return None
+
         # Prepare request data
         data = {
             "input": input,
@@ -161,6 +165,10 @@ class AsyncEmbeddingsResource(AsyncBaseResource):
         Returns:
             Embedding response with Brokle metadata
         """
+        # Return None if client is disabled
+        if self._client.is_disabled:
+            return None
+
         # Prepare request data (same as sync version)
         data = {
             "input": input,
