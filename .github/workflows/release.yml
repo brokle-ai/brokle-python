@@ -12,6 +12,9 @@ jobs:
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
 
     steps:
     - name: Checkout code
@@ -93,6 +96,9 @@ jobs:
     needs: create-release
     runs-on: ubuntu-latest
     environment: pypi
+    permissions:
+      contents: read
+      actions: read
 
     steps:
     - name: Checkout code
