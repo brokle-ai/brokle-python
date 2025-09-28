@@ -3,7 +3,3 @@ changelog:
     labels:
       - ignore-for-release
       - dependencies
-  categories:
-    - title: What's Changed
-      labels:
-        - "*"
