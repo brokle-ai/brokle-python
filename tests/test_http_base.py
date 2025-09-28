@@ -40,11 +40,13 @@ class TestHTTPBase:
 
         headers = base.default_headers
 
+        from brokle._version import __version__
+
         assert headers["Content-Type"] == "application/json"
-        assert headers["User-Agent"] == "brokle-python/0.2.0"
+        assert headers["User-Agent"] == f"brokle-python/{__version__}"
         assert headers["X-API-Key"] == "bk_test_secret"
         assert headers["X-Environment"] == "production"
-        assert headers["X-SDK-Version"] == "0.2.0"
+        assert headers["X-SDK-Version"] == __version__
 
     def test_prepare_url(self):
         """Test URL preparation handles various endpoint formats."""

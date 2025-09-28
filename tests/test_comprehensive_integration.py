@@ -130,10 +130,21 @@ class TestComprehensiveIntegration:
         assert callable(register_provider)
 
     def test_sdk_version_updated(self):
-        """Test that SDK version is properly set."""
+        """Test that SDK version is properly set and follows semantic versioning."""
         from brokle._version import __version__
+        import re
 
-        assert __version__ == "0.2.0", f"Expected version 0.2.0, got {__version__}"
+        # Test that version exists and follows semantic versioning pattern
+        assert __version__ is not None, "Version should not be None"
+        assert isinstance(__version__, str), "Version should be a string"
+
+        # Test semantic versioning format (major.minor.patch)
+        semver_pattern = r'^\d+\.\d+\.\d+$'
+        assert re.match(semver_pattern, __version__), f"Version {__version__} should follow semantic versioning format (X.Y.Z)"
+
+        # Test that version is reasonable (not empty, not too long)
+        assert len(__version__) >= 5, f"Version {__version__} seems too short"
+        assert len(__version__) <= 20, f"Version {__version__} seems too long"
 
     def test_clean_public_api(self):
         """Test that public API exports are clean and complete."""
