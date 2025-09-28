@@ -3,7 +3,7 @@
 Brokle SDK Release Script
 
 Automates the release process for the Brokle Python SDK.
-Based on Langfuse's release script pattern.
+Handles version bumping, testing, building, and publishing.
 """
 
 import subprocess
@@ -110,6 +110,7 @@ def run_tests():
     logging.info("All tests passed.")
 
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Automate the release process for the Brokle Python SDK."
@@ -192,26 +193,31 @@ def main():
         logging.info("Step 7: Pushing the tags...")
         run_command("git push --tags")
 
-        # Step 8: Publish to PyPI
-        logging.info("Step 8: Publishing to PyPI...")
-        publish_confirm = input("Publish to PyPI? (y/n): ")
-        if publish_confirm.lower() == "y":
-            run_command("make publish")
-            logging.info("Published to PyPI successfully.")
-        else:
-            logging.info("Skipped PyPI publishing.")
-
-        # Step 9: Prompt the user to create a GitHub release
-        logging.info("Step 9: Create GitHub Release")
+        # Step 8: GitHub Release Instructions
+        logging.info("Step 8: Create GitHub Release")
         print("🎉 Release process completed successfully!")
         print("")
-        print("Next steps:")
-        print("1. Go to: https://github.com/your-org/brokle-platform/releases")
+        print("📝 Custom release notes template:")
+        print("─" * 50)
+        print(f"""### Installation
+
+```bash
+pip install brokle=={new_version}
+```
+
+### Documentation
+📖 **[Complete Documentation](https://github.com/brokle-ai/brokle-python/blob/main/README.md)**
+
+""")
+        print("─" * 50)
+        print("")
+        print("Next steps for GitHub release:")
+        print("1. Go to: https://github.com/brokle-ai/brokle-python/releases")
         print("2. Click 'Create a new release'")
         print(f"3. Select tag: v{new_version}")
-        print("4. Click 'Generate release notes' for automatic changelog")
-        print("5. Add custom intro text if needed")
-        print("6. Publish release")
+        print("4. Add the custom template above at the TOP")
+        print("5. Click 'Generate release notes' to add auto-generated changelog")
+        print("6. Review and publish release")
         print("")
         logging.info("🚀 Brokle SDK release process completed successfully!")
 
