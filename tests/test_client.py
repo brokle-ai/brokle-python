@@ -422,7 +422,9 @@ class TestTaskManagerIntegration:
 
             # Test telemetry submission
             client.submit_telemetry({"test": "data"})
-            custom_processor.submit_telemetry.assert_called_once_with({"test": "data"})
+            custom_processor.submit_telemetry.assert_called_once_with(
+                {"test": "data"}, event_type="event_create"
+            )
 
             # Close should not shutdown custom processor
             client.close()

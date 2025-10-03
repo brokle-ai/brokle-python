@@ -43,6 +43,7 @@ dependencies = [
     "typing-extensions>=4.0.0",
     "python-dotenv>=1.0.0",
     "backoff>=2.2.1",
+    "python-ulid>=2.0.0",
 ]
 
 [project.optional-dependencies]

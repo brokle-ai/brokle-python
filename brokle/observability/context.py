@@ -63,8 +63,8 @@ def get_client(
     otel_service_name: Optional[str] = None,
     otel_headers: Optional[Dict[str, str]] = None,
     telemetry_enabled: Optional[bool] = None,
-    telemetry_batch_size: Optional[int] = None,
-    telemetry_flush_interval: Optional[int] = None,
+    batch_max_size: Optional[int] = None,
+    batch_flush_interval: Optional[float] = None,
     debug: Optional[bool] = None,
     timeout: Optional[int] = None,
     max_retries: Optional[int] = None,
@@ -88,8 +88,8 @@ def get_client(
         otel_service_name: OpenTelemetry service name
         otel_headers: OpenTelemetry headers
         telemetry_enabled: Enable telemetry collection
-        telemetry_batch_size: Telemetry batch size
-        telemetry_flush_interval: Telemetry flush interval (ms)
+        batch_max_size: Maximum events per batch (1-1000)
+        batch_flush_interval: Batch flush interval in seconds
         debug: Enable debug logging
         timeout: HTTP timeout in seconds
         max_retries: Maximum retry attempts
@@ -112,8 +112,8 @@ def get_client(
             otel_service_name,
             otel_headers,
             telemetry_enabled is not None,
-            telemetry_batch_size is not None,
-            telemetry_flush_interval is not None,
+            batch_max_size is not None,
+            batch_flush_interval is not None,
             debug is not None,
             timeout is not None,
             max_retries is not None,
@@ -145,10 +145,10 @@ def get_client(
             client_kwargs["otel_headers"] = otel_headers
         if telemetry_enabled is not None:
             client_kwargs["telemetry_enabled"] = telemetry_enabled
-        if telemetry_batch_size is not None:
-            client_kwargs["telemetry_batch_size"] = telemetry_batch_size
-        if telemetry_flush_interval is not None:
-            client_kwargs["telemetry_flush_interval"] = telemetry_flush_interval
+        if batch_max_size is not None:
+            client_kwargs["batch_max_size"] = batch_max_size
+        if batch_flush_interval is not None:
+            client_kwargs["batch_flush_interval"] = batch_flush_interval
         if debug is not None:
             client_kwargs["debug"] = debug
         if timeout is not None:

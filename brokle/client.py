@@ -100,16 +100,55 @@ class Brokle(HTTPBase):
         """Check if client is operating in disabled mode."""
         return getattr(self, '_disabled', False)
 
-    def submit_telemetry(self, data: Dict[str, Any]) -> None:
+    def submit_telemetry(
+        self, data: Dict[str, Any], event_type: str = "event_create"
+    ) -> None:
         """
         Submit telemetry data for background processing.
 
         Args:
             data: Telemetry data to submit
+            event_type: Event type (defaults to "event_create")
         """
         if self.is_disabled or not self._background_processor:
             return  # Skip telemetry when disabled
-        self._background_processor.submit_telemetry(data)
+        self._background_processor.submit_telemetry(data, event_type=event_type)
+
+    def submit_batch_event(self, event_type: str, payload: Dict[str, Any]) -> str:
+        """
+        Submit a batch event with proper event envelope.
+
+        This is the preferred method for submitting structured telemetry events.
+
+        Args:
+            event_type: Type of event (trace_create, observation_create, etc.)
+            payload: Event payload data
+
+        Returns:
+            Event ID (ULID) for tracking
+
+        Example:
+            >>> event_id = client.submit_batch_event(
+            ...     "trace_create",
+            ...     {"name": "my-trace", "user_id": "123"}
+            ... )
+        """
+        if self.is_disabled or not self._background_processor:
+            return ""  # Return empty ID when disabled
+
+        from .types.telemetry import TelemetryEvent
+        from ._utils.ulid import generate_event_id
+        import time
+
+        event = TelemetryEvent(
+            event_id=generate_event_id(),
+            event_type=event_type,
+            payload=payload,
+            timestamp=int(time.time())
+        )
+
+        self._background_processor.submit_batch_event(event)
+        return event.event_id
 
     def submit_analytics(self, data: Dict[str, Any]) -> None:
         """
@@ -370,16 +409,55 @@ class AsyncBrokle(HTTPBase):
         """Check if client is operating in disabled mode."""
         return getattr(self, '_disabled', False)
 
-    def submit_telemetry(self, data: Dict[str, Any]) -> None:
+    def submit_telemetry(
+        self, data: Dict[str, Any], event_type: str = "event_create"
+    ) -> None:
         """
         Submit telemetry data for background processing.
 
         Args:
             data: Telemetry data to submit
+            event_type: Event type (defaults to "event_create")
         """
         if self.is_disabled or not self._background_processor:
             return  # Skip telemetry when disabled
-        self._background_processor.submit_telemetry(data)
+        self._background_processor.submit_telemetry(data, event_type=event_type)
+
+    def submit_batch_event(self, event_type: str, payload: Dict[str, Any]) -> str:
+        """
+        Submit a batch event with proper event envelope.
+
+        This is the preferred method for submitting structured telemetry events.
+
+        Args:
+            event_type: Type of event (trace_create, observation_create, etc.)
+            payload: Event payload data
+
+        Returns:
+            Event ID (ULID) for tracking
+
+        Example:
+            >>> event_id = client.submit_batch_event(
+            ...     "trace_create",
+            ...     {"name": "my-trace", "user_id": "123"}
+            ... )
+        """
+        if self.is_disabled or not self._background_processor:
+            return ""  # Return empty ID when disabled
+
+        from .types.telemetry import TelemetryEvent
+        from ._utils.ulid import generate_event_id
+        import time
+
+        event = TelemetryEvent(
+            event_id=generate_event_id(),
+            event_type=event_type,
+            payload=payload,
+            timestamp=int(time.time())
+        )
+
+        self._background_processor.submit_batch_event(event)
+        return event.event_id
 
     def submit_analytics(self, data: Dict[str, Any]) -> None:
         """

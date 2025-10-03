@@ -78,7 +78,7 @@ class TestBackgroundProcessorPublicAPI:
         """Test public submit methods work correctly."""
         config = Mock(spec=Config)
         config.telemetry_enabled = False  # Disable HTTP calls
-        config.telemetry_batch_size = 10
+        config.batch_max_size = 10
         processor = BackgroundProcessor(config)
 
         # Test data
@@ -100,7 +100,7 @@ class TestBackgroundProcessorPublicAPI:
         """Test flush method without timeout waits indefinitely."""
         config = Mock(spec=Config)
         config.telemetry_enabled = False  # Disable HTTP calls
-        config.telemetry_batch_size = 10
+        config.batch_max_size = 10
         processor = BackgroundProcessor(config)
 
         try:
@@ -118,7 +118,7 @@ class TestBackgroundProcessorPublicAPI:
         """Test flush method with timeout."""
         config = Mock(spec=Config)
         config.telemetry_enabled = False  # Disable HTTP calls
-        config.telemetry_batch_size = 10
+        config.batch_max_size = 10
         processor = BackgroundProcessor(config)
 
         try:
@@ -136,7 +136,7 @@ class TestBackgroundProcessorPublicAPI:
         """Test flush behavior on already shutdown processor."""
         config = Mock(spec=Config)
         config.telemetry_enabled = False
-        config.telemetry_batch_size = 10
+        config.batch_max_size = 10
         processor = BackgroundProcessor(config)
 
         # Shutdown first
@@ -150,7 +150,7 @@ class TestBackgroundProcessorPublicAPI:
         """Test get_metrics returns expected data structure."""
         config = Mock(spec=Config)
         config.telemetry_enabled = False
-        config.telemetry_batch_size = 10
+        config.batch_max_size = 10
         processor = BackgroundProcessor(config)
 
         try:
@@ -204,7 +204,7 @@ class TestBackgroundProcessorPublicAPI:
         """Test get_metrics updates correctly after processing."""
         config = Mock(spec=Config)
         config.telemetry_enabled = False  # Disable actual HTTP calls
-        config.telemetry_batch_size = 10
+        config.batch_max_size = 10
 
         processor = BackgroundProcessor(config)
 
@@ -230,7 +230,7 @@ class TestBackgroundProcessorPublicAPI:
         """Test is_healthy returns True for fresh processor."""
         config = Mock(spec=Config)
         config.telemetry_enabled = False
-        config.telemetry_batch_size = 10
+        config.batch_max_size = 10
         processor = BackgroundProcessor(config)
 
         try:
@@ -244,7 +244,7 @@ class TestBackgroundProcessorPublicAPI:
         """Test is_healthy returns False for shutdown processor."""
         config = Mock(spec=Config)
         config.telemetry_enabled = False
-        config.telemetry_batch_size = 10
+        config.batch_max_size = 10
         processor = BackgroundProcessor(config)
 
         processor.shutdown()
@@ -256,7 +256,7 @@ class TestBackgroundProcessorPublicAPI:
         """Test submit methods handle shutdown gracefully."""
         config = Mock(spec=Config)
         config.telemetry_enabled = False
-        config.telemetry_batch_size = 10
+        config.batch_max_size = 10
         processor = BackgroundProcessor(config)
 
         processor.shutdown()

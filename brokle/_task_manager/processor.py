@@ -1,5 +1,7 @@
 """
 Background processing for Brokle SDK.
+
+Handles batch submission of telemetry events to the unified /v1/telemetry/batch endpoint.
 """
 
 import asyncio
@@ -14,6 +16,14 @@ import backoff
 import httpx
 
 from ..config import Config
+from ..types.telemetry import (
+    TelemetryBatchRequest,
+    TelemetryBatchResponse,
+    TelemetryEvent,
+    TelemetryEventType,
+    DeduplicationConfig,
+)
+from .._utils.ulid import generate_event_id
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +71,9 @@ class BackgroundProcessor:
 
         while not self._shutdown:
             try:
-                # Process items in batches
+                # Process items in batches using batch_max_size configuration
                 batch = []
-                batch_size = min(self.config.telemetry_batch_size, 100)
+                batch_size = self.config.batch_max_size
 
                 # Collect batch items
                 for _ in range(batch_size):
@@ -121,20 +131,33 @@ class BackgroundProcessor:
             raise
 
     def _process_telemetry_batch(self, items: List[Dict[str, Any]]) -> None:
-        """Process telemetry items in batch."""
+        """Process telemetry items in batch using unified batch API."""
         if not self.config.telemetry_enabled:
             return
 
         try:
-            # Prepare telemetry data
-            telemetry_data = []
+            # Transform items into TelemetryEvent objects
+            events = []
             for item in items:
                 if "data" in item:
-                    telemetry_data.append(item["data"])
+                    # Extract event type (default to EVENT_CREATE for legacy data)
+                    event_type = item.get("event_type", TelemetryEventType.EVENT_CREATE)
 
-            if telemetry_data:
-                # Submit to background thread
-                self._executor.submit(self._submit_telemetry, telemetry_data)
+                    # Use pre-generated event_id if available, otherwise generate new one
+                    event_id = item.get("event_id", generate_event_id())
+
+                    # Create telemetry event
+                    event = TelemetryEvent(
+                        event_id=event_id,
+                        event_type=event_type,
+                        payload=item["data"],
+                        timestamp=int(item.get("timestamp", time.time()))
+                    )
+                    events.append(event)
+
+            if events:
+                # Submit batch to background thread
+                self._executor.submit(self._submit_batch_events, events)
 
         except Exception as e:
             logger.error(f"Failed to process telemetry batch: {e}")
@@ -160,50 +183,90 @@ class BackgroundProcessor:
         max_tries=3,
         max_time=30,
     )
-    def _submit_telemetry(self, telemetry_data: List[Dict[str, Any]]) -> None:
-        """Submit telemetry data to Brokle."""
+    def _submit_batch_events(self, events: List[TelemetryEvent]) -> None:
+        """Submit telemetry events to unified batch API."""
         try:
             # Run async submission in thread
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
             try:
-                loop.run_until_complete(self._async_submit_telemetry(telemetry_data))
+                loop.run_until_complete(self._async_submit_batch_events(events))
             finally:
                 loop.close()
 
         except Exception as e:
-            logger.error(f"Failed to submit telemetry: {e}")
+            logger.error(f"Failed to submit batch events: {e}")
 
-    async def _async_submit_telemetry(
-        self, telemetry_data: List[Dict[str, Any]]
+    async def _async_submit_batch_events(
+        self, events: List[TelemetryEvent]
     ) -> None:
-        """Async telemetry submission."""
+        """Async batch event submission to /v1/telemetry/batch."""
         if not self._client:
             self._client = httpx.AsyncClient(
                 timeout=self.config.timeout, headers=self.config.get_headers()
             )
 
         try:
+            # Build batch request
+            batch_request = TelemetryBatchRequest(
+                events=events,
+                environment=self.config.environment,
+                deduplication=DeduplicationConfig(
+                    enabled=self.config.batch_enable_deduplication,
+                    ttl=self.config.batch_deduplication_ttl,
+                    use_redis_cache=self.config.batch_use_redis_cache,
+                    fail_on_duplicate=self.config.batch_fail_on_duplicate,
+                )
+            )
+
+            # Submit to unified batch endpoint
             response = await self._client.post(
-                f"{self.config.host}/api/v1/telemetry/bulk",
-                json={
-                    "telemetry": telemetry_data,
-                    "batch_size": len(telemetry_data),
-                    "timestamp": time.time(),
-                },
+                f"{self.config.host}/v1/telemetry/batch",
+                json=batch_request.model_dump(mode="json", exclude_none=True),
             )
 
             if response.status_code != 200:
                 logger.error(
-                    f"Telemetry submission failed: {response.status_code} - {response.text}"
+                    f"Batch submission failed: {response.status_code} - {response.text}"
                 )
             else:
-                logger.debug(f"Submitted {len(telemetry_data)} telemetry items")
+                # Parse response and handle partial failures
+                batch_response = TelemetryBatchResponse(**response.json())
+                self._handle_batch_response(batch_response)
+                logger.debug(
+                    f"Submitted batch: {batch_response.processed_events} processed, "
+                    f"{batch_response.duplicate_events} duplicates, "
+                    f"{batch_response.failed_events} failed"
+                )
 
         except Exception as e:
-            logger.error(f"Telemetry submission error: {e}")
+            logger.error(f"Batch submission error: {e}")
             raise
+
+    def _handle_batch_response(self, response: TelemetryBatchResponse) -> None:
+        """Handle batch response with partial failures."""
+        # Log errors for failed events
+        if response.errors:
+            for error in response.errors:
+                logger.warning(
+                    f"Event {error.event_id} failed: {error.error}"
+                    + (f" - {error.details}" if error.details else "")
+                )
+
+        # Log duplicate events (info level, not an error)
+        if response.duplicate_event_ids:
+            logger.info(
+                f"Skipped {len(response.duplicate_event_ids)} duplicate events"
+            )
+
+        # Update metrics with failures
+        if response.failed_events > 0:
+            with self._lock:
+                self._metrics["items_failed"] += response.failed_events
+                if response.errors:
+                    self._metrics["last_error"] = response.errors[0].error
+                    self._metrics["last_error_time"] = time.time()
 
     def _submit_analytics(self, data: Dict[str, Any]) -> None:
         """Submit analytics data."""
@@ -215,17 +278,55 @@ class BackgroundProcessor:
         # Placeholder for evaluation submission
         logger.debug("Evaluation submission not implemented yet")
 
-    def submit_telemetry(self, data: Dict[str, Any]) -> None:
-        """Submit telemetry data for background processing."""
+    def submit_telemetry(
+        self, data: Dict[str, Any], event_type: str = TelemetryEventType.EVENT_CREATE
+    ) -> None:
+        """
+        Submit telemetry data for background processing.
+
+        Args:
+            data: Telemetry payload data
+            event_type: Type of event (defaults to EVENT_CREATE)
+        """
         if self._shutdown:
             return
 
-        item = {"type": "telemetry", "data": data, "timestamp": time.time()}
+        item = {
+            "type": "telemetry",
+            "data": data,
+            "event_type": event_type,
+            "timestamp": time.time()
+        }
 
         try:
             self._queue.put_nowait(item)
         except Exception as e:
             logger.error(f"Failed to queue telemetry: {e}")
+
+    def submit_batch_event(self, event: TelemetryEvent) -> None:
+        """
+        Submit a pre-formed TelemetryEvent for background processing.
+
+        This is the preferred method for submitting structured events.
+
+        Args:
+            event: TelemetryEvent with event_id, type, and payload
+        """
+        if self._shutdown:
+            return
+
+        item = {
+            "type": "telemetry",
+            "data": event.payload,
+            "event_type": event.event_type,
+            "timestamp": event.timestamp or int(time.time()),
+            "event_id": event.event_id,  # Pre-generated ULID
+        }
+
+        try:
+            self._queue.put_nowait(item)
+        except Exception as e:
+            logger.error(f"Failed to queue batch event: {e}")
 
     def submit_analytics(self, data: Dict[str, Any]) -> None:
         """Submit analytics data for background processing."""

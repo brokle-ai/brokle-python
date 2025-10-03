@@ -91,9 +91,25 @@ class Config(BaseModel):
     telemetry_enabled: bool = Field(
         default=True, description="Enable telemetry collection"
     )
-    telemetry_batch_size: int = Field(default=100, description="Telemetry batch size")
-    telemetry_flush_interval: int = Field(
-        default=10000, description="Telemetry flush interval (ms)"
+
+    # Batch telemetry settings (unified /v1/telemetry/batch API)
+    batch_max_size: int = Field(
+        default=100, description="Maximum events per batch", ge=1, le=1000
+    )
+    batch_flush_interval: float = Field(
+        default=5.0, description="Batch flush interval in seconds", ge=0.1, le=60.0
+    )
+    batch_enable_deduplication: bool = Field(
+        default=True, description="Enable ULID-based event deduplication"
+    )
+    batch_deduplication_ttl: int = Field(
+        default=3600, description="Deduplication cache TTL in seconds", ge=60, le=86400
+    )
+    batch_use_redis_cache: bool = Field(
+        default=True, description="Use Redis for distributed deduplication"
+    )
+    batch_fail_on_duplicate: bool = Field(
+        default=False, description="Fail entire batch on duplicate events"
     )
 
     # Debug settings
@@ -152,10 +168,13 @@ class Config(BaseModel):
             # Telemetry
             telemetry_enabled=os.getenv("BROKLE_TELEMETRY_ENABLED", "true").lower()
             == "true",
-            telemetry_batch_size=int(os.getenv("BROKLE_TELEMETRY_BATCH_SIZE", "100")),
-            telemetry_flush_interval=int(
-                os.getenv("BROKLE_TELEMETRY_FLUSH_INTERVAL", "10000")
-            ),
+            # Batch telemetry
+            batch_max_size=int(os.getenv("BROKLE_BATCH_MAX_SIZE", "100")),
+            batch_flush_interval=float(os.getenv("BROKLE_BATCH_FLUSH_INTERVAL", "5.0")),
+            batch_enable_deduplication=os.getenv("BROKLE_BATCH_ENABLE_DEDUPLICATION", "true").lower() == "true",
+            batch_deduplication_ttl=int(os.getenv("BROKLE_BATCH_DEDUPLICATION_TTL", "3600")),
+            batch_use_redis_cache=os.getenv("BROKLE_BATCH_USE_REDIS_CACHE", "true").lower() == "true",
+            batch_fail_on_duplicate=os.getenv("BROKLE_BATCH_FAIL_ON_DUPLICATE", "false").lower() == "true",
             # HTTP
             timeout=int(os.getenv("BROKLE_TIMEOUT", "30")),
             max_retries=int(os.getenv("BROKLE_MAX_RETRIES", "3")),
