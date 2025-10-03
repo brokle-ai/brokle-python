@@ -40,9 +40,7 @@ class ObservabilityContext:
             return {
                 "has_client": True,
                 "api_key": (
-                    client.config.api_key[:10] + "..."
-                    if client.config.api_key
-                    else None
+                    "<hidden>" if client.config.api_key else None
                 ),
                 "environment": client.config.environment,
                 "host": client.config.host,
