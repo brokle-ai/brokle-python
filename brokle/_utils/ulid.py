@@ -8,22 +8,9 @@ ULID (Universally Unique Lexicographically Sortable Identifier) provides:
 - Cryptographically secure random (last 80 bits)
 """
 
-import time
 from typing import Optional
 
-try:
-    from ulid import ULID
-except ImportError:
-    # Fallback implementation if python-ulid not installed
-    import uuid
-
-    class ULID:
-        """Fallback ULID implementation using UUID."""
-
-        @staticmethod
-        def from_timestamp(timestamp: float) -> str:
-            """Generate ULID from timestamp (fallback to UUID)."""
-            return str(uuid.uuid4()).replace("-", "").upper()[:26]
+from ulid import ULID
 
 
 def generate_ulid(timestamp: Optional[float] = None) -> str:
@@ -43,16 +30,10 @@ def generate_ulid(timestamp: Optional[float] = None) -> str:
         >>> ulid = generate_ulid(timestamp=1677610602.123)
         >>> ulid[:10]  # First 10 chars encode timestamp
     """
+    # ULID objects must be converted to strings for Pydantic compatibility
     if timestamp is None:
-        timestamp = time.time()
-
-    try:
-        # Use python-ulid if available
-        from ulid import from_timestamp
-        return str(from_timestamp(timestamp))
-    except ImportError:
-        # Fallback to UUID-based implementation
-        return ULID.from_timestamp(timestamp)
+        return str(ULID())  # Use ULID() constructor for current time
+    return str(ULID.from_timestamp(timestamp))  # Custom timestamp when needed
 
 
 def extract_timestamp(ulid_str: str) -> Optional[float]:
@@ -72,10 +53,9 @@ def extract_timestamp(ulid_str: str) -> Optional[float]:
         True
     """
     try:
-        from ulid import parse
-        ulid_obj = parse(ulid_str)
-        return ulid_obj.timestamp().timestamp()
-    except (ImportError, ValueError):
+        ulid_obj = ULID.parse(ulid_str)
+        return ulid_obj.timestamp
+    except ValueError:
         return None
 
 

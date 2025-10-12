@@ -61,7 +61,7 @@ response = client.chat.completions.create(model="gpt-4", messages=[...])
 ```python
 from brokle import Brokle, observe
 
-brokle = Brokle(api_key="bk_proj_...")
+brokle = Brokle(api_key="bk_...")
 
 @observe(name="rag-pipeline")
 def customer_support_rag(question: str):
@@ -92,7 +92,7 @@ def customer_support_rag(question: str):
 ```python
 import openai
 openai.api_base = "https://brokle.dev/v1"
-openai.api_key = "bk_proj_..."
+openai.api_key = "bk_..."
 
 response = openai.chat.completions.create(model="gpt-4", messages=[...])
 ```
@@ -102,7 +102,7 @@ response = openai.chat.completions.create(model="gpt-4", messages=[...])
 ```python
 from brokle import Brokle
 
-brokle = Brokle(api_key="bk_proj_...")
+brokle = Brokle(api_key="bk_...")
 response = brokle.chat.completions.create(model="gpt-4", messages=[...])
 
 trace = brokle.trace(name="workflow")
