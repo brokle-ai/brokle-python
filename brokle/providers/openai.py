@@ -27,20 +27,19 @@ class OpenAIProvider(BaseProvider):
         return "openai"
 
     def get_methods_to_instrument(self) -> List[Dict[str, Any]]:
-        """Define OpenAI SDK methods to instrument."""
+        """Define OpenAI SDK methods to instrument.
+
+        Note: OpenAI SDK v1.0+ uses the same method names for async operations.
+        Async methods are accessed through AsyncOpenAI client, not via 'acreate'.
+        The 'async' flag is used internally for wrapper logic, not SDK method names.
+        """
         return [
             # Chat Completions (primary API)
+            # Note: Works for both OpenAI and AsyncOpenAI clients
             {
                 "path": "chat.completions.create",
                 "operation": "chat_completion",
-                "async": False,
-                "stream_support": True,
-                "cost_tracked": True,
-            },
-            {
-                "path": "chat.completions.acreate",
-                "operation": "chat_completion",
-                "async": True,
+                "async": False,  # Method itself handles both sync and async
                 "stream_support": True,
                 "cost_tracked": True,
             },

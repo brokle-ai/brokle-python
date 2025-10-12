@@ -129,9 +129,21 @@ def wrap_openai(
         )
         return client
 
-    # Validate environment configuration
+    # Check Brokle client availability (optional)
+    brokle_client = None
     try:
-        validate_environment()
+        brokle_client = get_client()
+        if not brokle_client:
+            logger.info(
+                "No Brokle client configured. Using default observability settings."
+            )
+    except Exception as e:
+        logger.debug(f"Brokle client not available: {e}")
+
+    # Validate environment configuration (if Brokle client is configured)
+    try:
+        if brokle_client and brokle_client.config.environment:
+            validate_environment(brokle_client.config.environment)
     except Exception as e:
         logger.warning(f"Environment validation failed: {e}")
 
@@ -146,17 +158,6 @@ def wrap_openai(
         user_id=user_id,
         **config,
     )
-
-    # Check Brokle client availability (optional)
-    brokle_client = None
-    try:
-        brokle_client = get_client()
-        if not brokle_client:
-            logger.info(
-                "No Brokle client configured. Using default observability settings."
-            )
-    except Exception as e:
-        logger.debug(f"Brokle client not available: {e}")
 
     # Configure provider with wrapper settings
     provider_config = {

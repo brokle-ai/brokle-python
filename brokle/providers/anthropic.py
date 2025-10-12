@@ -27,20 +27,18 @@ class AnthropicProvider(BaseProvider):
         return "anthropic"
 
     def get_methods_to_instrument(self) -> List[Dict[str, Any]]:
-        """Define Anthropic SDK methods to instrument."""
+        """Define Anthropic SDK methods to instrument.
+
+        Note: Anthropic SDK uses the same method names for async operations.
+        Async methods are accessed through AsyncAnthropic client, not via 'acreate'.
+        """
         return [
             # Messages API (primary API for Claude)
+            # Note: Works for both Anthropic and AsyncAnthropic clients
             {
                 "path": "messages.create",
                 "operation": "chat_completion",
-                "async": False,
-                "stream_support": True,
-                "cost_tracked": True,
-            },
-            {
-                "path": "messages.acreate",
-                "operation": "chat_completion",
-                "async": True,
+                "async": False,  # Method itself handles both sync and async
                 "stream_support": True,
                 "cost_tracked": True,
             },

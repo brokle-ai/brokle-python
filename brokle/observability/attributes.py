@@ -55,6 +55,9 @@ class BrokleOtelSpanAttributes:
 
     # Operation and timing attributes
     OPERATION_TYPE = "brokle.operation.type"
+    METHOD_PATH = "brokle.method.path"
+    IS_ASYNC = "brokle.method.is_async"
+    STREAM_SUPPORT = "brokle.method.stream_support"
     REQUEST_START_TIME = "brokle.request.start_time"
     REQUEST_DURATION = "brokle.request.duration"
     RESPONSE_END_TIME = "brokle.request.end_time"
@@ -62,6 +65,10 @@ class BrokleOtelSpanAttributes:
     # Error attributes
     ERROR_TYPE = "brokle.error.type"
     ERROR_MESSAGE = "brokle.error.message"
+    BROKLE_ERROR_TYPE = "brokle.error.brokle_type"
+    TRACEBACK = "brokle.error.traceback"
+    SUCCESS = "brokle.success"
+    MANUAL_INSTRUMENTATION = "brokle.instrumentation.manual"
 
     # Output attributes
     OUTPUT = "brokle.output"
