@@ -219,14 +219,18 @@ class BackgroundProcessor:
                 json=batch_request.model_dump(mode="json", exclude_none=True),
             )
 
-            # Accept both 200 OK and 201 Created as success
-            if response.status_code not in (200, 201):
+            # Accept 200 OK, 201 Created, and 202 Accepted as success
+            # 202 is the standard response for async batch processing
+            if response.status_code not in (200, 201, 202):
                 logger.error(
                     f"Batch submission failed: {response.status_code} - {response.text}"
                 )
             else:
-                # Parse response and handle partial failures
-                batch_response = TelemetryBatchResponse(**response.json())
+                # Parse response - extract data from APIResponse wrapper
+                response_json = response.json()
+                # Backend wraps responses in {"success": true, "data": {...}, "meta": {...}}
+                batch_data = response_json.get("data", response_json)
+                batch_response = TelemetryBatchResponse(**batch_data)
                 self._handle_batch_response(batch_response)
                 logger.info(
                     f"Submitted batch: {batch_response.processed_events} processed, "
