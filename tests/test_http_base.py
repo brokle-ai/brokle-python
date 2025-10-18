@@ -53,7 +53,6 @@ class TestHTTPBase:
         assert headers["Content-Type"] == "application/json"
         assert headers["User-Agent"] == f"brokle-python/{__version__}"
         assert headers["X-API-Key"] == "bk_test_secret"
-        assert headers["X-Environment"] == "production"
         assert headers["X-SDK-Version"] == __version__
 
     def test_prepare_url(self):

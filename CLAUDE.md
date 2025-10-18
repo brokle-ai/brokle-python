@@ -154,7 +154,8 @@ The SDK includes comprehensive environment tag validation rules:
 - Max 40 characters, lowercase only
 - Cannot start with "brokle" prefix
 - Default environment is "default"
-- Headers: `X-Environment`, `X-API-Key`
+- Environment sent in request body (not headers)
+- Authentication header: `X-API-Key`
 
 ### Manual Testing
 Use the provided manual test scripts:

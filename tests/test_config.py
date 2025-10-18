@@ -69,7 +69,6 @@ class TestConfig:
 
         headers = config.get_headers()
         assert headers["X-API-Key"] == "bk_test_secret"
-        assert headers["X-Environment"] == "test"
         assert headers["Content-Type"] == "application/json"
         assert "brokle-python" in headers["User-Agent"]
 

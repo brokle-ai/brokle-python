@@ -203,8 +203,6 @@ class Config(BaseModel):
         if self.api_key:
             headers["X-API-Key"] = self.api_key
 
-        headers["X-Environment"] = self.environment
-
         return headers
 
 

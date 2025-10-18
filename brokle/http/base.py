@@ -103,9 +103,6 @@ class HTTPBase:
         if self.config.api_key:
             headers["X-API-Key"] = self.config.api_key
 
-        # Always include environment (falls back to "default")
-        headers["X-Environment"] = self.config.environment
-
         return headers
 
     def _prepare_url(self, endpoint: str) -> str:

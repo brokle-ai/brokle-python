@@ -285,14 +285,13 @@ class TestBackendIntegration:
             timeout_client.models.list()
     
     def test_environment_headers(self, client: Brokle):
-        """Test that environment headers are properly sent."""
-        # This test verifies that the X-Environment header is sent
-        # We can't easily inspect the headers, but we can verify the request succeeds
-        # and the backend logs should show the environment
-        
+        """Test that environment is properly configured."""
+        # Environment is now sent in request body (for telemetry endpoints)
+        # not in headers. This test verifies basic request functionality.
+
         response = client.models.list()
         assert response is not None
-        # If we get a response, headers were sent correctly
+        # If we get a response, authentication was successful
     
     def test_telemetry_submission(self, client: Brokle):
         """Test that telemetry is submitted in background."""
@@ -384,11 +383,10 @@ class TestBackendIntegration:
         # Make a request and verify it succeeds (headers must be correct)
         response = client.models.list()
         assert response is not None
-        
+
         # The fact that we get a successful response means:
         # - X-API-Key header was sent correctly
-        # - X-Environment header was sent correctly  
         # - Content-Type and User-Agent headers were sent
         # - Authentication succeeded
-        
+
         # If any required headers were missing, we'd get a 401 or 400 error

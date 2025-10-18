@@ -198,7 +198,6 @@ def test_headers_and_metadata(client: Any) -> bool:
             
             # The fact we get a successful response means:
             # - X-API-Key header was sent
-            # - X-Environment header was sent
             # - Content-Type header was sent
             # - User-Agent header was sent
             print_info("All required headers successfully transmitted")
