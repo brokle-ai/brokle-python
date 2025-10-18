@@ -290,8 +290,9 @@ class InstrumentationContext:
                     }
                 )
 
-            # Submit telemetry
-            client.submit_telemetry(telemetry_data)
+            # Submit telemetry as observation event (proper backend format)
+            from ..types.telemetry import TelemetryEventType
+            client.submit_telemetry(telemetry_data, event_type=TelemetryEventType.OBSERVATION)
             logger.debug(
                 f"Submitted instrumentation telemetry for {self.provider.name}.{self.method_def['operation']}"
             )
