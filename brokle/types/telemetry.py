@@ -9,32 +9,19 @@ quality scores, and generic events.
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TelemetryEventType(str, Enum):
-    """
-    Supported telemetry event types.
+    """Immutable event types for telemetry."""
 
-    The unified batch API supports these event types for structured
-    observability data submission.
-    """
+    # Generic events
+    EVENT = "event"
 
-    # Trace operations
-    TRACE_CREATE = "trace_create"
-    TRACE_UPDATE = "trace_update"
-
-    # Observation operations
-    OBSERVATION_CREATE = "observation_create"
-    OBSERVATION_UPDATE = "observation_update"
-    OBSERVATION_COMPLETE = "observation_complete"
-
-    # Quality score operations
-    QUALITY_SCORE_CREATE = "quality_score_create"
-    QUALITY_SCORE_UPDATE = "quality_score_update"
-
-    # Generic event operation
-    EVENT_CREATE = "event_create"
+    # Structured observability
+    TRACE = "trace"
+    OBSERVATION = "observation"
+    QUALITY_SCORE = "quality_score"
 
 
 class TelemetryEvent(BaseModel):
@@ -67,8 +54,7 @@ class TelemetryEvent(BaseModel):
         None, description="Unix timestamp in seconds (defaults to server time)"
     )
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class DeduplicationConfig(BaseModel):

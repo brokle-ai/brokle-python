@@ -14,9 +14,10 @@ from openai import AsyncOpenAI, OpenAI
 from brokle import wrap_openai
 
 # Set up environment variables
-os.environ["BROKLE_API_KEY"] = "bk_your_api_key_here"
+os.environ["BROKLE_API_KEY"] = "bk_test"
 os.environ["BROKLE_HOST"] = "http://localhost:8080"
 
+os.environ["OPENAI_API_KEY"] = "sk-proj-testkeyforlocaldebuggingonly"
 
 def sync_chat_example():
     """Example of synchronous chat completion with wrapper function."""

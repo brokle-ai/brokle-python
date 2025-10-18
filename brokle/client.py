@@ -101,14 +101,14 @@ class Brokle(HTTPBase):
         return getattr(self, '_disabled', False)
 
     def submit_telemetry(
-        self, data: Dict[str, Any], event_type: str = "event_create"
+        self, data: Dict[str, Any], event_type: str = "observation"
     ) -> None:
         """
         Submit telemetry data for background processing.
 
         Args:
             data: Telemetry data to submit
-            event_type: Event type (defaults to "event_create")
+            event_type: Event type (defaults to "observation" for LLM/SDK operations)
         """
         if self.is_disabled or not self._background_processor:
             return  # Skip telemetry when disabled
@@ -121,7 +121,7 @@ class Brokle(HTTPBase):
         This is the preferred method for submitting structured telemetry events.
 
         Args:
-            event_type: Type of event (trace_create, observation_create, etc.)
+            event_type: Type of event (trace, observation, etc.)
             payload: Event payload data
 
         Returns:
@@ -129,7 +129,7 @@ class Brokle(HTTPBase):
 
         Example:
             >>> event_id = client.submit_batch_event(
-            ...     "trace_create",
+            ...     "trace",
             ...     {"name": "my-trace", "user_id": "123"}
             ... )
         """
@@ -410,14 +410,14 @@ class AsyncBrokle(HTTPBase):
         return getattr(self, '_disabled', False)
 
     def submit_telemetry(
-        self, data: Dict[str, Any], event_type: str = "event_create"
+        self, data: Dict[str, Any], event_type: str = "observation"
     ) -> None:
         """
         Submit telemetry data for background processing.
 
         Args:
             data: Telemetry data to submit
-            event_type: Event type (defaults to "event_create")
+            event_type: Event type (defaults to "observation" for LLM/SDK operations)
         """
         if self.is_disabled or not self._background_processor:
             return  # Skip telemetry when disabled
@@ -430,7 +430,7 @@ class AsyncBrokle(HTTPBase):
         This is the preferred method for submitting structured telemetry events.
 
         Args:
-            event_type: Type of event (trace_create, observation_create, etc.)
+            event_type: Type of event (trace, observation, etc.)
             payload: Event payload data
 
         Returns:
@@ -438,7 +438,7 @@ class AsyncBrokle(HTTPBase):
 
         Example:
             >>> event_id = client.submit_batch_event(
-            ...     "trace_create",
+            ...     "trace",
             ...     {"name": "my-trace", "user_id": "123"}
             ... )
         """

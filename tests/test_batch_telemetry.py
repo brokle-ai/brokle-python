@@ -84,22 +84,22 @@ class TestTelemetryEventTypes:
 
     def test_event_type_enum_values(self):
         """Event types should have correct string values."""
-        assert TelemetryEventType.TRACE_CREATE == "trace_create"
-        assert TelemetryEventType.OBSERVATION_CREATE == "observation_create"
-        assert TelemetryEventType.QUALITY_SCORE_CREATE == "quality_score_create"
-        assert TelemetryEventType.EVENT_CREATE == "event_create"
+        assert TelemetryEventType.EVENT == "event"
+        assert TelemetryEventType.TRACE == "trace"
+        assert TelemetryEventType.OBSERVATION == "observation"
+        assert TelemetryEventType.QUALITY_SCORE == "quality_score"
 
     def test_telemetry_event_creation(self):
         """TelemetryEvent should validate and serialize correctly."""
         event = TelemetryEvent(
             event_id=generate_event_id(),
-            event_type=TelemetryEventType.TRACE_CREATE,
+            event_type=TelemetryEventType.TRACE,
             payload={"name": "test-trace", "user_id": "123"},
             timestamp=int(time.time())
         )
 
         assert len(event.event_id) == 26
-        assert event.event_type == TelemetryEventType.TRACE_CREATE
+        assert event.event_type == TelemetryEventType.TRACE
         assert event.payload["name"] == "test-trace"
 
     def test_telemetry_event_invalid_id(self):
@@ -107,7 +107,7 @@ class TestTelemetryEventTypes:
         with pytest.raises(Exception):  # Pydantic validation error
             TelemetryEvent(
                 event_id="invalid",  # Too short
-                event_type=TelemetryEventType.TRACE_CREATE,
+                event_type=TelemetryEventType.TRACE,
                 payload={}
             )
 
@@ -153,7 +153,7 @@ class TestTelemetryBatchRequest:
         events = [
             TelemetryEvent(
                 event_id=generate_event_id(),
-                event_type=TelemetryEventType.TRACE_CREATE,
+                event_type=TelemetryEventType.TRACE,
                 payload={"name": f"trace-{i}"}
             )
             for i in range(5)
@@ -173,7 +173,7 @@ class TestTelemetryBatchRequest:
         """Batch request should serialize to JSON correctly."""
         event = TelemetryEvent(
             event_id=generate_event_id(),
-            event_type=TelemetryEventType.OBSERVATION_CREATE,
+            event_type=TelemetryEventType.OBSERVATION,
             payload={"type": "llm", "name": "OpenAI Chat"},
             timestamp=1677610602
         )
@@ -183,7 +183,7 @@ class TestTelemetryBatchRequest:
 
         assert "events" in data
         assert len(data["events"]) == 1
-        assert data["events"][0]["event_type"] == "observation_create"
+        assert data["events"][0]["event_type"] == "observation"
         assert data["events"][0]["payload"]["name"] == "OpenAI Chat"
 
     def test_batch_request_max_size(self):
@@ -192,7 +192,7 @@ class TestTelemetryBatchRequest:
         events = [
             TelemetryEvent(
                 event_id=generate_event_id(),
-                event_type=TelemetryEventType.EVENT_CREATE,
+                event_type=TelemetryEventType.OBSERVATION,
                 payload={}
             )
             for _ in range(1001)
@@ -327,12 +327,12 @@ class TestBatchTelemetryIntegration:
         events = [
             TelemetryEvent(
                 event_id=generate_event_id(),
-                event_type=TelemetryEventType.TRACE_CREATE,
+                event_type=TelemetryEventType.TRACE,
                 payload={"name": "trace-1", "user_id": "user_123"}
             ),
             TelemetryEvent(
                 event_id=generate_event_id(),
-                event_type=TelemetryEventType.OBSERVATION_CREATE,
+                event_type=TelemetryEventType.OBSERVATION,
                 payload={"trace_id": "01ABC", "type": "llm"}
             ),
         ]
@@ -350,8 +350,8 @@ class TestBatchTelemetryIntegration:
         # Verify structure
         assert data["environment"] == "staging"
         assert len(data["events"]) == 2
-        assert data["events"][0]["event_type"] == "trace_create"
-        assert data["events"][1]["event_type"] == "observation_create"
+        assert data["events"][0]["event_type"] == "trace"
+        assert data["events"][1]["event_type"] == "observation"
         assert data["deduplication"]["enabled"] is True
 
     def test_partial_failure_handling(self):
@@ -371,7 +371,7 @@ class TestBatchTelemetryIntegration:
                 BatchEventError(
                     event_id=generate_event_id(),
                     error="Missing required field",
-                    details="Field 'name' is required for trace_create"
+                    details="Field 'name' is required for trace"
                 ),
             ],
             duplicate_event_ids=[generate_event_id()]

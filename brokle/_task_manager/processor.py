@@ -140,8 +140,8 @@ class BackgroundProcessor:
             events = []
             for item in items:
                 if "data" in item:
-                    # Extract event type (default to EVENT_CREATE for legacy data)
-                    event_type = item.get("event_type", TelemetryEventType.EVENT_CREATE)
+                    # Extract event type (default to OBSERVATION for LLM/SDK operations)
+                    event_type = item.get("event_type", TelemetryEventType.OBSERVATION)
 
                     # Use pre-generated event_id if available, otherwise generate new one
                     event_id = item.get("event_id", generate_event_id())
@@ -226,7 +226,8 @@ class BackgroundProcessor:
                 json=batch_request.model_dump(mode="json", exclude_none=True),
             )
 
-            if response.status_code != 200:
+            # Accept both 200 OK and 201 Created as success
+            if response.status_code not in (200, 201):
                 logger.error(
                     f"Batch submission failed: {response.status_code} - {response.text}"
                 )
@@ -234,7 +235,7 @@ class BackgroundProcessor:
                 # Parse response and handle partial failures
                 batch_response = TelemetryBatchResponse(**response.json())
                 self._handle_batch_response(batch_response)
-                logger.debug(
+                logger.info(
                     f"Submitted batch: {batch_response.processed_events} processed, "
                     f"{batch_response.duplicate_events} duplicates, "
                     f"{batch_response.failed_events} failed"
@@ -279,14 +280,14 @@ class BackgroundProcessor:
         logger.debug("Evaluation submission not implemented yet")
 
     def submit_telemetry(
-        self, data: Dict[str, Any], event_type: str = TelemetryEventType.EVENT_CREATE
+        self, data: Dict[str, Any], event_type: str = TelemetryEventType.OBSERVATION
     ) -> None:
         """
         Submit telemetry data for background processing.
 
         Args:
             data: Telemetry payload data
-            event_type: Type of event (defaults to EVENT_CREATE)
+            event_type: Type of event (defaults to OBSERVATION for LLM/SDK operations)
         """
         if self._shutdown:
             return

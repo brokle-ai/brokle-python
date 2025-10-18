@@ -36,7 +36,7 @@ def example_1_legacy_telemetry():
     })
 
     print("✅ Legacy telemetry submitted (auto-converted to batch format)")
-    print("   - Event type: event_create (default)")
+    print("   - Event type: event (default)")
     print("   - Event ID: auto-generated ULID")
     print("   - Endpoint: /v1/telemetry/batch")
 
@@ -51,7 +51,7 @@ def example_2_structured_events():
 
     # New preferred method - returns event ID for tracking
     trace_event_id = client.submit_batch_event(
-        event_type="trace_create",
+        event_type="trace",
         payload={
             "name": "user-authentication-flow",
             "user_id": "user_123",
@@ -69,7 +69,7 @@ def example_2_structured_events():
 
     # Submit observation for the trace
     observation_event_id = client.submit_batch_event(
-        event_type="observation_create",
+        event_type="observation",
         payload={
             "trace_id": trace_event_id,
             "type": "llm",
@@ -84,7 +84,7 @@ def example_2_structured_events():
 
     # Submit quality score
     score_event_id = client.submit_batch_event(
-        event_type="quality_score_create",
+        event_type="quality_score",
         payload={
             "trace_id": trace_event_id,
             "observation_id": observation_event_id,
@@ -122,7 +122,7 @@ def example_3_custom_batch_config():
     # Submit multiple events
     for i in range(5):
         client.submit_batch_event(
-            event_type="event_create",
+            event_type="event",
             payload={"index": i, "data": f"event_{i}"}
         )
 
@@ -154,7 +154,7 @@ def example_4_deduplication():
 
     event = TelemetryEvent(
         event_id=event_id,
-        event_type=TelemetryEventType.TRACE_CREATE,
+        event_type=TelemetryEventType.TRACE,
         payload={"name": "duplicate-test-trace"}
     )
 
@@ -186,7 +186,7 @@ async def example_5_async_batch():
         tasks = []
         for i in range(10):
             event_id = client.submit_batch_event(
-                event_type="trace_create",
+                event_type="trace",
                 payload={"name": f"async-trace-{i}"}
             )
             tasks.append(event_id)
@@ -207,14 +207,14 @@ def example_6_error_handling():
 
     # Submit mix of valid and potentially invalid events
     valid_event = client.submit_batch_event(
-        event_type="trace_create",
+        event_type="trace",
         payload={"name": "valid-trace", "user_id": "user_123"}
     )
     print(f"✅ Valid event: {valid_event}")
 
     # This might fail if validation is strict
     invalid_event = client.submit_batch_event(
-        event_type="trace_create",
+        event_type="trace",
         payload={"invalid_field": "missing_name"}  # Missing required 'name'
     )
     print(f"⚠️  Potentially invalid event: {invalid_event}")
@@ -245,7 +245,7 @@ def example_7_monitoring():
     # Submit various events
     for i in range(20):
         client.submit_batch_event(
-            event_type="event_create",
+            event_type="event",
             payload={"index": i}
         )
 
@@ -293,3 +293,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
