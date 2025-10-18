@@ -1,8 +1,7 @@
 """
 Unit tests for unified telemetry batch API.
 
-Tests ULID generation, event envelope creation, batch request serialization,
-and deduplication logic.
+Tests ULID generation, event envelope creation, and batch request serialization.
 """
 
 import time
@@ -19,7 +18,6 @@ from brokle._utils.ulid import (
 from brokle.config import Config
 from brokle.types.telemetry import (
     BatchEventError,
-    DeduplicationConfig,
     TelemetryBatchRequest,
     TelemetryBatchResponse,
     TelemetryEvent,
@@ -112,39 +110,6 @@ class TestTelemetryEventTypes:
             )
 
 
-class TestDeduplicationConfig:
-    """Test deduplication configuration model."""
-
-    def test_default_config(self):
-        """Deduplication should have sensible defaults."""
-        config = DeduplicationConfig()
-        assert config.enabled is True
-        assert config.ttl == 3600
-        assert config.use_redis_cache is True
-        assert config.fail_on_duplicate is False
-
-    def test_custom_config(self):
-        """Deduplication should accept custom values."""
-        config = DeduplicationConfig(
-            enabled=False,
-            ttl=7200,
-            use_redis_cache=False,
-            fail_on_duplicate=True
-        )
-        assert config.enabled is False
-        assert config.ttl == 7200
-        assert config.use_redis_cache is False
-        assert config.fail_on_duplicate is True
-
-    def test_ttl_validation(self):
-        """TTL should be within valid range."""
-        with pytest.raises(Exception):  # Pydantic validation error
-            DeduplicationConfig(ttl=30)  # Too low (min 60)
-
-        with pytest.raises(Exception):
-            DeduplicationConfig(ttl=100000)  # Too high (max 86400)
-
-
 class TestTelemetryBatchRequest:
     """Test batch request model."""
 
@@ -162,12 +127,10 @@ class TestTelemetryBatchRequest:
         request = TelemetryBatchRequest(
             events=events,
             environment="production",
-            deduplication=DeduplicationConfig()
         )
 
         assert len(request.events) == 5
         assert request.environment == "production"
-        assert request.deduplication.enabled is True
 
     def test_batch_request_serialization(self):
         """Batch request should serialize to JSON correctly."""
@@ -268,22 +231,16 @@ class TestBatchConfiguration:
         config = Config()
         assert config.batch_max_size == 100
         assert config.batch_flush_interval == 5.0
-        assert config.batch_enable_deduplication is True
-        assert config.batch_deduplication_ttl == 3600
 
     def test_custom_batch_config(self):
         """Config should accept custom batch settings."""
         config = Config(
             batch_max_size=200,
             batch_flush_interval=10.0,
-            batch_enable_deduplication=False,
-            batch_deduplication_ttl=7200
         )
 
         assert config.batch_max_size == 200
         assert config.batch_flush_interval == 10.0
-        assert config.batch_enable_deduplication is False
-        assert config.batch_deduplication_ttl == 7200
 
     def test_batch_config_validation(self):
         """Config should validate batch parameters."""
@@ -341,7 +298,6 @@ class TestBatchTelemetryIntegration:
         request = TelemetryBatchRequest(
             events=events,
             environment="staging",
-            deduplication=DeduplicationConfig(enabled=True, ttl=3600)
         )
 
         # Serialize
@@ -352,7 +308,6 @@ class TestBatchTelemetryIntegration:
         assert len(data["events"]) == 2
         assert data["events"][0]["event_type"] == "trace"
         assert data["events"][1]["event_type"] == "observation"
-        assert data["deduplication"]["enabled"] is True
 
     def test_partial_failure_handling(self):
         """Batch response should handle partial failures."""

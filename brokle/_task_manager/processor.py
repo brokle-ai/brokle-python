@@ -21,7 +21,6 @@ from ..types.telemetry import (
     TelemetryBatchResponse,
     TelemetryEvent,
     TelemetryEventType,
-    DeduplicationConfig,
 )
 from .._utils.ulid import generate_event_id
 
@@ -212,12 +211,6 @@ class BackgroundProcessor:
             batch_request = TelemetryBatchRequest(
                 events=events,
                 environment=self.config.environment,
-                deduplication=DeduplicationConfig(
-                    enabled=self.config.batch_enable_deduplication,
-                    ttl=self.config.batch_deduplication_ttl,
-                    use_redis_cache=self.config.batch_use_redis_cache,
-                    fail_on_duplicate=self.config.batch_fail_on_duplicate,
-                )
             )
 
             # Submit to unified batch endpoint

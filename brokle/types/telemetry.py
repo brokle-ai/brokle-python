@@ -57,29 +57,6 @@ class TelemetryEvent(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
 
-class DeduplicationConfig(BaseModel):
-    """
-    Deduplication configuration for batch submission.
-
-    Controls how the batch API handles duplicate events based on event_id.
-
-    Attributes:
-        enabled: Enable deduplication (default: True)
-        ttl: Time-to-live for deduplication cache in seconds (default: 3600)
-        use_redis_cache: Use Redis for distributed deduplication (default: True)
-        fail_on_duplicate: Fail entire batch if duplicates found (default: False)
-    """
-
-    enabled: bool = Field(True, description="Enable event deduplication")
-    ttl: int = Field(3600, description="Deduplication cache TTL in seconds", ge=60, le=86400)
-    use_redis_cache: bool = Field(
-        True, description="Use Redis for distributed deduplication"
-    )
-    fail_on_duplicate: bool = Field(
-        False, description="Fail entire batch on duplicate events"
-    )
-
-
 class TelemetryBatchRequest(BaseModel):
     """
     Unified telemetry batch request.
@@ -92,7 +69,6 @@ class TelemetryBatchRequest(BaseModel):
         environment: Optional environment tag (e.g., "production", "staging")
         metadata: Optional batch-level metadata
         async_mode: Process batch asynchronously (default: False)
-        deduplication: Deduplication configuration
     """
 
     events: List[TelemetryEvent] = Field(
@@ -105,9 +81,6 @@ class TelemetryBatchRequest(BaseModel):
         None, description="Batch-level metadata"
     )
     async_mode: bool = Field(False, description="Process batch asynchronously")
-    deduplication: Optional[DeduplicationConfig] = Field(
-        None, description="Deduplication configuration"
-    )
 
 
 class BatchEventError(BaseModel):
@@ -162,7 +135,6 @@ class TelemetryBatchResponse(BaseModel):
 __all__ = [
     "TelemetryEventType",
     "TelemetryEvent",
-    "DeduplicationConfig",
     "TelemetryBatchRequest",
     "TelemetryBatchResponse",
     "BatchEventError",

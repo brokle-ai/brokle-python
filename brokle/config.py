@@ -3,7 +3,7 @@ Configuration management for Brokle SDK.
 """
 
 import os
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator
@@ -92,24 +92,12 @@ class Config(BaseModel):
         default=True, description="Enable telemetry collection"
     )
 
-    # Batch telemetry settings (unified /v1/telemetry/batch API)
+    # Batch telemetry settings
     batch_max_size: int = Field(
         default=100, description="Maximum events per batch", ge=1, le=1000
     )
     batch_flush_interval: float = Field(
         default=5.0, description="Batch flush interval in seconds", ge=0.1, le=60.0
-    )
-    batch_enable_deduplication: bool = Field(
-        default=True, description="Enable ULID-based event deduplication"
-    )
-    batch_deduplication_ttl: int = Field(
-        default=3600, description="Deduplication cache TTL in seconds", ge=60, le=86400
-    )
-    batch_use_redis_cache: bool = Field(
-        default=True, description="Use Redis for distributed deduplication"
-    )
-    batch_fail_on_duplicate: bool = Field(
-        default=False, description="Fail entire batch on duplicate events"
     )
 
     # Debug settings
@@ -171,10 +159,6 @@ class Config(BaseModel):
             # Batch telemetry
             batch_max_size=int(os.getenv("BROKLE_BATCH_MAX_SIZE", "100")),
             batch_flush_interval=float(os.getenv("BROKLE_BATCH_FLUSH_INTERVAL", "5.0")),
-            batch_enable_deduplication=os.getenv("BROKLE_BATCH_ENABLE_DEDUPLICATION", "true").lower() == "true",
-            batch_deduplication_ttl=int(os.getenv("BROKLE_BATCH_DEDUPLICATION_TTL", "3600")),
-            batch_use_redis_cache=os.getenv("BROKLE_BATCH_USE_REDIS_CACHE", "true").lower() == "true",
-            batch_fail_on_duplicate=os.getenv("BROKLE_BATCH_FAIL_ON_DUPLICATE", "false").lower() == "true",
             # HTTP
             timeout=int(os.getenv("BROKLE_TIMEOUT", "30")),
             max_retries=int(os.getenv("BROKLE_MAX_RETRIES", "3")),
