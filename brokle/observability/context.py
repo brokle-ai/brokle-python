@@ -1,224 +1,195 @@
 """
-Context management for observability.
+Thread-local context helpers for observability.
 
-Provides client context for Pattern 1/2 compatibility.
+This module keeps track of the active Brokle client along with the current
+trace/observation stacks so Pattern 1 (wrappers) and Pattern 2 (decorators)
+can automatically build the proper hierarchy without requiring callers to pass
+identifiers around manually.
 """
+
+from __future__ import annotations
 
 import threading
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import Dict, List, Optional
 
-from ..client import Brokle
-
-if TYPE_CHECKING:
-    pass
+from ..client import Brokle, get_client as get_global_client
 
 
 class ObservabilityContext:
-    """Thread-local context for observability."""
+    """Per-thread observability context."""
 
-    def __init__(self):
-        self._local = threading.local()
+    __slots__ = ("client", "trace_stack", "observation_stack", "session_id")
 
-    def set_client(self, client: Brokle) -> None:
-        """Set client for current thread."""
-        self._local.client = client
-
-    def get_client(self) -> Optional[Brokle]:
-        """Get client for current thread."""
-        return getattr(self._local, "client", None)
-
-    def clear(self) -> None:
-        """Clear context for current thread."""
-        if hasattr(self._local, "client"):
-            delattr(self._local, "client")
-
-    def get_info(self) -> Dict[str, Any]:
-        """Get context information."""
-        client = self.get_client()
-        if client:
-            return {
-                "has_client": True,
-                "api_key": (
-                    client.config.api_key[:10] + "..."
-                    if client.config.api_key
-                    else None
-                ),
-                "environment": client.config.environment,
-                "host": client.config.host,
-            }
-        return {"has_client": False}
+    def __init__(self) -> None:
+        self.client: Optional[Brokle] = None
+        self.trace_stack: List[str] = []
+        self.observation_stack: List[str] = []
+        self.session_id: Optional[str] = None
 
 
-# Global context instance
-_context = ObservabilityContext()
+_context = threading.local()
+
+
+def _get_or_create_context() -> ObservabilityContext:
+    """Return the thread-local context, creating it on first access."""
+    ctx = getattr(_context, "value", None)
+    if ctx is None:
+        ctx = ObservabilityContext()
+        _context.value = ctx
+    return ctx
+
+
+def get_context() -> ObservabilityContext:
+    """Expose the raw ObservabilityContext for advanced usage/testing."""
+    return _get_or_create_context()
+
+
+def clear_context() -> None:
+    """Reset the thread-local context (useful in tests)."""
+    _context.value = ObservabilityContext()
+
+
+def set_client(client: Optional[Brokle]) -> None:
+    """Manually set the Brokle client for the active thread."""
+    _get_or_create_context().client = client
 
 
 def get_client(
+    *,
     api_key: Optional[str] = None,
     host: Optional[str] = None,
     environment: Optional[str] = None,
-    otel_enabled: Optional[bool] = None,
-    otel_endpoint: Optional[str] = None,
-    otel_service_name: Optional[str] = None,
-    otel_headers: Optional[Dict[str, str]] = None,
-    telemetry_enabled: Optional[bool] = None,
-    batch_max_size: Optional[int] = None,
-    batch_flush_interval: Optional[float] = None,
-    debug: Optional[bool] = None,
-    timeout: Optional[int] = None,
-    max_retries: Optional[int] = None,
-    cache_enabled: Optional[bool] = None,
-    routing_enabled: Optional[bool] = None,
-    evaluation_enabled: Optional[bool] = None,
     **kwargs,
 ) -> Brokle:
     """
-    Get or create Brokle client for observability.
+    Get or lazily create a Brokle client bound to the current thread.
 
-    This function provides backward compatibility for Pattern 1/2 with thread-safe
-    credential injection for production use.
-
-    Args:
-        api_key: Explicit API key (overrides environment)
-        host: Explicit host URL (overrides environment)
-        environment: Environment name
-        otel_enabled: Enable OpenTelemetry integration
-        otel_endpoint: OpenTelemetry endpoint
-        otel_service_name: OpenTelemetry service name
-        otel_headers: OpenTelemetry headers
-        telemetry_enabled: Enable telemetry collection
-        batch_max_size: Maximum events per batch (1-1000)
-        batch_flush_interval: Batch flush interval in seconds
-        debug: Enable debug logging
-        timeout: HTTP timeout in seconds
-        max_retries: Maximum retry attempts
-        cache_enabled: Enable caching
-        routing_enabled: Enable intelligent routing
-        evaluation_enabled: Enable evaluation
-        **kwargs: Additional configuration options
-
-    Returns:
-        Brokle client instance
+    If explicit configuration is supplied the client is instantiated directly
+    with those parameters. Otherwise we fall back to the global singleton from
+    ``brokle.client.get_client()`` which reads configuration from the environment.
     """
-    # Check if any explicit credentials/config provided
-    explicit_config = any(
-        [
-            api_key,
-            host,
-            environment,
-            otel_enabled is not None,
-            otel_endpoint,
-            otel_service_name,
-            otel_headers,
-            telemetry_enabled is not None,
-            batch_max_size is not None,
-            batch_flush_interval is not None,
-            debug is not None,
-            timeout is not None,
-            max_retries is not None,
-            cache_enabled is not None,
-            routing_enabled is not None,
-            evaluation_enabled is not None,
-            kwargs,
-        ]
-    )
+    ctx = _get_or_create_context()
+    if ctx.client is not None:
+        return ctx.client
 
-    # If explicit credentials provided, create dedicated client (thread-safe)
-    if explicit_config:
-        # Filter out None values to avoid Config validation errors
-        client_kwargs = {}
+    explicit_kwargs: Dict[str, object] = {}
+    if api_key is not None:
+        explicit_kwargs["api_key"] = api_key
+    if host is not None:
+        explicit_kwargs["host"] = host
+    if environment is not None:
+        explicit_kwargs["environment"] = environment
 
-        if api_key is not None:
-            client_kwargs["api_key"] = api_key
-        if host is not None:
-            client_kwargs["host"] = host
-        if environment is not None:
-            client_kwargs["environment"] = environment
-        if otel_enabled is not None:
-            client_kwargs["otel_enabled"] = otel_enabled
-        if otel_endpoint is not None:
-            client_kwargs["otel_endpoint"] = otel_endpoint
-        if otel_service_name is not None:
-            client_kwargs["otel_service_name"] = otel_service_name
-        if otel_headers is not None:
-            client_kwargs["otel_headers"] = otel_headers
-        if telemetry_enabled is not None:
-            client_kwargs["telemetry_enabled"] = telemetry_enabled
-        if batch_max_size is not None:
-            client_kwargs["batch_max_size"] = batch_max_size
-        if batch_flush_interval is not None:
-            client_kwargs["batch_flush_interval"] = batch_flush_interval
-        if debug is not None:
-            client_kwargs["debug"] = debug
-        if timeout is not None:
-            client_kwargs["timeout"] = timeout
-        if max_retries is not None:
-            client_kwargs["max_retries"] = max_retries
-        if cache_enabled is not None:
-            client_kwargs["cache_enabled"] = cache_enabled
-        if routing_enabled is not None:
-            client_kwargs["routing_enabled"] = routing_enabled
-        if evaluation_enabled is not None:
-            client_kwargs["evaluation_enabled"] = evaluation_enabled
+    # Pass through additional keyword arguments when explicitly provided.
+    explicit_kwargs.update({k: v for k, v in kwargs.items() if v is not None})
 
-        # Add any additional kwargs
-        client_kwargs.update(kwargs)
+    if explicit_kwargs:
+        client = Brokle(**explicit_kwargs)
+    else:
+        client = get_global_client()
 
-        # Create dedicated client and store in thread-local context
-        dedicated_client = Brokle(**client_kwargs)
-        _context.set_client(dedicated_client)
-        return dedicated_client
-
-    # No explicit config = use thread-local singleton from environment
-    client = _context.get_client()
-    if client is None:
-        # Create new client from environment variables (immutable)
-        client = Brokle()
-        _context.set_client(client)
-
+    ctx.client = client
     return client
 
 
 def get_client_context() -> Optional[Brokle]:
-    """
-    Get client from context without creating new one.
-
-    Returns:
-        Brokle client if available, None otherwise
-    """
-    return _context.get_client()
-
-
-def clear_context() -> None:
-    """Clear the current context."""
-    _context.clear()
-
-
-def get_context_info() -> Dict[str, Any]:
-    """
-    Get context information for debugging.
-
-    Returns:
-        Dictionary with context info
-    """
-    return _context.get_info()
+    """Return the client currently stored in the thread-local context, if any."""
+    return _get_or_create_context().client
 
 
 @contextmanager
 def client_context(client: Brokle):
-    """
-    Context manager for setting client context.
-
-    Args:
-        client: Brokle client to use in context
-    """
-    old_client = _context.get_client()
-    _context.set_client(client)
+    """Temporarily set the active Brokle client within a ``with`` block."""
+    previous = get_client_context()
+    set_client(client)
     try:
         yield client
     finally:
-        if old_client:
-            _context.set_client(old_client)
+        if previous is not None:
+            set_client(previous)
         else:
-            _context.clear()
+            clear_context()
+
+
+def get_context_info() -> Dict[str, object]:
+    """Return a lightweight snapshot describing the current context."""
+    ctx = _get_or_create_context()
+    client = ctx.client
+    api_key_display: Optional[str] = None
+    if client and client.config.api_key:
+        key = client.config.api_key
+        api_key_display = f"{key[:10]}..." if len(key) > 10 else key
+    return {
+        "has_client": client is not None,
+        "environment": client.config.environment if client else None,
+        "host": client.config.host if client else None,
+        "api_key": api_key_display,
+        "session_id": ctx.session_id,
+        "trace_depth": len(ctx.trace_stack),
+        "observation_depth": len(ctx.observation_stack),
+    }
+
+
+def get_current_trace_id() -> Optional[str]:
+    """Return the active trace identifier, if any."""
+    stack = _get_or_create_context().trace_stack
+    return stack[-1] if stack else None
+
+
+def push_trace(trace_id: str) -> None:
+    """Push a trace identifier onto the stack."""
+    _get_or_create_context().trace_stack.append(trace_id)
+
+
+def pop_trace() -> Optional[str]:
+    """Pop the most recent trace identifier."""
+    stack = _get_or_create_context().trace_stack
+    return stack.pop() if stack else None
+
+
+def get_current_observation_id() -> Optional[str]:
+    """Return the active observation identifier, if any."""
+    stack = _get_or_create_context().observation_stack
+    return stack[-1] if stack else None
+
+
+def push_observation(observation_id: str) -> None:
+    """Push an observation identifier onto the stack."""
+    _get_or_create_context().observation_stack.append(observation_id)
+
+
+def pop_observation() -> Optional[str]:
+    """Pop the most recent observation identifier."""
+    stack = _get_or_create_context().observation_stack
+    return stack.pop() if stack else None
+
+
+def set_session_id(session_id: Optional[str]) -> None:
+    """Associate a session identifier with the current context."""
+    _get_or_create_context().session_id = session_id
+
+
+def get_session_id() -> Optional[str]:
+    """Return the session identifier stored in the current context."""
+    return _get_or_create_context().session_id
+
+
+__all__ = [
+    "ObservabilityContext",
+    "clear_context",
+    "client_context",
+    "get_client",
+    "get_client_context",
+    "get_context",
+    "get_context_info",
+    "get_current_observation_id",
+    "get_current_trace_id",
+    "get_session_id",
+    "pop_observation",
+    "pop_trace",
+    "push_observation",
+    "push_trace",
+    "set_client",
+    "set_session_id",
+]

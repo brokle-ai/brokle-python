@@ -13,15 +13,30 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class TelemetryEventType(str, Enum):
-    """Immutable event types for telemetry."""
+    """
+    Immutable event types for telemetry batch API.
+
+    IMPORTANT: Batch events are write-once and immutable. They represent
+    initial creation only. For updates/corrections after initial submission,
+    use the REST API endpoints:
+    - PUT /api/v1/analytics/traces/:id
+    - PUT /api/v1/analytics/observations/:id
+    - PUT /api/v1/analytics/scores/:id
+    - PUT /api/v1/analytics/sessions/:id
+
+    This follows industry patterns where:
+    - Batch API = immutable, async, high-throughput (create operations)
+    - REST API = mutable, sync, for corrections/enrichment (update operations)
+    """
 
     # Generic events
     EVENT = "event"
 
-    # Structured observability
+    # Structured observability (immutable batch creation)
     TRACE = "trace"
     OBSERVATION = "observation"
     QUALITY_SCORE = "quality_score"
+    SESSION = "session"
 
 
 class TelemetryEvent(BaseModel):
@@ -59,13 +74,21 @@ class TelemetryEvent(BaseModel):
 
 class TelemetryBatchRequest(BaseModel):
     """
-    Unified telemetry batch request.
+    Unified telemetry batch request for immutable event creation.
 
     Submits multiple telemetry events (traces, observations, scores) in a
     single batch to /v1/telemetry/batch endpoint.
 
+    IMPORTANT: This endpoint is for INITIAL CREATION ONLY. Events are immutable
+    once submitted. For updates/corrections after creation, use the REST API
+    PUT endpoints on the dashboard.
+
+    Best Practice: Buffer complete event data before submission. Ensure all
+    fields (input, output, metadata, cost details, etc.) are finalized before
+    sending to this endpoint.
+
     Attributes:
-        events: List of telemetry events to submit
+        events: List of telemetry events to submit (immutable after processing)
         environment: Optional environment tag (e.g., "production", "staging")
         metadata: Optional batch-level metadata
         async_mode: Process batch asynchronously (default: False)

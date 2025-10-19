@@ -8,6 +8,7 @@ import asyncio
 import logging
 import threading
 import time
+from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from queue import Empty, Queue
 from typing import Any, Callable, Dict, List, Optional
@@ -22,7 +23,7 @@ from ..types.telemetry import (
     TelemetryEvent,
     TelemetryEventType,
 )
-from .._utils.ulid import generate_event_id
+from .._utils.ulid import generate_event_id, is_valid_ulid
 
 logger = logging.getLogger(__name__)
 
@@ -138,23 +139,40 @@ class BackgroundProcessor:
             # Transform items into TelemetryEvent objects
             events = []
             for item in items:
-                if "data" in item:
-                    # Extract event type (default to OBSERVATION for LLM/SDK operations)
+                if "data" not in item:
+                    continue
+
+                payload = dict(item["data"])  # work on a shallow copy
+
+                # Ensure identifier fields are valid ULID strings
+                for field in ("id", "trace_id", "observation_id", "session_id", "parent_observation_id"):
+                    value = payload.get(field)
+                    if not value:
+                        continue
+
+                    value_str = str(value)
+                    if not is_valid_ulid(value_str):
+                        logger.error("Invalid ULID for %s: %s", field, value)
+                        break
+
+                    payload[field] = value_str
+                else:
+                    # Only executed if loop did not break (i.e., all ULIDs valid)
                     event_type = item.get("event_type", TelemetryEventType.OBSERVATION)
+                    event_id = item.get("event_id")
+                    if not event_id or not is_valid_ulid(str(event_id)):
+                        event_id = generate_event_id()
 
-                    # Use pre-generated event_id if available, otherwise generate new one
-                    event_id = item.get("event_id", generate_event_id())
-
-                    # Create telemetry event
                     event = TelemetryEvent(
-                        event_id=event_id,
+                        event_id=str(event_id),
                         event_type=event_type,
-                        payload=item["data"],
-                        timestamp=int(item.get("timestamp", time.time()))
+                        payload=payload,
+                        timestamp=int(item.get("timestamp", time.time())),
                     )
                     events.append(event)
 
             if events:
+                events.sort(key=self._event_sort_key)
                 # Submit batch to background thread
                 self._executor.submit(self._submit_batch_events, events)
 
@@ -397,6 +415,31 @@ class BackgroundProcessor:
         except Exception as e:
             logger.error(f"Failed to flush background processor: {e}")
             return False
+
+    @staticmethod
+    def _event_sort_key(event: TelemetryEvent) -> tuple:
+        """Sort events to ensure parent observations precede children."""
+        order_map = {
+            TelemetryEventType.TRACE: 0,
+            TelemetryEventType.SESSION: 1,
+            TelemetryEventType.OBSERVATION: 2,
+            TelemetryEventType.QUALITY_SCORE: 3,
+            TelemetryEventType.EVENT: 4,
+        }
+        base = order_map.get(event.event_type, 5)
+
+        if event.event_type == TelemetryEventType.OBSERVATION:
+            start_time = event.payload.get("start_time")
+            if isinstance(start_time, str):
+                try:
+                    # Handle both standard ISO and 'Z' suffix
+                    parsed = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+                    return base, parsed.timestamp(), event.event_id
+                except ValueError:
+                    pass
+            return base, event.timestamp or 0, event.event_id
+
+        return base, event.timestamp or 0, event.event_id
 
     def get_metrics(self) -> Dict[str, Any]:
         """

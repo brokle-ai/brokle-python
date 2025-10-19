@@ -3,6 +3,16 @@ Type definitions for Brokle SDK.
 """
 
 # from .attributes import BrokleOtelSpanAttributes  # TODO: Add when attributes module is created
+from .observability import (
+    Observation,
+    ObservationLevel,
+    ObservationType,
+    Score,
+    ScoreDataType,
+    ScoreSource,
+    Session,
+    Trace,
+)
 from .requests import (
     AnalyticsRequest,
     ChatCompletionRequest,
@@ -21,6 +31,13 @@ from .responses.observability import (
     AnalyticsResponse,
     EvaluationResponse,
 )
+from .telemetry import (
+    BatchEventError,
+    TelemetryBatchRequest,
+    TelemetryBatchResponse,
+    TelemetryEvent,
+    TelemetryEventType,
+)
 
 __all__ = [
     # Requests
@@ -35,4 +52,19 @@ __all__ = [
     "EmbeddingResponse",
     "AnalyticsResponse",
     "EvaluationResponse",
+    # Observability entities
+    "Trace",
+    "Observation",
+    "Score",
+    "Session",
+    "ObservationType",
+    "ObservationLevel",
+    "ScoreDataType",
+    "ScoreSource",
+    # Telemetry batch API
+    "TelemetryEvent",
+    "TelemetryEventType",
+    "TelemetryBatchRequest",
+    "TelemetryBatchResponse",
+    "BatchEventError",
 ]

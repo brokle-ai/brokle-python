@@ -89,11 +89,80 @@ class Brokle(HTTPBase):
         self.embeddings = EmbeddingsResource(self)
         self.models = ModelsResource(self)
 
-    def span(self, name: str, **kwargs):
-        """Create a span for observability."""
-        from .observability.spans import create_span
+    def trace(self, name: str, **kwargs):
+        """
+        Create a new trace for observability.
 
-        return create_span(name=name, **kwargs)
+        This is the primary method for creating traces.
+
+        Args:
+            name: Human-readable trace name
+            **kwargs: Additional trace fields (session_id, user_id, metadata, tags, etc.)
+
+        Returns:
+            TraceClient for fluent API
+
+        Example:
+            >>> trace = client.trace(
+            ...     name="user-query",
+            ...     user_id="user_123",
+            ...     metadata={"intent": "search"}
+            ... )
+            >>> obs = trace.observation(ObservationType.LLM, "openai-call")
+            >>> obs.generation(model="gpt-4", input={...}, output={...})
+            >>> obs.end()
+            >>> trace.score("quality", 0.95)
+            >>> trace.end(output={"result": "success"})
+
+            Or with context manager:
+            >>> with client.trace(name="user-query") as trace:
+            ...     obs = trace.observation(ObservationType.LLM, "openai-call")
+            ...     obs.end()
+            ...     # trace.end() called automatically
+        """
+        from .observability.trace import TraceClient
+
+        return TraceClient(client=self, name=name, **kwargs)
+
+    def session(
+        self,
+        id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        metadata: Optional[Dict] = None,
+        **kwargs
+    ):
+        """
+        Create or retrieve a session for grouping traces.
+
+        Sessions group related traces together (e.g., chat conversations, workflows).
+
+        Args:
+            id: Optional session ULID (generates new if not provided)
+            user_id: Optional user ULID
+            metadata: String key-value metadata
+            **kwargs: Additional session fields
+
+        Returns:
+            SessionClient for creating traces within the session
+
+        Example:
+            >>> session = client.session(
+            ...     user_id="user_123",
+            ...     metadata={"conversation_type": "support"}
+            ... )
+            >>> trace = session.trace("first-query")
+            >>> trace.end()
+            >>> session.score("overall_quality", 0.92)
+        """
+        from .observability.session import SessionClient
+
+        return SessionClient(
+            client=self,
+            id=id,
+            user_id=user_id,
+            metadata=metadata,
+            **kwargs
+        )
 
     @property
     def is_disabled(self) -> bool:
@@ -403,6 +472,60 @@ class AsyncBrokle(HTTPBase):
         self.chat = AsyncChatResource(self)
         self.embeddings = AsyncEmbeddingsResource(self)
         self.models = AsyncModelsResource(self)
+
+    def trace(self, name: str, **kwargs):
+        """
+        Create a new trace for observability.
+
+        Args:
+            name: Human-readable trace name
+            **kwargs: Additional trace fields
+
+        Returns:
+            AsyncTraceClient for fluent API
+
+        Example:
+            >>> async with client.trace(name="user-query") as trace:
+            ...     obs = trace.observation(ObservationType.LLM, "openai-call")
+            ...     obs.end()
+        """
+        from .observability.trace import AsyncTraceClient
+
+        return AsyncTraceClient(client=self, name=name, **kwargs)
+
+    def session(
+        self,
+        id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        metadata: Optional[Dict] = None,
+        **kwargs
+    ):
+        """
+        Create or retrieve a session for grouping traces.
+
+        Args:
+            id: Optional session ULID
+            user_id: Optional user ULID
+            metadata: String key-value metadata
+            **kwargs: Additional session fields
+
+        Returns:
+            AsyncSessionClient for creating traces within the session
+
+        Example:
+            >>> session = client.session(user_id="user_123")
+            >>> trace = session.trace("query")
+            >>> trace.end()
+        """
+        from .observability.session import AsyncSessionClient
+
+        return AsyncSessionClient(
+            client=self,
+            id=id,
+            user_id=user_id,
+            metadata=metadata,
+            **kwargs
+        )
 
     @property
     def is_disabled(self) -> bool:
