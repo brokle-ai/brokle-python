@@ -42,13 +42,7 @@ def basic_openai_wrapper_example():
 
     # Create OpenAI client and wrap it with Brokle
     openai_client = OpenAI()
-    wrapped_client = wrap_openai(
-        openai_client,
-        capture_content=True,
-        capture_metadata=True,
-        tags=["example", "openai"],
-        session_id="demo_session_123",
-    )
+    wrapped_client = wrap_openai(openai_client)
 
     # Use wrapped client exactly like normal OpenAI client
     response = wrapped_client.chat.completions.create(
@@ -75,13 +69,7 @@ def basic_anthropic_wrapper_example():
 
     # Create Anthropic client and wrap it with Brokle
     anthropic_client = Anthropic()
-    wrapped_client = wrap_anthropic(
-        anthropic_client,
-        capture_content=True,
-        capture_metadata=True,
-        tags=["example", "anthropic"],
-        user_id="demo_user_456",
-    )
+    wrapped_client = wrap_anthropic(anthropic_client)
 
     # Use wrapped client exactly like normal Anthropic client
     response = wrapped_client.messages.create(
@@ -100,28 +88,13 @@ def basic_anthropic_wrapper_example():
     print()
 
 
-def advanced_configuration_example():
-    """Advanced wrapper configuration example."""
-    print("⚙️ Advanced Configuration Example")
+def inline_wrapping_example():
+    """Inline wrapper example - wrap during client creation."""
+    print("⚙️ Inline Wrapping Example")
     print("-" * 40)
 
-    openai_client = OpenAI()
-
-    # Advanced configuration with comprehensive options
-    wrapped_client = wrap_openai(
-        openai_client,
-        capture_content=True,
-        capture_metadata=True,
-        tags=["production", "advanced", "cost-tracking"],
-        session_id="prod_session_789",
-        user_id="user_abc123",
-        # Custom configuration
-        custom_attributes={
-            "application": "demo_app",
-            "version": "1.0.0",
-            "environment": "staging",
-        },
-    )
+    # You can wrap the client inline during creation
+    wrapped_client = wrap_openai(OpenAI())
 
     response = wrapped_client.chat.completions.create(
         model="gpt-4",
@@ -133,7 +106,7 @@ def advanced_configuration_example():
     print(f"Haiku: {response.choices[0].message.content}")
     print(f"Model: {response.model}")
     print(f"Cost tracked: Yes (automatic)")
-    print("📊 Advanced observability with custom metadata!")
+    print("📊 Inline wrapping for cleaner code!")
     print()
 
 
@@ -144,12 +117,7 @@ async def async_wrapper_example():
 
     # Async OpenAI client wrapped with Brokle
     async_openai_client = AsyncOpenAI()
-    wrapped_client = wrap_openai(
-        async_openai_client,
-        capture_content=True,
-        tags=["async", "streaming"],
-        session_id="async_session_999",
-    )
+    wrapped_client = wrap_openai(async_openai_client)
 
     # Async OpenAI call with wrapped client
     response = await wrapped_client.chat.completions.create(
@@ -173,12 +141,7 @@ async def streaming_wrapper_example():
     print("-" * 40)
 
     async_openai_client = AsyncOpenAI()
-    wrapped_client = wrap_openai(
-        async_openai_client,
-        capture_content=False,  # Don't capture content for streaming
-        capture_metadata=True,
-        tags=["streaming", "realtime"],
-    )
+    wrapped_client = wrap_openai(async_openai_client)
 
     # Streaming call with wrapped client
     stream = await wrapped_client.chat.completions.create(
@@ -205,15 +168,8 @@ def multiple_providers_example():
     print("-" * 40)
 
     # Wrap different providers
-    openai_client = wrap_openai(
-        OpenAI(), tags=["multi-provider", "openai"], session_id="multi_session_111"
-    )
-
-    anthropic_client = wrap_anthropic(
-        Anthropic(),
-        tags=["multi-provider", "anthropic"],
-        session_id="multi_session_111",  # Same session for comparison
-    )
+    openai_client = wrap_openai(OpenAI())
+    anthropic_client = wrap_anthropic(Anthropic())
 
     # Compare responses from different providers
     question = "What is artificial intelligence?"
@@ -244,9 +200,7 @@ def error_handling_wrapper_example():
     print("🚨 Error Handling Example")
     print("-" * 40)
 
-    wrapped_client = wrap_openai(
-        OpenAI(), capture_content=True, capture_metadata=True, tags=["error-testing"]
-    )
+    wrapped_client = wrap_openai(OpenAI())
 
     try:
         # This will fail (invalid model name)
@@ -256,7 +210,7 @@ def error_handling_wrapper_example():
     except Exception as e:
         print(f"Expected error: {type(e).__name__}")
         print(f"Error message: {str(e)}")
-        print("📊 Error was automatically tracked and enhanced!")
+        print("📊 Error was automatically tracked!")
         print("✅ Wrapper continues working after errors")
     print()
 
@@ -272,7 +226,7 @@ async def main():
     # Run examples
     basic_openai_wrapper_example()
     basic_anthropic_wrapper_example()
-    advanced_configuration_example()
+    inline_wrapping_example()
     await async_wrapper_example()
     await streaming_wrapper_example()
     multiple_providers_example()
@@ -281,13 +235,13 @@ async def main():
     print("🎉 Pattern 1: Wrapper Functions Demo Complete!")
     print("=" * 50)
     print("Key Benefits:")
-    print("• 🎯 Explicit wrapping with clear control")
-    print("• 📊 Enhanced AI-specific observability")
+    print("• 🎯 Explicit wrapping with wrap_openai() and wrap_anthropic()")
+    print("• 📊 Automatic AI-specific observability")
     print("• ⚡ Works with sync, async, and streaming")
-    print("• 🔗 Compatible with industry standard patterns")
+    print("• 🔗 Preserves original SDK API")
     print("• 🚀 Scalable to all AI providers")
     print("• 🛡️ Comprehensive error handling and tracking")
-    print("• ➡️ Ready to upgrade to Pattern 2 or 3 when needed")
+    print("• ➡️ Ready to upgrade to Pattern 2 (@observe) or 3 (Native SDK) when needed")
 
 
 if __name__ == "__main__":

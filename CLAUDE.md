@@ -7,12 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is the **Brokle Platform Python SDK** - a comprehensive Python SDK that provides intelligent routing, cost optimization, semantic caching, and observability for AI applications. It's designed as part of the larger Brokle platform ecosystem.
 
 **Key Features:**
-- OpenAI drop-in replacement with advanced routing and caching
-- Three integration patterns: drop-in replacement, decorator, and native SDK
+- Three integration patterns: wrapper functions, @observe decorator, and native SDK
 - Comprehensive observability with OpenTelemetry integration
 - Cost optimization (30-50% reduction in LLM costs)
 - Semantic caching with vector similarity
 - Real-time analytics and evaluation framework
+- Intelligent routing across 250+ LLM providers
 
 ## Development Commands
 
@@ -87,11 +87,12 @@ brokle/
 ├── _client/              # Core HTTP client implementation
 ├── evaluation/           # Response evaluation framework
 ├── integrations/         # Auto-instrumentation for various libraries
-├── openai/              # OpenAI compatibility layer
+├── observability/        # Observability primitives (trace, observation, score)
 ├── _task_manager/       # Background task management
 ├── testing/             # Testing utilities
 ├── types/               # Type definitions and attributes
 ├── _utils/              # Internal utilities
+├── wrappers/            # SDK wrapper functions (OpenAI, Anthropic)
 ├── auth.py              # Authentication management
 ├── client.py            # Main Brokle client
 ├── config.py            # Configuration management
@@ -102,20 +103,23 @@ brokle/
 
 ### Three Integration Patterns
 
-1. **OpenAI Drop-in Replacement** (`brokle.openai`):
-   - Zero-code changes beyond import
-   - Full compatibility with OpenAI SDK
-   - Enhanced with Brokle-specific features
+1. **Wrapper Functions** (`brokle.wrappers`):
+   - Explicit wrapping of existing SDK clients (OpenAI, Anthropic)
+   - Usage: `wrap_openai(OpenAI(...))` or `wrap_anthropic(Anthropic(...))`
+   - Automatic observability and telemetry for wrapped clients
+   - Preserves original SDK API while adding Brokle features
 
 2. **Decorator Pattern** (`brokle.decorators`):
    - `@observe()` decorator for comprehensive observability
-   - Automatic telemetry and tracing
-   - Configurable capture options
+   - Automatic telemetry and tracing for any function
+   - Configurable capture options with `as_trace=True` parameter
+   - Works with sync and async functions
 
 3. **Native SDK** (`brokle.client`):
-   - Full platform feature access
+   - Full platform feature access via `Brokle` client
    - Async/await support throughout
    - Advanced routing, caching, and evaluation
+   - Direct access to observability primitives (trace, observation, score)
 
 ### Core Components
 
@@ -146,7 +150,7 @@ brokle/
 - `test_config.py` - Configuration and environment validation
 - `test_client.py` - Core client functionality
 - `test_auth.py` - Authentication and authorization
-- `test_openai_client.py` - OpenAI compatibility layer
+- `test_wrappers.py` - Wrapper functions (OpenAI, Anthropic)
 - `test_exceptions.py` - Error handling and custom exceptions
 
 ### Environment Testing
@@ -232,8 +236,8 @@ span.set_attribute(BrokleOtelSpanAttributes.ROUTING_STRATEGY, "cost_optimized")
 - `backoff>=2.2.1` - Retry logic
 
 ### Optional Dependencies
-- `openai[>=1.0.0]` - OpenAI compatibility
-- `anthropic>=0.5.0` - Anthropic integration
+- `openai[>=1.0.0]` - OpenAI wrapper support
+- `anthropic>=0.5.0` - Anthropic wrapper support
 - `google-generativeai>=0.3.0` - Google AI integration
 
 ### Development Tools
