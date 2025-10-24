@@ -2,7 +2,7 @@
 Telemetry batch API types for unified event submission.
 
 This module defines the event envelope pattern for the unified
-/v1/telemetry/batch endpoint, supporting traces, observations,
+/v1/ingest/batch endpoint, supporting traces, observations,
 quality scores, and generic events.
 """
 
@@ -77,7 +77,7 @@ class TelemetryBatchRequest(BaseModel):
     Unified telemetry batch request for immutable event creation.
 
     Submits multiple telemetry events (traces, observations, scores) in a
-    single batch to /v1/telemetry/batch endpoint.
+    single batch to /v1/ingest/batch endpoint.
 
     IMPORTANT: This endpoint is for INITIAL CREATION ONLY. Events are immutable
     once submitted. For updates/corrections after creation, use the REST API

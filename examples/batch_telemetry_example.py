@@ -37,7 +37,7 @@ def example_1_legacy_telemetry():
     print("✅ Legacy telemetry submitted (auto-converted to batch format)")
     print("   - Event type: event (default)")
     print("   - Event ID: auto-generated ULID")
-    print("   - Endpoint: /v1/telemetry/batch")
+    print("   - Endpoint: /v1/ingest/batch")
 
     client.close()
 

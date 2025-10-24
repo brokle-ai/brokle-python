@@ -1,7 +1,7 @@
 """
 Background processing for Brokle SDK.
 
-Handles batch submission of telemetry events to the unified /v1/telemetry/batch endpoint.
+Handles batch submission of telemetry events to the unified /v1/ingest/batch endpoint.
 """
 
 import asyncio
@@ -218,7 +218,7 @@ class BackgroundProcessor:
     async def _async_submit_batch_events(
         self, events: List[TelemetryEvent]
     ) -> None:
-        """Async batch event submission to /v1/telemetry/batch."""
+        """Async batch event submission to /v1/ingest/batch."""
         if not self._client:
             self._client = httpx.AsyncClient(
                 timeout=self.config.timeout, headers=self.config.get_headers()
@@ -233,7 +233,7 @@ class BackgroundProcessor:
 
             # Submit to unified batch endpoint
             response = await self._client.post(
-                f"{self.config.host}/v1/telemetry/batch",
+                f"{self.config.host}/v1/ingest/batch",
                 json=batch_request.model_dump(mode="json", exclude_none=True),
             )
 

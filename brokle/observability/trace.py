@@ -152,7 +152,7 @@ class TraceClient:
             TelemetryEventType.QUALITY_SCORE,
             score.model_dump(mode="json", exclude_none=True)
         )
-        
+
         return score.id
 
     def update(self, **kwargs) -> None:
