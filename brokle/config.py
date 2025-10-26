@@ -43,7 +43,16 @@ class BrokleConfig:
     """Enable/disable tracing (if False, all calls become no-ops)"""
 
     sample_rate: float = 1.0
-    """Sampling rate for traces (0.0 to 1.0, default: 1.0 = 100%)"""
+    """
+    Sampling rate for traces (0.0 to 1.0, default: 1.0 = 100%).
+
+    Uses OpenTelemetry's TraceIdRatioBased sampler to ensure entire traces
+    are sampled together (not individual spans). The decision is deterministic
+    based on trace_id hash.
+
+    Example: sample_rate=0.1 means ~10% of traces will be sampled (all spans
+    in those traces). The same trace_id always produces the same decision.
+    """
 
     debug: bool = False
     """Enable debug logging"""

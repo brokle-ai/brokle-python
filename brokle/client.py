@@ -13,6 +13,7 @@ from uuid import UUID
 
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider, Span
+from opentelemetry.sdk.trace.sampling import TraceIdRatioBased, ALWAYS_ON
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.trace import Tracer, SpanKind, Status, StatusCode
 
@@ -116,8 +117,19 @@ class Brokle:
                 Resource.create({Attrs.BROKLE_RELEASE: release})
             )
 
-        # Create TracerProvider with Resource
-        self._provider = TracerProvider(resource=resource)
+        # Create sampler based on sample_rate
+        # Uses OpenTelemetry's TraceIdRatioBased sampler for trace-level sampling
+        # This ensures entire traces are sampled together (not individual spans)
+        if self.config.sample_rate < 1.0:
+            sampler = TraceIdRatioBased(self.config.sample_rate)
+        else:
+            sampler = ALWAYS_ON  # 100% sampling (default)
+
+        # Create TracerProvider with Resource and Sampler
+        self._provider = TracerProvider(
+            resource=resource,
+            sampler=sampler,  # Trace-level sampling (deterministic by trace_id)
+        )
 
         # Create exporter based on configuration
         exporter = create_exporter_for_config(self.config)

@@ -238,9 +238,44 @@ All configuration can be set programmatically or via environment variables:
 | `base_url` | `str` | `"http://localhost:8080"` | `BROKLE_BASE_URL` | API base URL |
 | `environment` | `str` | `"default"` | `BROKLE_ENVIRONMENT` | Environment tag |
 | `tracing_enabled` | `bool` | `True` | `BROKLE_TRACING_ENABLED` | Enable/disable tracing |
-| `sample_rate` | `float` | `1.0` | `BROKLE_SAMPLE_RATE` | Sampling rate (0.0-1.0) |
+| `sample_rate` | `float` | `1.0` | `BROKLE_SAMPLE_RATE` | Trace-level sampling rate (0.0-1.0) |
 | `flush_at` | `int` | `100` | `BROKLE_FLUSH_AT` | Batch size |
 | `flush_interval` | `float` | `5.0` | `BROKLE_FLUSH_INTERVAL` | Flush interval (seconds) |
+
+### 📊 Trace-Level Sampling
+
+**Sample 10% of traces** (cost optimization):
+```python
+client = Brokle(
+    api_key="bk_your_secret",
+    sample_rate=0.1  # Sample 10% of traces (entire traces, not individual spans)
+)
+```
+
+**How it works**:
+- Uses OpenTelemetry's `TraceIdRatioBased` sampler
+- Sampling decision based on trace_id hash (deterministic)
+- All spans within a sampled trace are exported together
+- All spans in non-sampled traces are dropped together
+- No partial traces in backend
+
+**Example**:
+```python
+# With sample_rate=0.5, approximately 50% of traces will be sampled
+client = Brokle(sample_rate=0.5)
+
+for i in range(100):
+    with client.start_as_current_span(f"trace-{i}") as parent:
+        with client.start_as_current_span(f"child-{i}-1"):
+            pass
+        with client.start_as_current_span(f"child-{i}-2"):
+            pass
+
+# Expected result: ~50 complete traces (parent + 2 children each)
+# Not: Random mix of 150 individual spans from different traces
+```
+
+---
 
 ### 🔒 Privacy & Masking
 

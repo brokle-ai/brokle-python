@@ -1,11 +1,14 @@
 """
 Brokle span processor extending OpenTelemetry's BatchSpanProcessor.
 
-Provides span-level filtering and processing while delegating batching,
-queuing, and retry logic to OpenTelemetry SDK.
+Provides span-level processing (future: PII masking) while delegating
+batching, queuing, retry logic, and sampling to OpenTelemetry SDK.
+
+Note: Sampling is handled by TracerProvider's TraceIdRatioBased sampler
+(configured in client.py), not by this processor. This ensures entire
+traces are sampled together (not individual spans).
 """
 
-import random
 from typing import Optional
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
@@ -18,17 +21,16 @@ class BrokleSpanProcessor(BatchSpanProcessor):
     """
     Custom span processor for Brokle observability.
 
-    Extends BatchSpanProcessor to provide:
-    - Sampling based on config.sample_rate
-    - Span-level filtering (future: PII masking)
-    - Resource attribute enrichment (project_id, environment)
+    Extends BatchSpanProcessor to provide span-level processing hooks.
+    Future use cases: PII masking, attribute transformation, custom filtering.
 
-    All batching, flushing, queuing, and retry logic is handled by the
-    parent BatchSpanProcessor class from OpenTelemetry SDK.
+    All batching, flushing, queuing, retry logic, and sampling is handled by
+    OpenTelemetry SDK. Sampling decisions are made at the TracerProvider level
+    using TraceIdRatioBased sampler (see client.py) to ensure entire traces
+    are sampled together.
 
     Note: Resource attributes (project_id, environment) are set at
     TracerProvider initialization and automatically included in all spans.
-    This processor is primarily for span-level filtering and sampling.
     """
 
     def __init__(
@@ -68,7 +70,6 @@ class BrokleSpanProcessor(BatchSpanProcessor):
         )
 
         self.config = config
-        self._sample_rate = config.sample_rate
 
     def on_start(
         self,
@@ -93,18 +94,15 @@ class BrokleSpanProcessor(BatchSpanProcessor):
         """
         Called when span ends.
 
-        Implements sampling logic before passing to batch processor.
-        If span is sampled out, it won't be exported.
+        Sampling is handled by TracerProvider's TraceIdRatioBased sampler
+        (configured in client.py). This ensures entire traces are sampled
+        together based on trace_id hash (deterministic, not random per-span).
 
         Args:
             span: The span that ended
         """
-        # Apply sampling if configured
-        if self._sample_rate < 1.0:
-            # Random sampling based on sample_rate
-            if random.random() > self._sample_rate:
-                # Drop this span (don't export)
-                return
+        # Sampling decision already made by TracerProvider sampler
+        # If span.is_recording() is False, OpenTelemetry won't call this method
 
         # Future: Apply PII masking here if configured
         # if self.config.mask:
@@ -133,35 +131,3 @@ class BrokleSpanProcessor(BatchSpanProcessor):
         """
         return super().force_flush(timeout_millis)
 
-
-class SimpleSampler:
-    """
-    Simple probabilistic sampler.
-
-    This is a helper class for understanding sampling logic.
-    In production, we use the built-in sampling in BrokleSpanProcessor.
-    """
-
-    def __init__(self, sample_rate: float):
-        """
-        Initialize sampler.
-
-        Args:
-            sample_rate: Probability of sampling (0.0 to 1.0)
-        """
-        if not 0.0 <= sample_rate <= 1.0:
-            raise ValueError("sample_rate must be between 0.0 and 1.0")
-        self.sample_rate = sample_rate
-
-    def should_sample(self) -> bool:
-        """
-        Determine if this span should be sampled.
-
-        Returns:
-            True if span should be sampled, False otherwise
-        """
-        if self.sample_rate >= 1.0:
-            return True
-        if self.sample_rate <= 0.0:
-            return False
-        return random.random() <= self.sample_rate
