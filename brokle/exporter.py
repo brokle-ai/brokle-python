@@ -54,16 +54,20 @@ def create_brokle_exporter(
         # JSON format (for debugging) - human readable
         headers["Content-Type"] = "application/json"
 
-    # Disable compression for now to simplify backend handling
-    # TODO: Add compression support after basic OTLP works
+    # Configure compression based on config setting
     compression = None
+    if config.compression == "gzip":
+        compression = Compression.Gzip
+    elif config.compression == "deflate":
+        compression = Compression.Deflate
+    # None = no compression (for debugging)
 
     # Create OTLP exporter with Brokle configuration
     exporter = OTLPSpanExporter(
         endpoint=endpoint,
         headers=headers,
         timeout=config.timeout,
-        compression=compression,  # None for initial testing
+        compression=compression,  # Gzip (default), Deflate, or None
     )
 
     return exporter

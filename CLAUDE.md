@@ -214,7 +214,7 @@ from brokle import Brokle
 # Minimal configuration
 client = Brokle(api_key="bk_your_secret")
 
-# Full configuration with all Langfuse-compatible parameters
+# Full configuration with parameters
 client = Brokle(
     api_key="bk_your_secret",
     base_url="http://localhost:8080",
