@@ -1,195 +1,313 @@
 """
-Configuration management for Brokle SDK.
+Configuration management for Brokle OpenTelemetry SDK.
+
+Supports both programmatic configuration and environment variable-based configuration
+following the 12-factor app pattern.
 """
 
 import os
-from typing import Dict, Optional
-
-from dotenv import load_dotenv
-from pydantic import BaseModel, Field, field_validator
+from dataclasses import dataclass, field
+from typing import Optional, Callable, Any
 
 
-def validate_environment_name(env: str) -> None:
+@dataclass
+class BrokleConfig:
     """
-    Validate environment name according to rules.
+    Configuration for Brokle OpenTelemetry SDK.
 
-    Rules:
-    - Must be lowercase
-    - Maximum 40 characters
-    - Cannot start with "brokle" prefix
-    - Cannot be empty
-
-    Args:
-        env: Environment name to validate
-
-    Raises:
-        ValueError: If environment name is invalid
+    All parameters can be set programmatically or via environment variables.
+    Environment variables take precedence over default values but not over
+    explicit programmatic configuration.
     """
-    if not env:
-        raise ValueError("Environment name cannot be empty")
 
-    if len(env) > 40:
-        raise ValueError(f"Environment name too long: {len(env)} characters (max 40)")
+    # ========== Required Configuration ==========
+    api_key: str
+    """Brokle API key (required, must start with 'bk_')"""
 
-    if env != env.lower():
-        raise ValueError("Environment name must be lowercase")
+    # ========== Connection Configuration ==========
+    base_url: str = "http://localhost:8080"
+    """Brokle API base URL"""
 
-    if env.startswith("brokle"):
-        raise ValueError("Environment name cannot start with 'brokle' prefix")
+    timeout: int = 30
+    """HTTP request timeout in seconds"""
 
+    # ========== Project Configuration ==========
+    environment: str = "default"
+    """Environment tag (e.g., 'production', 'staging', 'development')"""
 
-def sanitize_environment_name(env: str) -> str:
-    """
-    Sanitize environment name to follow rules.
+    release: Optional[str] = None
+    """Release version/hash for grouping analytics"""
 
-    Args:
-        env: Environment name to sanitize
+    # ========== Tracing Control ==========
+    tracing_enabled: bool = True
+    """Enable/disable tracing (if False, all calls become no-ops)"""
 
-    Returns:
-        Sanitized environment name
-    """
-    if not env:
-        return "default"
+    sample_rate: float = 1.0
+    """Sampling rate for traces (0.0 to 1.0, default: 1.0 = 100%)"""
 
-    # Convert to lowercase
-    env = env.lower()
+    debug: bool = False
+    """Enable debug logging"""
 
-    # Truncate if too long
-    if len(env) > 40:
-        env = env[:40]
+    # ========== Privacy & Masking ==========
+    mask: Optional[Callable[[Any], Any]] = None
+    """Optional function to mask sensitive data before sending to backend"""
 
-    # Validate that environment doesn't start with brokle prefix
-    if env.startswith("brokle"):
-        raise ValueError("Environment name cannot start with 'brokle' prefix")
+    # ========== Batch Configuration ==========
+    flush_at: int = 100
+    """Maximum batch size before flush (1-1000, default: 100)"""
 
-    return env or "default"
+    flush_interval: float = 5.0
+    """Maximum delay in seconds before flush (0.1-60.0, default: 5.0)"""
 
+    max_queue_size: int = 2048
+    """Maximum queue size for pending spans"""
 
-class Config(BaseModel):
-    """Configuration for Brokle SDK."""
+    export_timeout: int = 30000
+    """Export timeout in milliseconds (default: 30000 = 30s)"""
 
-    # Core configuration
-    api_key: Optional[str] = Field(default=None, description="Brokle API key")
-    host: str = Field(default="http://localhost:8080", description="Brokle host URL")
-    environment: str = Field(default="default", description="Environment name")
+    # ========== OTLP Export Configuration ==========
+    use_protobuf: bool = True
+    """Use Protobuf format for OTLP export (True) or JSON (False)"""
 
-    # OpenTelemetry configuration
-    otel_enabled: bool = Field(
-        default=True, description="Enable OpenTelemetry integration"
-    )
-    otel_endpoint: Optional[str] = Field(
-        default=None, description="OpenTelemetry endpoint"
-    )
-    otel_service_name: str = Field(
-        default="brokle-sdk", description="OpenTelemetry service name"
-    )
-    otel_headers: Optional[Dict[str, str]] = Field(
-        default=None, description="OpenTelemetry headers"
-    )
+    compression: Optional[str] = "gzip"
+    """Compression algorithm: 'gzip', 'deflate', or None"""
 
-    # Telemetry settings
-    telemetry_enabled: bool = Field(
-        default=True, description="Enable telemetry collection"
-    )
+    # ========== Feature Flags ==========
+    cache_enabled: bool = True
+    """Enable semantic caching"""
 
-    # Batch telemetry settings
-    batch_max_size: int = Field(
-        default=100, description="Maximum events per batch", ge=1, le=1000
-    )
-    batch_flush_interval: float = Field(
-        default=5.0, description="Batch flush interval in seconds", ge=0.1, le=60.0
-    )
+    routing_enabled: bool = True
+    """Enable intelligent routing"""
 
-    # Debug settings
-    debug: bool = Field(default=False, description="Enable debug logging")
+    # ========== Internal ==========
+    _validated: bool = field(default=False, init=False, repr=False)
+    """Internal flag to track validation status"""
 
-    # HTTP settings
-    timeout: int = Field(default=30, description="HTTP timeout in seconds")
-    max_retries: int = Field(default=3, description="Maximum retry attempts")
+    def __post_init__(self):
+        """Validate configuration after initialization."""
+        self.validate()
+        self._validated = True
 
-    # Feature flags
-    cache_enabled: bool = Field(default=True, description="Enable caching")
-    routing_enabled: bool = Field(
-        default=True, description="Enable intelligent routing"
-    )
-    evaluation_enabled: bool = Field(default=True, description="Enable evaluation")
+    def validate(self):
+        """
+        Validate configuration parameters.
 
-    # Debug settings
-    debug: bool = Field(default=False, description="Enable debug mode")
+        Raises:
+            ValueError: If configuration is invalid
+        """
+        # Validate API key
+        if not self.api_key:
+            raise ValueError("api_key is required")
+        if not self.api_key.startswith("bk_"):
+            raise ValueError("api_key must start with 'bk_'")
+        if len(self.api_key) < 10:
+            raise ValueError("api_key is too short (minimum 10 characters)")
 
-    @field_validator("api_key")
+        # Validate base_url
+        if not self.base_url:
+            raise ValueError("base_url is required")
+        if not self.base_url.startswith(("http://", "https://")):
+            raise ValueError("base_url must start with http:// or https://")
+
+        # Validate environment
+        if not self.environment:
+            raise ValueError("environment cannot be empty")
+        if len(self.environment) > 40:
+            raise ValueError("environment must be 40 characters or less")
+        if not self.environment.replace("_", "").replace("-", "").isalnum():
+            raise ValueError("environment must contain only alphanumeric characters, hyphens, and underscores")
+
+        # Validate sample_rate
+        if not 0.0 <= self.sample_rate <= 1.0:
+            raise ValueError("sample_rate must be between 0.0 and 1.0")
+
+        # Validate flush_at
+        if not 1 <= self.flush_at <= 1000:
+            raise ValueError("flush_at must be between 1 and 1000")
+
+        # Validate flush_interval
+        if not 0.1 <= self.flush_interval <= 60.0:
+            raise ValueError("flush_interval must be between 0.1 and 60.0 seconds")
+
+        # Validate timeout
+        if self.timeout <= 0:
+            raise ValueError("timeout must be positive")
+
+        # Validate compression
+        if self.compression not in (None, "gzip", "deflate"):
+            raise ValueError("compression must be 'gzip', 'deflate', or None")
+
+        # Validate max_queue_size
+        if self.max_queue_size < 1:
+            raise ValueError("max_queue_size must be at least 1")
+
+        # Validate export_timeout
+        if self.export_timeout < 1000:
+            raise ValueError("export_timeout must be at least 1000 milliseconds")
+
     @classmethod
-    def validate_api_key(cls, v: Optional[str]) -> Optional[str]:
-        """Validate API key format."""
-        if v and not v.startswith("bk_"):
-            raise ValueError('API key must start with "bk_"')
-        return v
+    def from_env(cls, **overrides) -> "BrokleConfig":
+        """
+        Create configuration from environment variables.
 
-    @field_validator("host")
-    @classmethod
-    def validate_host(cls, v: str) -> str:
-        """Validate host URL format."""
-        if not v.startswith(("http://", "https://")):
-            raise ValueError("Host must start with http:// or https://")
-        return v.rstrip("/")
+        Environment variables:
+            BROKLE_API_KEY - API key (required)
+            BROKLE_BASE_URL - Base URL (default: http://localhost:8080)
+            BROKLE_ENVIRONMENT - Environment tag (default: "default")
+            BROKLE_RELEASE - Release version
+            BROKLE_TRACING_ENABLED - Enable tracing (default: true)
+            BROKLE_SAMPLE_RATE - Sampling rate (default: 1.0)
+            BROKLE_DEBUG - Enable debug logging (default: false)
+            BROKLE_FLUSH_AT - Batch size (default: 100)
+            BROKLE_FLUSH_INTERVAL - Flush interval in seconds (default: 5.0)
+            BROKLE_TIMEOUT - HTTP timeout in seconds (default: 30)
+            BROKLE_USE_PROTOBUF - Use Protobuf format (default: true)
+            BROKLE_COMPRESSION - Compression algorithm (default: "gzip")
+            BROKLE_CACHE_ENABLED - Enable caching (default: true)
+            BROKLE_ROUTING_ENABLED - Enable routing (default: true)
 
-    @field_validator("environment")
-    @classmethod
-    def validate_environment(cls, v: str) -> str:
-        """Validate environment name according to rules."""
-        validate_environment_name(v)
-        return v
+        Args:
+            **overrides: Override specific configuration values
 
-    @classmethod
-    def from_env(cls) -> "Config":
-        """Create configuration from environment variables."""
-        load_dotenv()
+        Returns:
+            BrokleConfig instance
 
-        return cls(
-            api_key=os.getenv("BROKLE_API_KEY"),
-            host=os.getenv("BROKLE_HOST", "http://localhost:8080"),
-            environment=os.getenv("BROKLE_ENVIRONMENT", "default"),
-            # OpenTelemetry
-            otel_enabled=os.getenv("BROKLE_OTEL_ENABLED", "true").lower() == "true",
-            otel_endpoint=os.getenv("BROKLE_OTEL_ENDPOINT"),
-            otel_service_name=os.getenv("BROKLE_OTEL_SERVICE_NAME", "brokle-sdk"),
-            # Telemetry
-            telemetry_enabled=os.getenv("BROKLE_TELEMETRY_ENABLED", "true").lower()
-            == "true",
-            # Batch telemetry
-            batch_max_size=int(os.getenv("BROKLE_BATCH_MAX_SIZE", "100")),
-            batch_flush_interval=float(os.getenv("BROKLE_BATCH_FLUSH_INTERVAL", "5.0")),
-            # HTTP
-            timeout=int(os.getenv("BROKLE_TIMEOUT", "30")),
-            max_retries=int(os.getenv("BROKLE_MAX_RETRIES", "3")),
-            # Features
-            cache_enabled=os.getenv("BROKLE_CACHE_ENABLED", "true").lower() == "true",
-            routing_enabled=os.getenv("BROKLE_ROUTING_ENABLED", "true").lower()
-            == "true",
-            evaluation_enabled=os.getenv("BROKLE_EVALUATION_ENABLED", "true").lower()
-            == "true",
-            # Debug
-            debug=os.getenv("BROKLE_DEBUG", "false").lower() == "true",
+        Raises:
+            ValueError: If required environment variables are missing or invalid
+        """
+        # Required
+        api_key = overrides.get("api_key") or os.getenv("BROKLE_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "BROKLE_API_KEY environment variable is required. "
+                "Get your API key from https://app.brokle.ai/settings/api-keys"
+            )
+
+        # Connection
+        base_url = overrides.get("base_url") or os.getenv(
+            "BROKLE_BASE_URL", "http://localhost:8080"
+        )
+        timeout = int(overrides.get("timeout") or os.getenv("BROKLE_TIMEOUT", "30"))
+
+        # Project
+        environment = overrides.get("environment") or os.getenv(
+            "BROKLE_ENVIRONMENT", "default"
+        )
+        release = overrides.get("release") or os.getenv("BROKLE_RELEASE")
+
+        # Tracing control
+        tracing_enabled = cls._parse_bool(
+            overrides.get("tracing_enabled"),
+            os.getenv("BROKLE_TRACING_ENABLED", "true")
+        )
+        sample_rate = float(
+            overrides.get("sample_rate") or os.getenv("BROKLE_SAMPLE_RATE", "1.0")
+        )
+        debug = cls._parse_bool(
+            overrides.get("debug"),
+            os.getenv("BROKLE_DEBUG", "false")
         )
 
-    def validate(self) -> None:
-        """Validate configuration."""
-        if not self.api_key:
-            raise ValueError("API key is required")
+        # Batch configuration
+        flush_at = int(overrides.get("flush_at") or os.getenv("BROKLE_FLUSH_AT", "100"))
+        flush_interval = float(
+            overrides.get("flush_interval") or os.getenv("BROKLE_FLUSH_INTERVAL", "5.0")
+        )
+        max_queue_size = int(
+            overrides.get("max_queue_size") or os.getenv("BROKLE_MAX_QUEUE_SIZE", "2048")
+        )
+        export_timeout = int(
+            overrides.get("export_timeout") or os.getenv("BROKLE_EXPORT_TIMEOUT", "30000")
+        )
 
-    def get_headers(self) -> Dict[str, str]:
-        """Get HTTP headers for API requests."""
+        # OTLP configuration
+        use_protobuf = cls._parse_bool(
+            overrides.get("use_protobuf"),
+            os.getenv("BROKLE_USE_PROTOBUF", "true")
+        )
+        compression = overrides.get("compression") or os.getenv(
+            "BROKLE_COMPRESSION", "gzip"
+        )
+        if compression == "none":
+            compression = None
+
+        # Feature flags
+        cache_enabled = cls._parse_bool(
+            overrides.get("cache_enabled"),
+            os.getenv("BROKLE_CACHE_ENABLED", "true")
+        )
+        routing_enabled = cls._parse_bool(
+            overrides.get("routing_enabled"),
+            os.getenv("BROKLE_ROUTING_ENABLED", "true")
+        )
+
+        # Privacy (only from overrides, not environment)
+        mask = overrides.get("mask")
+
+        return cls(
+            api_key=api_key,
+            base_url=base_url,
+            timeout=timeout,
+            environment=environment,
+            release=release,
+            tracing_enabled=tracing_enabled,
+            sample_rate=sample_rate,
+            debug=debug,
+            mask=mask,
+            flush_at=flush_at,
+            flush_interval=flush_interval,
+            max_queue_size=max_queue_size,
+            export_timeout=export_timeout,
+            use_protobuf=use_protobuf,
+            compression=compression,
+            cache_enabled=cache_enabled,
+            routing_enabled=routing_enabled,
+        )
+
+    @staticmethod
+    def _parse_bool(override_value: Optional[bool], env_value: str) -> bool:
+        """
+        Parse boolean value from override or environment variable.
+
+        Args:
+            override_value: Explicit override value (takes precedence)
+            env_value: Environment variable string value
+
+        Returns:
+            Boolean value
+        """
+        if override_value is not None:
+            return bool(override_value)
+
+        # Parse environment variable
+        env_lower = env_value.lower().strip()
+        return env_lower in ("true", "1", "yes", "on", "enabled")
+
+    def get_otlp_endpoint(self) -> str:
+        """Get the OTLP traces endpoint URL."""
+        base = self.base_url.rstrip("/")
+        return f"{base}/v1/otlp/traces"
+
+    def get_headers(self) -> dict:
+        """Get HTTP headers for OTLP export."""
         headers = {
-            "Content-Type": "application/json",
-            "User-Agent": f"brokle-python/0.1.0",
+            "X-API-Key": self.api_key,
         }
 
-        if self.api_key:
-            headers["X-API-Key"] = self.api_key
+        # Add environment header if not default
+        if self.environment != "default":
+            headers["X-Brokle-Environment"] = self.environment
 
         return headers
 
-
-# Note: Global configuration functions (configure, get_config, reset_config) have been removed
-# in favor of direct instantiation and environment variable fallback.
-# Use Brokle(api_key=...) or get_client() instead.
+    def __repr__(self) -> str:
+        """Safe string representation (masks API key)."""
+        masked_key = f"{self.api_key[:7]}...{self.api_key[-4:]}" if len(self.api_key) > 11 else "***"
+        return (
+            f"BrokleConfig("
+            f"api_key='{masked_key}', "
+            f"base_url='{self.base_url}', "
+            f"environment='{self.environment}', "
+            f"tracing_enabled={self.tracing_enabled}, "
+            f"sample_rate={self.sample_rate})"
+        )

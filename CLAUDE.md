@@ -178,28 +178,536 @@ python test_integration.py --api-key "bk_your_key_here"
 
 ### Environment Variables
 ```bash
+# Required
 BROKLE_API_KEY="bk_your_secret"
-BROKLE_HOST="http://localhost:8080"
-BROKLE_ENVIRONMENT="production"          # Environment tag (lowercase, max 40 chars)
-BROKLE_OTEL_ENABLED=true
-BROKLE_TELEMETRY_ENABLED=true
-BROKLE_CACHE_ENABLED=true
+
+# Optional Configuration
+BROKLE_BASE_URL="https://api.brokle.com"      # Default: http://localhost:8080
+BROKLE_ENVIRONMENT="production"                # Default: "default" (lowercase, max 40 chars)
+
+# Tracing Control
+BROKLE_TRACING_ENABLED=true                    # Enable/disable tracing (default: true)
+BROKLE_SAMPLE_RATE=1.0                         # Sampling rate 0.0-1.0 (default: 1.0)
+
+# Release Tracking
+BROKLE_RELEASE="v1.2.3"                        # Release version for analytics
+
+# Batch Configuration
+BROKLE_FLUSH_AT=100                            # Max batch size before flush (default: 100)
+BROKLE_FLUSH_INTERVAL=5.0                      # Max delay before flush in seconds (default: 5.0)
+
+# Debug
+BROKLE_DEBUG=false                             # Enable debug logging (default: false)
+
+# HTTP
+BROKLE_TIMEOUT=30                              # HTTP timeout in seconds (default: 30)
 ```
 
 ### Programmatic Configuration
-```python
-from brokle import Brokle, get_client
 
-# Dedicated client with explicit credentials
+The SDK offers two initialization patterns depending on your use case:
+
+**Pattern 1: Explicit Configuration (Recommended for Production)**
+```python
+from brokle import Brokle
+
+# Minimal configuration
+client = Brokle(api_key="bk_your_secret")
+
+# Full configuration with all Langfuse-compatible parameters
 client = Brokle(
     api_key="bk_your_secret",
-    host="http://localhost:8080",
+    base_url="http://localhost:8080",
     environment="production",
+    debug=True,                                # Enable debug logging
+    tracing_enabled=True,                      # Enable tracing (False to disable)
+    release="v1.2.3",                          # Release version for analytics
+    sample_rate=0.5,                           # Sample 50% of traces
+    mask=lambda data: mask_pii(data),          # Custom masking function
+    flush_at=200,                              # Batch size before flush
+    flush_interval=10.0,                       # Batch interval in seconds
+    timeout=60,                                # HTTP timeout in seconds
 )
 
-# Or rely on BROKLE_* environment variables via the shared singleton
-client = get_client()
+# Use the client
+with client.start_as_current_span("my-operation") as span:
+    span.update(output="Done")
+
+# Close when done
+client.close()
 ```
+
+**Pattern 2: Environment-Based Singleton (`get_client()`)**
+```python
+from brokle import get_client
+
+# Get or create singleton from BROKLE_* environment variables
+client = get_client()
+
+# All calls to get_client() return the same instance
+client2 = get_client()  # Same instance as above
+
+# Use the client
+with client.start_as_current_span("my-operation") as span:
+    span.update(output="Done")
+
+# Singleton is automatically cleaned up on process exit
+```
+
+**When to Use Each:**
+- **`Brokle(api_key="...")`**: Production apps, multiple clients, explicit config, different projects
+- **`get_client()`**: Simple apps, single project, 12-factor apps, serverless functions (reads `BROKLE_*` env vars)
+
+**Common Configuration Patterns:**
+
+*Disable Tracing (all calls become no-ops):*
+```python
+client = Brokle(api_key="bk_your_secret", tracing_enabled=False)
+```
+
+*Sample 10% of Traces (cost optimization):*
+```python
+client = Brokle(api_key="bk_your_secret", sample_rate=0.1)
+```
+
+*Custom Masking for Privacy:*
+```python
+import re
+
+def mask_pii(data):
+    """Mask emails and credit cards."""
+    if isinstance(data, str):
+        data = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]', data)
+        data = re.sub(r'\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b', '[CARD]', data)
+    elif isinstance(data, dict):
+        return {k: mask_pii(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [mask_pii(item) for item in data]
+    return data
+
+client = Brokle(api_key="bk_your_secret", mask=mask_pii)
+```
+
+**Integration with Wrappers:**
+```python
+from openai import OpenAI
+from brokle.wrappers import wrap_openai
+from brokle import get_client
+
+# Initialize Brokle singleton from environment
+get_client()  # Reads BROKLE_API_KEY, BROKLE_BASE_URL, etc.
+
+# Wrap OpenAI client (automatically uses singleton for telemetry)
+openai_client = wrap_openai(OpenAI(api_key="..."))
+
+# All calls automatically tracked
+response = openai_client.chat.completions.create(
+    model="gpt-4",
+    messages=[{"role": "user", "content": "Hello"}]
+)
+```
+
+**Integration with Decorators:**
+```python
+from brokle import observe, get_client
+
+# Initialize singleton
+get_client()
+
+# Decorator automatically uses singleton for telemetry
+@observe
+def process_request(user_input: str):
+    return f"Processed: {user_input}"
+
+# Function calls automatically tracked
+result = process_request("hello")
+
+# Flush telemetry in short-lived applications
+brokle = get_client()
+brokle.flush()
+```
+
+### Verify Connection (`auth_check()`)
+
+You can verify your connection to the Brokle server using `auth_check()`. This is useful for testing but should **not be used in production** as it adds latency.
+
+**⚠️ Warning**: This is a synchronous blocking call that should only be used in development/testing.
+
+**Usage**:
+```python
+from brokle import get_client
+
+# Initialize client
+brokle = get_client()
+
+# Verify connection (development/testing only)
+if brokle.auth_check():
+    print("✅ Brokle client is authenticated and ready!")
+else:
+    print("❌ Authentication failed. Please check your credentials and base_url.")
+```
+
+**When to use**:
+- ✅ Local development setup verification
+- ✅ CLI tools and scripts
+- ✅ CI/CD pipeline validation
+- ❌ Production code (adds synchronous HTTP call latency)
+
+**What happens**:
+- Makes a synchronous POST request to `/v1/auth/validate-key`
+- Validates your `BROKLE_API_KEY` against the backend
+- Returns `True` if authenticated, `False` otherwise
+
+**Error handling**:
+```python
+from brokle import Brokle
+
+brokle = Brokle(api_key="bk_test")
+
+try:
+    if brokle.auth_check():
+        print("Connection verified!")
+    else:
+        print("Invalid API key or server unreachable")
+except Exception as e:
+    print(f"Auth check failed with error: {e}")
+```
+
+## Instrumentation Patterns
+
+The Brokle SDK provides three flexible instrumentation patterns for observability.
+
+### 1. Observe Decorator (Automatic Tracing)
+
+**Zero-configuration function tracing:**
+```python
+from brokle import observe
+
+@observe()
+def process_request(user_input: str):
+    return f"Processed: {user_input}"
+
+# Automatic tracing with input/output capture
+result = process_request("hello")
+```
+
+**Full decorator options:**
+```python
+@observe(
+    name="custom-name",                   # Override function name
+    as_type="generation",                 # Type: span, generation, agent, tool, chain, retriever, etc.
+    session_id="session-123",             # Group related traces
+    user_id="user-456",                   # Track per-user analytics
+    tags=["production", "critical"],      # Filterable tags
+    metadata={"key": "value"},            # Custom metadata
+    level="WARNING",                      # Log level: DEBUG, DEFAULT, WARNING, ERROR
+    capture_input=True,                   # Capture function args (default: True)
+    capture_output=True,                  # Capture return value (default: True)
+)
+async def my_operation(arg1, arg2):      # Works with sync and async
+    return result
+```
+
+**Automatic nesting:**
+```python
+@observe(name="parent")
+def parent_operation():
+    # Nested calls automatically linked
+    return child_operation()
+
+@observe(name="child", as_type="tool")
+def child_operation():
+    return "result"
+```
+
+### 2. Context Managers (Explicit Control)
+
+**Span context manager:**
+```python
+from brokle import get_client
+
+brokle = get_client()
+
+with brokle.start_as_current_span("operation") as span:
+    result = perform_work()
+    span.update(output=result, metadata={"status": "success"})
+```
+
+**Generation context manager (for LLM calls):**
+```python
+with brokle.start_as_current_generation(
+    name="gpt4-chat",
+    model="gpt-4",
+    input="What is AI?",
+) as generation:
+    response = openai_client.chat.completions.create(...)
+
+    generation.update(
+        output=response.choices[0].message.content,
+        usage={
+            "input_tokens": response.usage.prompt_tokens,
+            "output_tokens": response.usage.completion_tokens,
+        },
+        model_parameters={"temperature": 0.7},
+    )
+```
+
+**All context manager parameters:**
+```python
+with brokle.start_as_current_span(
+    name="operation",
+    as_type="span",                       # Observation type
+    input="input data",
+    metadata={"key": "value"},
+    level="DEFAULT",
+    session_id="session-123",             # Trace-level attributes
+    user_id="user-456",
+    tags=["tag1", "tag2"],
+    model="gpt-4",                        # For generation type
+    model_parameters={...},
+    usage={...},
+) as span:
+    pass
+```
+
+**Automatic nesting:**
+```python
+with brokle.start_as_current_span("parent") as parent:
+    # Child automatically nested
+    with brokle.start_as_current_span("child") as child:
+        child.update(output="child result")
+    parent.update(output="parent result")
+```
+
+### 3. Manual Observations (Maximum Control)
+
+**Manual span with explicit lifecycle:**
+```python
+span = brokle.start_span(name="operation", input="data")
+
+try:
+    result = perform_work()
+    span.update(output=result)
+except Exception as e:
+    span.update(level="ERROR", metadata={"error": str(e)})
+    raise
+finally:
+    span.end()  # Always end span
+```
+
+**Manual generation:**
+```python
+generation = brokle.start_generation(
+    name="llm-call",
+    model="gpt-4",
+    input="prompt",
+)
+
+try:
+    response = call_llm()
+    generation.update(
+        output=response,
+        usage={"input_tokens": 10, "output_tokens": 20},
+    )
+finally:
+    generation.end()
+```
+
+**Manual nesting:**
+```python
+parent = brokle.start_span(name="parent")
+child = brokle.start_span(name="child", parent=parent)  # Explicit parent
+child.end()
+parent.end()
+```
+
+### Updating Observations
+
+**Update during execution:**
+```python
+# Incremental updates (e.g., streaming)
+with brokle.start_as_current_generation("stream") as gen:
+    output = ""
+    for chunk in stream:
+        output += chunk
+        gen.update(output=output)
+
+# Update metadata
+span.update(metadata={"status": "processing", "count": 42})
+
+# Update level
+span.update(level="ERROR" if error else "DEFAULT")
+```
+
+**Update trace-level attributes:**
+```python
+# Update trace attributes from any span
+span.update_trace(
+    session_id="new-session",
+    user_id="new-user",
+    tags=["additional"],              # Additive (merged)
+    metadata={"trace_key": "value"},  # Merged at top level
+)
+
+# Convenience methods on client
+brokle.update_current_trace(session_id="session-123", tags=["prod"])
+brokle.update_current_span(output="result", metadata={"updated": True})
+```
+
+### Setting Trace Attributes
+
+**Session ID (group related traces):**
+```python
+@observe(session_id="checkout-session-789")
+def process_checkout():
+    pass
+
+# Or update dynamically
+span.update_trace(session_id="checkout-session-789")
+brokle.update_current_trace(session_id="checkout-session-789")
+```
+
+**User ID (track per-user analytics):**
+```python
+@observe(user_id="user-123")
+def user_action():
+    pass
+
+span.update_trace(user_id="user-123")
+```
+
+**Tags (filterable labels, additive):**
+```python
+@observe(tags=["production", "critical"])
+def operation():
+    span.update_trace(tags=["experiment"])  # Merged with existing
+    # Result: ["production", "critical", "experiment"]
+```
+
+**Metadata (custom key-value data, merged):**
+```python
+@observe(metadata={"version": "v1.0", "region": "us-east"})
+def operation():
+    span.update_trace(metadata={"feature": "enabled"})
+    # Result: {"version": "v1.0", "region": "us-east", "feature": "enabled"}
+```
+
+### Trace Input/Output
+
+**Decorator (automatic capture):**
+```python
+@observe(capture_input=True, capture_output=True)
+def process(text: str, count: int):
+    return text * count
+
+# Automatically captures:
+# - input: {"text": "hi", "count": 3}
+# - output: "hihihi"
+```
+
+**Context manager/manual (explicit):**
+```python
+with brokle.start_as_current_span("op", input={"query": "..."}) as span:
+    result = process()
+    span.update(output=result)
+
+# Trace-level input/output
+brokle.set_trace_input({"user_query": "..."})
+brokle.set_trace_output({"response": "..."})
+```
+
+### Trace and Observation IDs
+
+**Automatic ULID generation:**
+```python
+with brokle.start_as_current_span("op") as span:
+    trace_id = span.trace_id          # "01HQXYZ..." (26 chars, sortable)
+    observation_id = span.observation_id
+```
+
+**Custom trace ID (link to existing trace):**
+```python
+with brokle.start_as_current_span("op", trace_id="01HQXYZ...") as span:
+    pass
+```
+
+**W3C Trace Context propagation:**
+```python
+trace_context = request.headers.get("traceparent")
+
+with brokle.start_as_current_span("op", trace_context=trace_context) as span:
+    pass  # Links to distributed trace
+```
+
+**Cross-service linking:**
+```python
+# Service A: propagate trace_id
+with brokle.start_as_current_span("service-a") as span:
+    requests.post(url, headers={"X-Trace-ID": span.trace_id})
+
+# Service B: continue same trace
+trace_id = request.headers.get("X-Trace-ID")
+with brokle.start_as_current_span("service-b", trace_id=trace_id):
+    pass
+```
+
+### Client Lifecycle Management
+
+**Flush (send pending data):**
+```python
+brokle = get_client()
+
+with brokle.start_as_current_span("op") as span:
+    span.update(output="result")
+
+brokle.flush()  # Blocks until all data sent
+```
+
+**Shutdown (flush + cleanup):**
+```python
+brokle.shutdown()  # Calls flush() + closes resources
+```
+
+**Context manager (automatic cleanup):**
+```python
+with Brokle(api_key="bk_secret") as brokle:
+    with brokle.start_as_current_span("op") as span:
+        pass
+    # Automatically flushed and shutdown on exit
+```
+
+**Singleton pattern:**
+```python
+brokle = get_client()  # Singleton for long-running apps
+
+# Use throughout application
+with brokle.start_as_current_span("op1"):
+    pass
+
+brokle.flush()  # Optional periodic flush
+
+# Singleton auto-cleaned on process exit
+```
+
+**Serverless/short-lived apps:**
+```python
+def lambda_handler(event, context):
+    brokle = get_client()
+
+    with brokle.start_as_current_span("lambda") as span:
+        result = process(event)
+        span.update(output=result)
+
+    brokle.flush()  # CRITICAL: flush before exit
+    return result
+```
+
+**Best practices:**
+- ✅ Use context manager for automatic cleanup
+- ✅ Call `flush()` before exit in serverless/CLI apps
+- ✅ Use singleton for long-running applications
+- ✅ Configure `flush_at`/`flush_interval` for throughput
+- ❌ Don't call `shutdown()` on singleton in long-running apps
 
 ## Key Development Patterns
 

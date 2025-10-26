@@ -1,38 +1,70 @@
-"""Public API for the Brokle SDK."""
+"""
+Brokle SDK - OpenTelemetry-native observability for AI applications.
 
-from __future__ import annotations
+This SDK leverages OpenTelemetry as the underlying telemetry framework,
+providing industry-standard OTLP export with Brokle-specific enhancements
+for LLM observability.
 
-from ._version import __version__
-from .client import AsyncBrokle, Brokle, get_client
-from .config import Config
-from .decorators import observe, observe_llm, observe_retrieval, trace_workflow
-from .types.observability import (
-    ObservationLevel,
+Basic Usage:
+    >>> from brokle import Brokle
+    >>> client = Brokle(api_key="bk_your_secret")
+    >>> with client.start_as_current_span("my-operation") as span:
+    ...     span.set_attribute("output", "Hello, world!")
+    >>> client.flush()
+
+Singleton Pattern:
+    >>> from brokle import get_client
+    >>> client = get_client()  # Reads from BROKLE_* env vars
+
+LLM Generation Tracking:
+    >>> with client.start_as_current_generation(
+    ...     name="chat",
+    ...     model="gpt-4",
+    ...     provider="openai"
+    ... ) as gen:
+    ...     # Your LLM call
+    ...     gen.set_attribute("gen_ai.output.messages", [...])
+"""
+
+from .version import __version__, __version_info__
+from .config import BrokleConfig
+from .client import Brokle, get_client, reset_client
+from .decorators import observe
+from .types import (
+    BrokleOtelSpanAttributes,
+    Attrs,
     ObservationType,
+    ObservationLevel,
+    LLMProvider,
+    OperationType,
     ScoreDataType,
-    ScoreSource,
 )
-from .wrappers import wrap_anthropic, wrap_openai
+
+# Wrappers are imported separately to avoid requiring provider SDKs
+# from .wrappers import wrap_openai, wrap_anthropic
 
 __all__ = [
-    # Core clients
+    # Version
+    "__version__",
+    "__version_info__",
+
+    # Core classes
     "Brokle",
-    "AsyncBrokle",
-    "Config",
+    "BrokleConfig",
+
+    # Client functions
     "get_client",
+    "reset_client",
+
     # Decorators
     "observe",
-    "observe_llm",
-    "observe_retrieval",
-    "trace_workflow",
-    # Types
+
+    # Type constants
+    "BrokleOtelSpanAttributes",
+    "Attrs",
     "ObservationType",
     "ObservationLevel",
+    "LLMProvider",
+    "OperationType",
     "ScoreDataType",
-    "ScoreSource",
-    # Wrappers
-    "wrap_openai",
-    "wrap_anthropic",
-    # Metadata
-    "__version__",
 ]

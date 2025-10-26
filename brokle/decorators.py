@@ -1,307 +1,281 @@
 """
-Decorator-based observability helpers (Pattern 2).
+Decorators for automatic function tracing with OpenTelemetry.
 
-The ``@observe`` decorator instruments arbitrary callables by creating either
-root traces or child observations, automatically capturing inputs/outputs, and
-propagating errors as structured telemetry events.
+Provides @observe decorator for zero-config instrumentation of Python functions.
 """
-
-from __future__ import annotations
 
 import functools
 import inspect
-from typing import Any, Awaitable, Callable, Dict, Optional, TypeVar
+import json
+from typing import Optional, Dict, Any, List, Callable
 
-from .observability.context import get_client, get_current_trace_id
-from .observability.observation import ObservationClient
-from .types.observability import ObservationLevel, ObservationType
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
 
-F = TypeVar("F", bound=Callable[..., Any])
+from .client import get_client
+from .types import Attrs, ObservationType
 
 
 def observe(
     *,
     name: Optional[str] = None,
-    type: ObservationType = ObservationType.SPAN,
+    as_type: str = ObservationType.SPAN,
+    # Trace-level attributes
+    session_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    # Observation-level attributes
+    level: str = "DEFAULT",
+    version: Optional[str] = None,
+    model: Optional[str] = None,
+    model_parameters: Optional[Dict[str, Any]] = None,
+    # Input/output configuration
     capture_input: bool = True,
     capture_output: bool = True,
-    as_trace: bool = False,
-    metadata: Optional[Dict[str, Any]] = None,
-) -> Callable[[F], F]:
+):
     """
-    Instrument a callable with automatic trace/observation creation.
+    Decorator for automatic function tracing.
+
+    Automatically creates a span for the decorated function and captures
+    function arguments and return value.
 
     Args:
-        name: Optional override for the generated span/trace name.
-        type: Observation type to emit when not operating as a trace.
-        capture_input: Whether to capture args/kwargs as structured input.
-        capture_output: Whether to capture the return value as structured output.
-        as_trace: Force creation of a root trace even if one already exists.
-        metadata: Static metadata to attach to the observation or trace.
+        name: Custom span name (default: function name)
+        as_type: Observation type (span, generation, event)
+        session_id: Session grouping identifier
+        user_id: User identifier
+        tags: Categorization tags
+        metadata: Custom metadata
+        level: Observation level (DEBUG, DEFAULT, WARNING, ERROR)
+        version: Operation version
+        model: LLM model (for generation type)
+        model_parameters: Model parameters (for generation type)
+        capture_input: Capture function arguments (default: True)
+        capture_output: Capture return value (default: True)
+
+    Returns:
+        Decorated function
+
+    Example:
+        >>> @observe(name="process-request", user_id="user-123")
+        ... def process(input_text: str):
+        ...     return f"Processed: {input_text}"
+        ...
+        >>> result = process("hello")  # Automatically traced
     """
 
-    def decorator(func: F) -> F:
-        func_name = name or func.__name__
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            # Get or create client
+            client = get_client()
 
-        if inspect.iscoroutinefunction(func):
+            # Determine span name
+            span_name = name or func.__name__
 
-            @functools.wraps(func)
-            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-                client = _safe_get_client()
-                if client is None:
-                    return await func(*args, **kwargs)
+            # Build initial attributes
+            attrs = {
+                Attrs.BROKLE_OBSERVATION_TYPE: as_type,
+                Attrs.BROKLE_OBSERVATION_LEVEL: level,
+            }
 
-                current_trace_id = get_current_trace_id()
-                if as_trace or current_trace_id is None:
-                    return await _execute_as_trace_async(
-                        func,
-                        func_name,
-                        client,
-                        args,
-                        kwargs,
-                        capture_input,
-                        capture_output,
-                        metadata,
-                    )
+            # Add trace-level attributes
+            if user_id:
+                attrs[Attrs.GEN_AI_REQUEST_USER] = user_id
+                attrs[Attrs.USER_ID] = user_id  # Filterable
+            if session_id:
+                attrs[Attrs.SESSION_ID] = session_id
+            if tags:
+                attrs[Attrs.BROKLE_TRACE_TAGS] = json.dumps(tags)
+                attrs[Attrs.TAGS] = json.dumps(tags)  # Filterable
+            if metadata:
+                attrs[Attrs.BROKLE_TRACE_METADATA] = json.dumps(metadata)
+                attrs[Attrs.METADATA] = json.dumps(metadata)  # Filterable
+            if version:
+                attrs[Attrs.BROKLE_OBSERVATION_VERSION] = version
+                attrs[Attrs.VERSION] = version  # Filterable
 
-                return await _execute_as_observation_async(
-                    func,
-                    func_name,
-                    client,
-                    current_trace_id,
-                    type,
-                    args,
-                    kwargs,
-                    capture_input,
-                    capture_output,
-                    metadata,
-                )
+            # Add generation-specific attributes
+            if as_type == ObservationType.GENERATION:
+                if model:
+                    attrs[Attrs.GEN_AI_REQUEST_MODEL] = model
+                if model_parameters:
+                    if "temperature" in model_parameters:
+                        attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = model_parameters["temperature"]
+                    if "max_tokens" in model_parameters:
+                        attrs[Attrs.GEN_AI_REQUEST_MAX_TOKENS] = model_parameters["max_tokens"]
 
-            return async_wrapper  # type: ignore[return-value]
+            # Capture input if enabled
+            if capture_input:
+                # Serialize function arguments
+                try:
+                    input_data = _serialize_function_input(func, args, kwargs)
+                    attrs[Attrs.BROKLE_TRACE_INPUT] = json.dumps(input_data)
+                except Exception as e:
+                    # If serialization fails, store error
+                    attrs["brokle.input.error"] = str(e)
+
+            # Create span using client
+            with client.start_as_current_span(span_name, attributes=attrs) as span:
+                try:
+                    # Execute function
+                    result = func(*args, **kwargs)
+
+                    # Capture output if enabled
+                    if capture_output:
+                        try:
+                            output_data = _serialize_value(result)
+                            span.set_attribute(Attrs.BROKLE_TRACE_OUTPUT, json.dumps(output_data))
+                        except Exception as e:
+                            span.set_attribute("brokle.output.error", str(e))
+
+                    # Mark span as successful
+                    span.set_status(Status(StatusCode.OK))
+
+                    return result
+
+                except Exception as e:
+                    # Record exception
+                    span.set_status(Status(StatusCode.ERROR, str(e)))
+                    span.record_exception(e)
+                    raise
 
         @functools.wraps(func)
-        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-            client = _safe_get_client()
-            if client is None:
-                return func(*args, **kwargs)
+        async def async_wrapper(*args, **kwargs):
+            # Get or create client
+            client = get_client()
 
-            current_trace_id = get_current_trace_id()
-            if as_trace or current_trace_id is None:
-                return _execute_as_trace(
-                    func,
-                    func_name,
-                    client,
-                    args,
-                    kwargs,
-                    capture_input,
-                    capture_output,
-                    metadata,
-                )
+            # Determine span name
+            span_name = name or func.__name__
 
-            return _execute_as_observation(
-                func,
-                func_name,
-                client,
-                current_trace_id,
-                type,
-                args,
-                kwargs,
-                capture_input,
-                capture_output,
-                metadata,
-            )
+            # Build initial attributes (same as sync)
+            attrs = {
+                Attrs.BROKLE_OBSERVATION_TYPE: as_type,
+                Attrs.BROKLE_OBSERVATION_LEVEL: level,
+            }
 
-        return sync_wrapper  # type: ignore[return-value]
+            # Add trace-level attributes
+            if user_id:
+                attrs[Attrs.GEN_AI_REQUEST_USER] = user_id
+                attrs[Attrs.USER_ID] = user_id
+            if session_id:
+                attrs[Attrs.SESSION_ID] = session_id
+            if tags:
+                attrs[Attrs.BROKLE_TRACE_TAGS] = json.dumps(tags)
+            if metadata:
+                attrs[Attrs.BROKLE_TRACE_METADATA] = json.dumps(metadata)
+            if version:
+                attrs[Attrs.BROKLE_OBSERVATION_VERSION] = version
+
+            # Add generation-specific attributes
+            if as_type == ObservationType.GENERATION:
+                if model:
+                    attrs[Attrs.GEN_AI_REQUEST_MODEL] = model
+
+            # Capture input if enabled
+            if capture_input:
+                try:
+                    input_data = _serialize_function_input(func, args, kwargs)
+                    attrs[Attrs.BROKLE_TRACE_INPUT] = json.dumps(input_data)
+                except Exception as e:
+                    attrs["brokle.input.error"] = str(e)
+
+            # Create span using client
+            with client.start_as_current_span(span_name, attributes=attrs) as span:
+                try:
+                    # Execute async function
+                    result = await func(*args, **kwargs)
+
+                    # Capture output if enabled
+                    if capture_output:
+                        try:
+                            output_data = _serialize_value(result)
+                            span.set_attribute(Attrs.BROKLE_TRACE_OUTPUT, json.dumps(output_data))
+                        except Exception as e:
+                            span.set_attribute("brokle.output.error", str(e))
+
+                    # Mark span as successful
+                    span.set_status(Status(StatusCode.OK))
+
+                    return result
+
+                except Exception as e:
+                    # Record exception
+                    span.set_status(Status(StatusCode.ERROR, str(e)))
+                    span.record_exception(e)
+                    raise
+
+        # Return appropriate wrapper based on function type
+        if inspect.iscoroutinefunction(func):
+            return async_wrapper
+        else:
+            return sync_wrapper
 
     return decorator
 
 
-def observe_llm(
-    *, name: Optional[str] = None, capture_input: bool = True, capture_output: bool = True
-) -> Callable[[F], F]:
-    """Convenience decorator for LLM observations."""
-    return observe(
-        name=name,
-        type=ObservationType.LLM,
-        capture_input=capture_input,
-        capture_output=capture_output,
-    )
+def _serialize_function_input(func: Callable, args: tuple, kwargs: dict) -> Dict[str, Any]:
+    """
+    Serialize function input arguments.
+
+    Args:
+        func: Function being decorated
+        args: Positional arguments
+        kwargs: Keyword arguments
+
+    Returns:
+        Serializable dictionary of arguments
+    """
+    # Get function signature
+    sig = inspect.signature(func)
+    bound_args = sig.bind(*args, **kwargs)
+    bound_args.apply_defaults()
+
+    # Serialize each argument
+    serialized = {}
+    for param_name, value in bound_args.arguments.items():
+        serialized[param_name] = _serialize_value(value)
+
+    return serialized
 
 
-def observe_retrieval(
-    *,
-    name: Optional[str] = None,
-    capture_input: bool = True,
-    capture_output: bool = True,
-) -> Callable[[F], F]:
-    """Convenience decorator for retrieval/tooling observations."""
-    return observe(
-        name=name,
-        type=ObservationType.RETRIEVAL,
-        capture_input=capture_input,
-        capture_output=capture_output,
-    )
+def _serialize_value(value: Any) -> Any:
+    """
+    Serialize a value for JSON encoding.
 
+    Handles common types and provides fallback for complex objects.
 
-def trace_workflow(
-    *, name: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None
-) -> Callable[[F], F]:
-    """Decorator that always emits a root trace."""
-    return observe(name=name, as_trace=True, metadata=metadata)
+    Args:
+        value: Value to serialize
 
-
-# ---- Helpers -----------------------------------------------------------------
-
-
-def _safe_get_client():
-    """Fetch a Brokle client, suppressing configuration errors."""
-    try:
-        return get_client()
-    except Exception:
+    Returns:
+        JSON-serializable value
+    """
+    # Handle None
+    if value is None:
         return None
 
+    # Handle primitives
+    if isinstance(value, (str, int, float, bool)):
+        return value
 
-def _capture_function_input(func: Callable[..., Any], args: tuple, kwargs: dict) -> Dict[str, Any]:
-    """Best-effort capture of function call arguments."""
-    try:
-        signature = inspect.signature(func)
-        bound = signature.bind_partial(*args, **kwargs)
-        bound.apply_defaults()
-        return dict(bound.arguments)
-    except Exception:
-        return {"args": args, "kwargs": kwargs}
+    # Handle lists
+    if isinstance(value, (list, tuple)):
+        return [_serialize_value(item) for item in value]
 
+    # Handle dicts
+    if isinstance(value, dict):
+        return {str(k): _serialize_value(v) for k, v in value.items()}
 
-def _execute_as_trace(
-    func: Callable[..., Any],
-    name: str,
-    client,
-    args: tuple,
-    kwargs: dict,
-    capture_input: bool,
-    capture_output: bool,
-    metadata: Optional[Dict[str, Any]],
-) -> Any:
-    trace = client.trace(name=name, metadata=metadata or {})
+    # Handle Pydantic models
+    if hasattr(value, "model_dump"):
+        return value.model_dump(exclude_none=True)
 
-    if capture_input:
-        trace.trace.input = _capture_function_input(func, args, kwargs)
+    # Handle dataclasses
+    if hasattr(value, "__dataclass_fields__"):
+        import dataclasses
+        return dataclasses.asdict(value)
 
-    try:
-        result = func(*args, **kwargs)
-    except Exception as exc:
-        trace.trace.metadata.setdefault("error", str(exc))
-        trace.trace.metadata.setdefault("error_type", type(exc).__name__)
-        trace.end()
-        raise
-    else:
-        if capture_output:
-            trace.trace.output = {"result": result}
-        trace.end()
-        return result
-
-
-def _execute_as_observation(
-    func: Callable[..., Any],
-    name: str,
-    client,
-    trace_id: str,
-    obs_type: ObservationType,
-    args: tuple,
-    kwargs: dict,
-    capture_input: bool,
-    capture_output: bool,
-    metadata: Optional[Dict[str, Any]],
-) -> Any:
-    obs = ObservationClient(
-        client=client,
-        trace_id=trace_id,
-        type=obs_type,
-        name=name,
-        metadata=metadata or {},
-    )
-
-    if capture_input:
-        obs.observation.input = _capture_function_input(func, args, kwargs)
-
-    try:
-        result = func(*args, **kwargs)
-    except Exception as exc:
-        obs.observation.level = ObservationLevel.ERROR
-        obs.observation.status_message = str(exc)
-        obs.end()
-        raise
-    else:
-        if capture_output:
-            obs.observation.output = {"result": result}
-        obs.end()
-        return result
-
-
-async def _execute_as_trace_async(
-    func: Callable[..., Awaitable[Any]],
-    name: str,
-    client,
-    args: tuple,
-    kwargs: dict,
-    capture_input: bool,
-    capture_output: bool,
-    metadata: Optional[Dict[str, Any]],
-) -> Any:
-    trace = client.trace(name=name, metadata=metadata or {})
-
-    if capture_input:
-        trace.trace.input = _capture_function_input(func, args, kwargs)
-
-    try:
-        result = await func(*args, **kwargs)
-    except Exception as exc:
-        trace.trace.metadata.setdefault("error", str(exc))
-        trace.trace.metadata.setdefault("error_type", type(exc).__name__)
-        trace.end()
-        raise
-    else:
-        if capture_output:
-            trace.trace.output = {"result": result}
-        trace.end()
-        return result
-
-
-async def _execute_as_observation_async(
-    func: Callable[..., Awaitable[Any]],
-    name: str,
-    client,
-    trace_id: str,
-    obs_type: ObservationType,
-    args: tuple,
-    kwargs: dict,
-    capture_input: bool,
-    capture_output: bool,
-    metadata: Optional[Dict[str, Any]],
-) -> Any:
-    obs = ObservationClient(
-        client=client,
-        trace_id=trace_id,
-        type=obs_type,
-        name=name,
-        metadata=metadata or {},
-    )
-
-    if capture_input:
-        obs.observation.input = _capture_function_input(func, args, kwargs)
-
-    try:
-        result = await func(*args, **kwargs)
-    except Exception as exc:
-        obs.observation.level = ObservationLevel.ERROR
-        obs.observation.status_message = str(exc)
-        obs.end()
-        raise
-    else:
-        if capture_output:
-            obs.observation.output = {"result": result}
-        obs.end()
-        return result
-
-
-__all__ = ["observe", "observe_llm", "observe_retrieval", "trace_workflow"]
+    # Fallback to string representation
+    return str(value)
