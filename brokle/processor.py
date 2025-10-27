@@ -10,11 +10,12 @@ traces are sampled together (not individual spans).
 """
 
 from typing import Optional
-from opentelemetry.sdk.trace import ReadableSpan
+from opentelemetry.sdk.trace import ReadableSpan, Span
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
 from opentelemetry.context import Context
 
 from .config import BrokleConfig
+from .types.attributes import BrokleOtelSpanAttributes as Attrs
 
 
 class BrokleSpanProcessor(BatchSpanProcessor):
@@ -79,15 +80,20 @@ class BrokleSpanProcessor(BatchSpanProcessor):
         """
         Called when a span is started.
 
-        This is where we could add span start-time processing, but
-        currently we don't need any custom logic here.
+        Sets environment as span attribute.
 
         Args:
             span: The span that was started
             parent_context: Parent context (if any)
         """
-        # Resource attributes are already set at TracerProvider level
-        # No additional processing needed at span start
+        # Add environment as span attribute (not resource attribute)
+        if self.config.environment:
+            span.set_attribute(Attrs.BROKLE_ENVIRONMENT, self.config.environment)
+
+        # Add release as span attribute (for experiment tracking)
+        if self.config.release:
+            span.set_attribute(Attrs.BROKLE_RELEASE, self.config.release)
+
         super().on_start(span, parent_context)
 
     def on_end(self, span: ReadableSpan) -> None:

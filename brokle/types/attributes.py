@@ -91,7 +91,6 @@ class BrokleOtelSpanAttributes:
     BROKLE_OBSERVATION_NAME = "brokle.observation_name"
     BROKLE_PARENT_OBSERVATION_ID = "brokle.parent_observation_id"
     BROKLE_OBSERVATION_LEVEL = "brokle.observation.level"  # DEBUG/DEFAULT/WARNING/ERROR
-    BROKLE_OBSERVATION_VERSION = "brokle.observation.version"
 
     # ========== Brokle Extended Usage Metrics ==========
     BROKLE_USAGE_TOTAL_TOKENS = "brokle.usage.total_tokens"  # Convenience metric
@@ -121,7 +120,7 @@ class BrokleOtelSpanAttributes:
 
     # ========== Filterable Metadata (Root Level for Querying) ==========
     # These are promoted to root level in backend for efficient filtering
-    USER_ID = "user_id"  # Maps from gen_ai.request.user
+    USER_ID = "user.id"  # OTEL standard
     TRACE_NAME = "trace_name"  # Maps from brokle.trace.name or span name
     TAGS = "tags"  # Maps from brokle.trace.tags
     METADATA = "metadata"  # Maps from brokle.trace.metadata

@@ -100,16 +100,12 @@ class Brokle:
             self._processor = None
             return
 
-        # Create Resource with project-level attributes
-        # These attributes are automatically included in all spans
-        resource = Resource.create(
-            {
-                Attrs.BROKLE_PROJECT_ID: self._extract_project_id(api_key),
-                Attrs.BROKLE_ENVIRONMENT: environment,
-                "service.name": "brokle-sdk",
-                "service.version": self._get_sdk_version(),
-            }
-        )
+        # Create Resource (respects OTEL environment variables)
+        # Note: We don't set service.name to respect user's OTEL_SERVICE_NAME
+        # SDK identification is done via instrumentation scope (get_tracer name/version)
+        # Project ID comes from backend auth, environment set as span attribute 
+        # Using create({}) triggers OTEL's default resource detection
+        resource = Resource.create({})
 
         # Add release if provided
         if release:
@@ -193,6 +189,7 @@ class Brokle:
         name: str,
         kind: SpanKind = SpanKind.INTERNAL,
         attributes: Optional[Dict[str, Any]] = None,
+        version: Optional[str] = None,
         **kwargs,
     ) -> Iterator[Span]:
         """
@@ -205,18 +202,22 @@ class Brokle:
             name: Span name
             kind: Span kind (INTERNAL, CLIENT, SERVER, PRODUCER, CONSUMER)
             attributes: Initial span attributes
+            version: Version identifier for A/B testing and experiment tracking
             **kwargs: Additional arguments passed to tracer.start_as_current_span()
 
         Yields:
             Span instance
 
         Example:
-            >>> with client.start_as_current_span("my-operation") as span:
+            >>> with client.start_as_current_span("my-operation", version="1.0") as span:
             ...     span.set_attribute("key", "value")
             ...     # Span automatically ends when context exits
         """
-        # Build attributes
-        attrs = attributes or {}
+        # Build attributes (layer version on top of user attributes)
+        attrs = attributes.copy() if attributes else {}
+
+        if version:
+            attrs[Attrs.BROKLE_VERSION] = version
 
         # Set observation type for Brokle backend
         if Attrs.BROKLE_OBSERVATION_TYPE not in attrs:
@@ -238,6 +239,7 @@ class Brokle:
         provider: str,
         input_messages: Optional[List[Dict[str, Any]]] = None,
         model_parameters: Optional[Dict[str, Any]] = None,
+        version: Optional[str] = None,
         **kwargs,
     ) -> Iterator[Span]:
         """
@@ -252,6 +254,7 @@ class Brokle:
             provider: Provider name (e.g., "openai", "anthropic")
             input_messages: Input messages in OTEL format
             model_parameters: Model parameters (temperature, max_tokens, etc.)
+            version: Version identifier for A/B testing and experiment tracking
             **kwargs: Additional span attributes
 
         Yields:
@@ -263,6 +266,7 @@ class Brokle:
             ...     model="gpt-4",
             ...     provider="openai",
             ...     input_messages=[{"role": "user", "content": "Hello"}],
+            ...     version="1.0",
             ... ) as gen:
             ...     # Make LLM call
             ...     gen.set_attribute(Attrs.GEN_AI_OUTPUT_MESSAGES, [...])
@@ -293,6 +297,10 @@ class Brokle:
                 elif key == "presence_penalty":
                     attrs[Attrs.GEN_AI_REQUEST_PRESENCE_PENALTY] = value
 
+        # Add version if provided
+        if version:
+            attrs[Attrs.BROKLE_VERSION] = version
+
         # Merge additional kwargs
         attrs.update(kwargs)
 
@@ -311,6 +319,7 @@ class Brokle:
         self,
         name: str,
         attributes: Optional[Dict[str, Any]] = None,
+        version: Optional[str] = None,
     ) -> Iterator[Span]:
         """
         Create a point-in-time event span.
@@ -320,16 +329,20 @@ class Brokle:
         Args:
             name: Event name
             attributes: Event attributes
+            version: Version identifier for A/B testing and experiment tracking
 
         Yields:
             Span instance
 
         Example:
-            >>> with client.start_as_current_event("user-login") as event:
+            >>> with client.start_as_current_event("user-login", version="1.0") as event:
             ...     event.set_attribute("user_id", "user-123")
         """
-        attrs = attributes or {}
+        attrs = attributes.copy() if attributes else {}
         attrs[Attrs.BROKLE_OBSERVATION_TYPE] = ObservationType.EVENT
+
+        if version:
+            attrs[Attrs.BROKLE_VERSION] = version
 
         with self._tracer.start_as_current_span(
             name=name,

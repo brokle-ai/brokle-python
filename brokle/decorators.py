@@ -93,8 +93,7 @@ def observe(
                 attrs[Attrs.BROKLE_TRACE_METADATA] = json.dumps(metadata)
                 attrs[Attrs.METADATA] = json.dumps(metadata)  # Filterable
             if version:
-                attrs[Attrs.BROKLE_OBSERVATION_VERSION] = version
-                attrs[Attrs.VERSION] = version  # Filterable
+                attrs[Attrs.BROKLE_VERSION] = version
 
             # Add generation-specific attributes
             if as_type == ObservationType.GENERATION:
@@ -166,7 +165,7 @@ def observe(
             if metadata:
                 attrs[Attrs.BROKLE_TRACE_METADATA] = json.dumps(metadata)
             if version:
-                attrs[Attrs.BROKLE_OBSERVATION_VERSION] = version
+                attrs[Attrs.BROKLE_VERSION] = version
 
             # Add generation-specific attributes
             if as_type == ObservationType.GENERATION:
