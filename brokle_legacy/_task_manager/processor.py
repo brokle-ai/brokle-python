@@ -424,9 +424,8 @@ class BackgroundProcessor:
             TelemetryEventType.SESSION: 1,
             TelemetryEventType.OBSERVATION: 2,
             TelemetryEventType.QUALITY_SCORE: 3,
-            TelemetryEventType.EVENT: 4,
         }
-        base = order_map.get(event.event_type, 5)
+        base = order_map.get(event.event_type, 4)
 
         if event.event_type == TelemetryEventType.OBSERVATION:
             start_time = event.payload.get("start_time")

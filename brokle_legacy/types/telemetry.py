@@ -29,9 +29,6 @@ class TelemetryEventType(str, Enum):
     - REST API = mutable, sync, for corrections/enrichment (update operations)
     """
 
-    # Generic events
-    EVENT = "event"
-
     # Structured observability (immutable batch creation)
     TRACE = "trace"
     OBSERVATION = "observation"

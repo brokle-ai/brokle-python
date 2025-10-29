@@ -82,7 +82,6 @@ class TestTelemetryEventTypes:
 
     def test_event_type_enum_values(self):
         """Event types should have correct string values."""
-        assert TelemetryEventType.EVENT == "event"
         assert TelemetryEventType.TRACE == "trace"
         assert TelemetryEventType.OBSERVATION == "observation"
         assert TelemetryEventType.QUALITY_SCORE == "quality_score"
