@@ -1,677 +1,483 @@
 """
-Main client for Brokle SDK.
+Main Brokle OpenTelemetry client.
 
-This module provides the main client interface with OpenAI-compatible design
-and clean resource management.
-
-Key Features:
-- Clean OpenAI-compatible interface
-- Proper resource management with context managers
-- Sync and async client variants
-- Brokle extensions (routing, caching, tags)
-- Integrated background task processing
+Provides high-level API for creating traces, spans, and LLM observations
+using OpenTelemetry as the underlying telemetry framework.
 """
 
-from typing import Any, Callable, Dict, List, Optional
+import atexit
+import json
+from contextlib import contextmanager
+from typing import Optional, Dict, Any, List, Iterator
+from uuid import UUID
 
-import httpx
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider, Span
+from opentelemetry.sdk.trace.sampling import TraceIdRatioBased, ALWAYS_ON
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.trace import Tracer, SpanKind, Status, StatusCode
 
-from ._task_manager.processor import BackgroundProcessor, get_background_processor
-from .config import Config
-from .exceptions import NetworkError
-from .http.base import HTTPBase
+from .config import BrokleConfig
+from .exporter import create_exporter_for_config
+from .processor import BrokleSpanProcessor
+from .types import Attrs, ObservationType, LLMProvider, OperationType
 
 
-class Brokle(HTTPBase):
+# Global singleton instance
+_global_client: Optional["Brokle"] = None
+
+
+class Brokle:
     """
-    Sync Brokle client with OpenAI-compatible interface.
+    Main Brokle client for OpenTelemetry-based observability.
 
-    Usage:
-        with Brokle(api_key="bk_...", host="http://localhost:8080") as client:
-            response = client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": "Hello!"}],
-                routing_strategy="cost_optimized"  # Brokle extension
-            )
+    This client initializes OpenTelemetry with Brokle-specific configuration
+    and provides high-level methods for creating traces and observations.
+
+    Example:
+        >>> from brokle import Brokle
+        >>> client = Brokle(api_key="bk_your_secret")
+        >>> with client.start_as_current_span("my-operation") as span:
+        ...     span.set_attribute("output", "Hello, world!")
+        >>> client.flush()
     """
 
     def __init__(
         self,
         api_key: Optional[str] = None,
-        host: Optional[str] = None,
-        environment: Optional[str] = None,
-        timeout: Optional[float] = None,
-        background_processor: Optional[BackgroundProcessor] = None,
+        base_url: str = "http://localhost:8080",
+        environment: str = "default",
+        debug: bool = False,
+        tracing_enabled: bool = True,
+        release: Optional[str] = None,
+        sample_rate: float = 1.0,
+        mask: Optional[callable] = None,
+        flush_at: int = 100,
+        flush_interval: float = 5.0,
+        timeout: int = 30,
         **kwargs,
     ):
         """
-        Initialize sync Brokle client.
+        Initialize Brokle client.
 
         Args:
-            api_key: Brokle API key
-            host: Brokle host URL
-            environment: Environment name
-            timeout: Request timeout in seconds
-            background_processor: Optional background processor for telemetry (will create default if None)
-            **kwargs: Additional configuration
+            api_key: Brokle API key (required, must start with 'bk_')
+            base_url: Brokle API base URL
+            environment: Environment tag (e.g., 'production', 'staging')
+            debug: Enable debug logging
+            tracing_enabled: Enable/disable tracing (if False, all calls are no-ops)
+            release: Release version/hash for grouping analytics
+            sample_rate: Sampling rate for traces (0.0 to 1.0)
+            mask: Optional function to mask sensitive data
+            flush_at: Maximum batch size before flush (1-1000)
+            flush_interval: Maximum delay in seconds before flush (0.1-60.0)
+            timeout: HTTP timeout in seconds
+            **kwargs: Additional configuration options
+
+        Raises:
+            ValueError: If configuration is invalid
         """
-        super().__init__(
-            api_key=api_key,
-            host=host,
+        # Create configuration
+        self.config = BrokleConfig(
+            api_key=api_key or "",  # Will be validated by BrokleConfig
+            base_url=base_url,
             environment=environment,
+            debug=debug,
+            tracing_enabled=tracing_enabled,
+            release=release,
+            sample_rate=sample_rate,
+            mask=mask,
+            flush_at=flush_at,
+            flush_interval=flush_interval,
             timeout=timeout,
             **kwargs,
         )
 
-        # Initialize HTTP client
-        self._client: Optional[httpx.Client] = None
+        # If tracing is disabled, we still initialize but with no-op behavior
+        if not self.config.tracing_enabled:
+            self._tracer = trace.get_tracer(__name__)
+            self._provider = None
+            self._processor = None
+            return
 
-        # Handle disabled state
-        if getattr(self, '_disabled', False):
-            self._background_processor = None
-            self._owns_processor = False
+        # Create Resource (respects OTEL environment variables)
+        # Note: We don't set service.name to respect user's OTEL_SERVICE_NAME
+        # SDK identification is done via instrumentation scope (get_tracer name/version)
+        # Project ID comes from backend auth, environment set as span attribute 
+        # Using create({}) triggers OTEL's default resource detection
+        resource = Resource.create({})
+
+        # Add release if provided
+        if release:
+            resource = resource.merge(
+                Resource.create({Attrs.BROKLE_RELEASE: release})
+            )
+
+        # Create sampler based on sample_rate
+        # Uses OpenTelemetry's TraceIdRatioBased sampler for trace-level sampling
+        # This ensures entire traces are sampled together (not individual spans)
+        if self.config.sample_rate < 1.0:
+            sampler = TraceIdRatioBased(self.config.sample_rate)
         else:
-            # Initialize background processor for telemetry
-            if background_processor is not None:
-                self._background_processor = background_processor
-                self._owns_processor = False  # We don't own it, don't shut it down
-            else:
-                # Create default processor using our config
-                self._background_processor = get_background_processor(config=self.config)
-                self._owns_processor = True  # We created it, we should shut it down
+            sampler = ALWAYS_ON  # 100% sampling (default)
 
-        # Initialize resources (always, even when disabled)
-        from .resources.chat import ChatResource
-        from .resources.embeddings import EmbeddingsResource
-        from .resources.models import ModelsResource
+        # Create TracerProvider with Resource and Sampler
+        self._provider = TracerProvider(
+            resource=resource,
+            sampler=sampler,  # Trace-level sampling (deterministic by trace_id)
+        )
 
-        self.chat = ChatResource(self)
-        self.embeddings = EmbeddingsResource(self)
-        self.models = ModelsResource(self)
+        # Create exporter based on configuration
+        exporter = create_exporter_for_config(self.config)
 
-    def span(self, name: str, **kwargs):
-        """Create a span for observability."""
-        from .observability.spans import create_span
+        # Create Brokle span processor with batching
+        self._processor = BrokleSpanProcessor(
+            span_exporter=exporter,
+            config=self.config,
+        )
 
-        return create_span(name=name, **kwargs)
+        # Add processor to provider
+        self._provider.add_span_processor(self._processor)
 
-    @property
-    def is_disabled(self) -> bool:
-        """Check if client is operating in disabled mode."""
-        return getattr(self, '_disabled', False)
+        # Get tracer from provider
+        self._tracer = self._provider.get_tracer(
+            instrumenting_module_name="brokle",
+            instrumenting_library_version=self._get_sdk_version(),
+        )
 
-    def submit_telemetry(
-        self, data: Dict[str, Any], event_type: str = "observation"
-    ) -> None:
+        # Register cleanup on process exit
+        atexit.register(self._cleanup)
+
+    @staticmethod
+    def _extract_project_id(api_key: Optional[str]) -> str:
         """
-        Submit telemetry data for background processing.
+        Extract project ID from API key.
+
+        For now, we use the API key itself as the project identifier.
+        The backend will validate this during authentication.
 
         Args:
-            data: Telemetry data to submit
-            event_type: Event type (defaults to "observation" for LLM/SDK operations)
-        """
-        if self.is_disabled or not self._background_processor:
-            return  # Skip telemetry when disabled
-        self._background_processor.submit_telemetry(data, event_type=event_type)
-
-    def submit_batch_event(self, event_type: str, payload: Dict[str, Any]) -> str:
-        """
-        Submit a batch event with proper event envelope.
-
-        This is the preferred method for submitting structured telemetry events.
-
-        Args:
-            event_type: Type of event (trace, observation, etc.)
-            payload: Event payload data
+            api_key: Brokle API key
 
         Returns:
-            Event ID (ULID) for tracking
+            Project identifier string
+        """
+        if not api_key:
+            return "unknown"
+        # Hash or extract project ID from API key
+        # For now, use a portion of the key as identifier
+        return api_key[:20]  # Placeholder - backend determines actual project
+
+    @staticmethod
+    def _get_sdk_version() -> str:
+        """Get SDK version."""
+        try:
+            from . import __version__
+            return __version__
+        except (ImportError, AttributeError):
+            return "0.1.0-dev"
+
+    def _cleanup(self):
+        """Cleanup handler called on process exit."""
+        if self._processor:
+            self.flush()
+            self._processor.shutdown()
+
+    @contextmanager
+    def start_as_current_span(
+        self,
+        name: str,
+        kind: SpanKind = SpanKind.INTERNAL,
+        attributes: Optional[Dict[str, Any]] = None,
+        version: Optional[str] = None,
+        **kwargs,
+    ) -> Iterator[Span]:
+        """
+        Create a span using context manager (OpenTelemetry standard pattern).
+
+        This is the recommended way to create spans as it automatically handles
+        span lifecycle and context propagation.
+
+        Args:
+            name: Span name
+            kind: Span kind (INTERNAL, CLIENT, SERVER, PRODUCER, CONSUMER)
+            attributes: Initial span attributes
+            version: Version identifier for A/B testing and experiment tracking
+            **kwargs: Additional arguments passed to tracer.start_as_current_span()
+
+        Yields:
+            Span instance
 
         Example:
-            >>> event_id = client.submit_batch_event(
-            ...     "trace",
-            ...     {"name": "my-trace", "user_id": "123"}
-            ... )
+            >>> with client.start_as_current_span("my-operation", version="1.0") as span:
+            ...     span.set_attribute("key", "value")
+            ...     # Span automatically ends when context exits
         """
-        if self.is_disabled or not self._background_processor:
-            return ""  # Return empty ID when disabled
+        # Build attributes (layer version on top of user attributes)
+        attrs = attributes.copy() if attributes else {}
 
-        from .types.telemetry import TelemetryEvent
-        from ._utils.ulid import generate_event_id
-        import time
+        if version:
+            attrs[Attrs.BROKLE_VERSION] = version
 
-        event = TelemetryEvent(
-            event_id=generate_event_id(),
-            event_type=event_type,
-            payload=payload,
-            timestamp=int(time.time())
-        )
+        # Set observation type for Brokle backend
+        if Attrs.BROKLE_OBSERVATION_TYPE not in attrs:
+            attrs[Attrs.BROKLE_OBSERVATION_TYPE] = ObservationType.SPAN
 
-        self._background_processor.submit_batch_event(event)
-        return event.event_id
+        with self._tracer.start_as_current_span(
+            name=name,
+            kind=kind,
+            attributes=attrs,
+            **kwargs,
+        ) as span:
+            yield span
 
-    def submit_analytics(self, data: Dict[str, Any]) -> None:
+    @contextmanager
+    def start_as_current_generation(
+        self,
+        name: str,
+        model: str,
+        provider: str,
+        input_messages: Optional[List[Dict[str, Any]]] = None,
+        model_parameters: Optional[Dict[str, Any]] = None,
+        version: Optional[str] = None,
+        **kwargs,
+    ) -> Iterator[Span]:
         """
-        Submit analytics data for background processing.
+        Create an LLM generation span (OTEL 1.28+ compliant).
+
+        This method creates a span with GenAI semantic attributes following
+        OpenTelemetry 1.28+ GenAI conventions.
 
         Args:
-            data: Analytics data to submit
-        """
-        if self.is_disabled or not self._background_processor:
-            return  # Skip analytics when disabled
-        self._background_processor.submit_analytics(data)
+            name: Operation name (e.g., "chat", "completion")
+            model: Model identifier (e.g., "gpt-4", "claude-3-opus")
+            provider: Provider name (e.g., "openai", "anthropic")
+            input_messages: Input messages in OTEL format
+            model_parameters: Model parameters (temperature, max_tokens, etc.)
+            version: Version identifier for A/B testing and experiment tracking
+            **kwargs: Additional span attributes
 
-    def submit_evaluation(self, data: Dict[str, Any]) -> None:
+        Yields:
+            Span instance
+
+        Example:
+            >>> with client.start_as_current_generation(
+            ...     name="chat",
+            ...     model="gpt-4",
+            ...     provider="openai",
+            ...     input_messages=[{"role": "user", "content": "Hello"}],
+            ...     version="1.0",
+            ... ) as gen:
+            ...     # Make LLM call
+            ...     gen.set_attribute(Attrs.GEN_AI_OUTPUT_MESSAGES, [...])
         """
-        Submit evaluation data for background processing.
+        # Build OTEL GenAI attributes
+        attrs = {
+            Attrs.BROKLE_OBSERVATION_TYPE: ObservationType.GENERATION,
+            Attrs.GEN_AI_PROVIDER_NAME: provider,
+            Attrs.GEN_AI_OPERATION_NAME: name,
+            Attrs.GEN_AI_REQUEST_MODEL: model,
+        }
+
+        # Add input messages if provided
+        if input_messages:
+            attrs[Attrs.GEN_AI_INPUT_MESSAGES] = json.dumps(input_messages)
+
+        # Add model parameters
+        if model_parameters:
+            for key, value in model_parameters.items():
+                if key == "temperature":
+                    attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = value
+                elif key == "max_tokens":
+                    attrs[Attrs.GEN_AI_REQUEST_MAX_TOKENS] = value
+                elif key == "top_p":
+                    attrs[Attrs.GEN_AI_REQUEST_TOP_P] = value
+                elif key == "frequency_penalty":
+                    attrs[Attrs.GEN_AI_REQUEST_FREQUENCY_PENALTY] = value
+                elif key == "presence_penalty":
+                    attrs[Attrs.GEN_AI_REQUEST_PRESENCE_PENALTY] = value
+
+        # Add version if provided
+        if version:
+            attrs[Attrs.BROKLE_VERSION] = version
+
+        # Merge additional kwargs
+        attrs.update(kwargs)
+
+        # Span name follows OTEL pattern: "{operation} {model}"
+        span_name = f"{name} {model}"
+
+        with self._tracer.start_as_current_span(
+            name=span_name,
+            kind=SpanKind.CLIENT,  # LLM calls are CLIENT spans
+            attributes=attrs,
+        ) as span:
+            yield span
+
+    @contextmanager
+    def start_as_current_event(
+        self,
+        name: str,
+        attributes: Optional[Dict[str, Any]] = None,
+        version: Optional[str] = None,
+    ) -> Iterator[Span]:
+        """
+        Create a point-in-time event span.
+
+        Events are instantaneous observations (e.g., logging, metrics).
 
         Args:
-            data: Evaluation data to submit
-        """
-        if self.is_disabled or not self._background_processor:
-            return  # Skip evaluation when disabled
-        self._background_processor.submit_evaluation(data)
+            name: Event name
+            attributes: Event attributes
+            version: Version identifier for A/B testing and experiment tracking
 
-    def get_processor_metrics(self) -> Dict[str, Any]:
-        """
-        Get background processor metrics.
+        Yields:
+            Span instance
 
-        Returns:
-            Dictionary containing processor metrics
+        Example:
+            >>> with client.start_as_current_event("user-login", version="1.0") as event:
+            ...     event.set_attribute("user_id", "user-123")
         """
-        if self.is_disabled or not self._background_processor:
-            return {}  # Return empty metrics when disabled
-        return self._background_processor.get_metrics()
+        attrs = attributes.copy() if attributes else {}
+        attrs[Attrs.BROKLE_OBSERVATION_TYPE] = ObservationType.EVENT
 
-    def is_processor_healthy(self) -> bool:
-        """
-        Check if background processor is healthy.
+        if version:
+            attrs[Attrs.BROKLE_VERSION] = version
 
-        Returns:
-            True if processor is healthy
-        """
-        if self.is_disabled or not self._background_processor:
-            return False  # Processor not healthy when disabled
-        return self._background_processor.is_healthy()
+        with self._tracer.start_as_current_span(
+            name=name,
+            kind=SpanKind.INTERNAL,
+            attributes=attrs,
+        ) as span:
+            yield span
 
-    def flush_processor(self, timeout: Optional[float] = None) -> bool:
+    def flush(self, timeout_seconds: int = 30) -> bool:
         """
-        Flush pending processor items and wait for completion.
+        Force flush all pending spans.
+
+        Blocks until all pending spans are exported or timeout is reached.
+        This is important for short-lived applications (scripts, serverless).
 
         Args:
-            timeout: Maximum time to wait (None = wait indefinitely)
+            timeout_seconds: Timeout in seconds
 
         Returns:
-            True if all items processed, False if timeout reached
-        """
-        if self.is_disabled or not self._background_processor:
-            return True  # Nothing to flush when disabled
-        return self._background_processor.flush(timeout=timeout)
+            True if successful, False otherwise
 
-    def _get_client(self) -> httpx.Client:
-        """Get or create HTTP client."""
-        if self._client is None:
-            self._client = httpx.Client(
-                timeout=httpx.Timeout(self.config.timeout),
-                limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
-            )
-        return self._client
-
-    def request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
+        Example:
+            >>> client.flush()  # Ensure all data is sent before exit
         """
-        Make HTTP request to Brokle backend with retry logic.
+        if not self._processor:
+            return True
+
+        timeout_millis = timeout_seconds * 1000
+        return self._processor.force_flush(timeout_millis)
+
+    def shutdown(self, timeout_seconds: int = 30) -> bool:
+        """
+        Shutdown the client and flush all pending spans.
 
         Args:
-            method: HTTP method
-            endpoint: API endpoint
-            **kwargs: Request kwargs
+            timeout_seconds: Timeout in seconds
 
         Returns:
-            Response data
+            True if successful
 
-        Raises:
-            NetworkError: For connection errors
+        Example:
+            >>> client.shutdown()
         """
-        # Return empty dict if client is disabled (graceful degradation)
-        if self.is_disabled:
-            return {}
+        if not self._provider:
+            return True
 
-        import time
+        timeout_millis = timeout_seconds * 1000
+        return self._provider.shutdown()
 
-        from ._utils.retry import is_retryable_error, retry_with_backoff
+    def close(self):
+        """
+        Close the client (alias for shutdown).
 
-        start_time = time.time()
-        url = self._prepare_url(endpoint)
-        kwargs = self._prepare_request_kwargs(**kwargs)
-
-        @retry_with_backoff(
-            max_retries=self.config.max_retries, base_delay=1.0, max_delay=30.0
-        )
-        def _make_request():
-            client = self._get_client()
-            response = client.request(method, url, **kwargs)
-            result = self._process_response(response)
-            return result, response.status_code
-
-        try:
-            result, status_code = _make_request()
-
-            # Submit telemetry data in background
-            telemetry_data = {
-                "method": method,
-                "endpoint": endpoint,
-                "status_code": status_code,  # Real status code from response
-                "latency_ms": int((time.time() - start_time) * 1000),
-                "success": True,
-                "timestamp": time.time(),
-                "environment": self.config.environment,
-            }
-            self.submit_telemetry(telemetry_data)
-
-            return result
-        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPError) as e:
-            # Submit error telemetry
-            telemetry_data = {
-                "method": method,
-                "endpoint": endpoint,
-                "status_code": (
-                    getattr(e.response, "status_code", 0)
-                    if hasattr(e, "response")
-                    else 0
-                ),
-                "latency_ms": int((time.time() - start_time) * 1000),
-                "success": False,
-                "error": str(e),
-                "error_type": type(e).__name__,
-                "timestamp": time.time(),
-                "environment": self.config.environment,
-            }
-            self.submit_telemetry(telemetry_data)
-
-            # Re-raise with appropriate exception type
-            if isinstance(e, httpx.ConnectError):
-                raise NetworkError(f"Failed to connect to Brokle backend: {e}")
-            elif isinstance(e, httpx.TimeoutException):
-                raise NetworkError(f"Request timeout: {e}")
-            else:
-                raise NetworkError(f"HTTP error: {e}")
-
-    def close(self) -> None:
-        """Close HTTP client and cleanup resources."""
-        # Flush processor before closing (give it 5 seconds)
-        if hasattr(self, "_background_processor"):
-            try:
-                self._background_processor.flush(timeout=5.0)
-            except Exception:
-                pass  # Don't let processor errors prevent cleanup
-
-            # Shutdown processor if we own it
-            if hasattr(self, "_owns_processor") and self._owns_processor:
-                try:
-                    self._background_processor.shutdown()
-                except Exception:
-                    pass  # Don't let processor errors prevent cleanup
-
-        # Close HTTP client
-        if hasattr(self, "_client") and self._client is not None:
-            self._client.close()
-            self._client = None
+        Example:
+            >>> with Brokle(api_key="...") as client:
+            ...     # Use client
+            ...     pass  # Automatically closed
+        """
+        self.shutdown()
 
     def __enter__(self):
         """Context manager entry."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit with cleanup."""
+        """Context manager exit."""
         self.close()
 
-    def __del__(self):
-        """Cleanup on deletion (fallback)."""
-        self.close()
+    def __repr__(self) -> str:
+        """String representation."""
+        return f"Brokle(environment='{self.config.environment}', tracing_enabled={self.config.tracing_enabled})"
 
 
-class AsyncBrokle(HTTPBase):
+def get_client(**overrides) -> Brokle:
     """
-    Async Brokle client with OpenAI-compatible interface.
+    Get or create global singleton Brokle client.
 
-    Usage:
-        client = AsyncBrokle(api_key="bk_...")
-        try:
-            response = await client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": "Hello!"}],
-                routing_strategy="cost_optimized"
-            )
-        finally:
-            await client.close()
-    """
-
-    def __init__(
-        self,
-        api_key: Optional[str] = None,
-        host: Optional[str] = None,
-        environment: Optional[str] = None,
-        timeout: Optional[float] = None,
-        background_processor: Optional[BackgroundProcessor] = None,
-        **kwargs,
-    ):
-        """
-        Initialize async Brokle client.
-
-        Args:
-            api_key: Brokle API key
-            host: Brokle host URL
-            environment: Environment name
-            timeout: Request timeout in seconds
-            background_processor: Optional background processor for telemetry (will create default if None)
-            **kwargs: Additional configuration
-        """
-        super().__init__(
-            api_key=api_key,
-            host=host,
-            environment=environment,
-            timeout=timeout,
-            **kwargs,
-        )
-
-        # Handle disabled state
-        if getattr(self, '_disabled', False):
-            self._client = None
-            self._background_processor = None
-            self._owns_processor = False
-        else:
-            # Initialize persistent HTTP client (performance optimization)
-            self._client = httpx.AsyncClient(
-                timeout=httpx.Timeout(self.config.timeout),
-                limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
-            )
-
-            # Initialize background processor for telemetry
-            if background_processor is not None:
-                self._background_processor = background_processor
-                self._owns_processor = False  # We don't own it, don't shut it down
-            else:
-                # Create default processor using our config
-                self._background_processor = get_background_processor(config=self.config)
-                self._owns_processor = True  # We created it, we should shut it down
-
-        # Initialize async resources (always, even when disabled)
-        from .resources.chat import AsyncChatResource
-        from .resources.embeddings import AsyncEmbeddingsResource
-        from .resources.models import AsyncModelsResource
-
-        self.chat = AsyncChatResource(self)
-        self.embeddings = AsyncEmbeddingsResource(self)
-        self.models = AsyncModelsResource(self)
-
-    @property
-    def is_disabled(self) -> bool:
-        """Check if client is operating in disabled mode."""
-        return getattr(self, '_disabled', False)
-
-    def submit_telemetry(
-        self, data: Dict[str, Any], event_type: str = "observation"
-    ) -> None:
-        """
-        Submit telemetry data for background processing.
-
-        Args:
-            data: Telemetry data to submit
-            event_type: Event type (defaults to "observation" for LLM/SDK operations)
-        """
-        if self.is_disabled or not self._background_processor:
-            return  # Skip telemetry when disabled
-        self._background_processor.submit_telemetry(data, event_type=event_type)
-
-    def submit_batch_event(self, event_type: str, payload: Dict[str, Any]) -> str:
-        """
-        Submit a batch event with proper event envelope.
-
-        This is the preferred method for submitting structured telemetry events.
-
-        Args:
-            event_type: Type of event (trace, observation, etc.)
-            payload: Event payload data
-
-        Returns:
-            Event ID (ULID) for tracking
-
-        Example:
-            >>> event_id = client.submit_batch_event(
-            ...     "trace",
-            ...     {"name": "my-trace", "user_id": "123"}
-            ... )
-        """
-        if self.is_disabled or not self._background_processor:
-            return ""  # Return empty ID when disabled
-
-        from .types.telemetry import TelemetryEvent
-        from ._utils.ulid import generate_event_id
-        import time
-
-        event = TelemetryEvent(
-            event_id=generate_event_id(),
-            event_type=event_type,
-            payload=payload,
-            timestamp=int(time.time())
-        )
-
-        self._background_processor.submit_batch_event(event)
-        return event.event_id
-
-    def submit_analytics(self, data: Dict[str, Any]) -> None:
-        """
-        Submit analytics data for background processing.
-
-        Args:
-            data: Analytics data to submit
-        """
-        if self.is_disabled or not self._background_processor:
-            return  # Skip analytics when disabled
-        self._background_processor.submit_analytics(data)
-
-    def submit_evaluation(self, data: Dict[str, Any]) -> None:
-        """
-        Submit evaluation data for background processing.
-
-        Args:
-            data: Evaluation data to submit
-        """
-        if self.is_disabled or not self._background_processor:
-            return  # Skip evaluation when disabled
-        self._background_processor.submit_evaluation(data)
-
-    def get_processor_metrics(self) -> Dict[str, Any]:
-        """
-        Get background processor metrics.
-
-        Returns:
-            Dictionary containing processor metrics
-        """
-        if self.is_disabled or not self._background_processor:
-            return {}  # Return empty metrics when disabled
-        return self._background_processor.get_metrics()
-
-    def is_processor_healthy(self) -> bool:
-        """
-        Check if background processor is healthy.
-
-        Returns:
-            True if processor is healthy
-        """
-        if self.is_disabled or not self._background_processor:
-            return False  # Processor not healthy when disabled
-        return self._background_processor.is_healthy()
-
-    def flush_processor(self, timeout: Optional[float] = None) -> bool:
-        """
-        Flush pending processor items and wait for completion.
-
-        Args:
-            timeout: Maximum time to wait (None = wait indefinitely)
-
-        Returns:
-            True if all items processed, False if timeout reached
-        """
-        if self.is_disabled or not self._background_processor:
-            return True  # Nothing to flush when disabled
-        return self._background_processor.flush(timeout=timeout)
-
-    async def request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
-        """
-        Make async HTTP request to Brokle backend with retry logic.
-
-        Args:
-            method: HTTP method
-            endpoint: API endpoint
-            **kwargs: Request kwargs
-
-        Returns:
-            Response data
-
-        Raises:
-            NetworkError: For connection errors
-        """
-        # Return empty dict if client is disabled (graceful degradation)
-        if self.is_disabled:
-            return {}
-
-        import time
-
-        from ._utils.retry import async_retry_with_backoff
-
-        start_time = time.time()
-        url = self._prepare_url(endpoint)
-        kwargs = self._prepare_request_kwargs(**kwargs)
-
-        @async_retry_with_backoff(
-            max_retries=self.config.max_retries, base_delay=1.0, max_delay=30.0
-        )
-        async def _make_request():
-            response = await self._client.request(method, url, **kwargs)
-            result = self._process_response(response)
-            return result, response.status_code
-
-        try:
-            result, status_code = await _make_request()
-
-            # Submit telemetry data in background
-            telemetry_data = {
-                "method": method,
-                "endpoint": endpoint,
-                "status_code": status_code,  # Real status code from response
-                "latency_ms": int((time.time() - start_time) * 1000),
-                "success": True,
-                "timestamp": time.time(),
-                "environment": self.config.environment,
-            }
-            self.submit_telemetry(telemetry_data)
-
-            return result
-        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPError) as e:
-            # Submit error telemetry
-            telemetry_data = {
-                "method": method,
-                "endpoint": endpoint,
-                "status_code": (
-                    getattr(e.response, "status_code", 0)
-                    if hasattr(e, "response")
-                    else 0
-                ),
-                "latency_ms": int((time.time() - start_time) * 1000),
-                "success": False,
-                "error": str(e),
-                "error_type": type(e).__name__,
-                "timestamp": time.time(),
-                "environment": self.config.environment,
-            }
-            self.submit_telemetry(telemetry_data)
-
-            # Re-raise with appropriate exception type
-            if isinstance(e, httpx.ConnectError):
-                raise NetworkError(f"Failed to connect to Brokle backend: {e}")
-            elif isinstance(e, httpx.TimeoutException):
-                raise NetworkError(f"Request timeout: {e}")
-            else:
-                raise NetworkError(f"HTTP error: {e}")
-
-    async def close(self) -> None:
-        """Close async HTTP client and cleanup resources."""
-        # Flush processor before closing (give it 5 seconds)
-        if hasattr(self, "_background_processor"):
-            try:
-                self._background_processor.flush(timeout=5.0)
-            except Exception:
-                pass  # Don't let processor errors prevent cleanup
-
-            # Shutdown processor if we own it
-            if hasattr(self, "_owns_processor") and self._owns_processor:
-                try:
-                    self._background_processor.shutdown()
-                except Exception:
-                    pass  # Don't let processor errors prevent cleanup
-
-        # Close HTTP client
-        if self._client is not None:
-            await self._client.aclose()
-            self._client = None
-
-    async def __aenter__(self):
-        """Async context manager entry."""
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit with cleanup."""
-        await self.close()
-
-
-# Global singleton for clean architecture
-_client_singleton: Optional[Brokle] = None
-
-
-def get_client(background_processor: Optional[BackgroundProcessor] = None) -> Brokle:
-    """
-    Get or create a singleton Brokle client instance from environment variables.
-
-    This is the clean API for Pattern 1/2/3 integration:
-    - Pattern 1 (Wrappers): Use this for observability context
-    - Pattern 2 (Decorator): Use this for telemetry
-    - Pattern 3 (Native): Use Brokle() for explicit config, get_client() for env config
-
-    Configuration is read from environment variables:
-    - BROKLE_API_KEY
-    - BROKLE_HOST
-    - BROKLE_ENVIRONMENT
-    - BROKLE_OTEL_ENABLED
-    - etc.
+    Configuration is read from environment variables on first call.
+    Subsequent calls return the same instance.
 
     Args:
-        background_processor: Optional background processor for telemetry (only used when creating new singleton)
+        **overrides: Override specific configuration values
 
     Returns:
-        Singleton Brokle client instance
+        Singleton Brokle instance
+
+    Raises:
+        ValueError: If BROKLE_API_KEY environment variable is missing
 
     Example:
-        ```python
-        # For explicit configuration, use Brokle() directly
-        client = Brokle(api_key="bk_your_secret")
-
-        # For environment-based configuration, use get_client()
-        client = get_client()  # Reads from BROKLE_* env vars
-
-        # Sharing a background processor across multiple clients
-        processor = get_background_processor(config=config)
-        client = get_client(background_processor=processor)
-        ```
+        >>> from brokle import get_client
+        >>> client = get_client()  # Reads from BROKLE_* env vars
+        >>> # All calls return same instance
+        >>> client2 = get_client()
+        >>> assert client is client2
     """
-    global _client_singleton
+    global _global_client
 
-    if _client_singleton is None:
-        # Create singleton from environment variables
-        _client_singleton = Brokle(background_processor=background_processor)
+    if _global_client is None:
+        # Create config from environment variables
+        config = BrokleConfig.from_env(**overrides)
 
-    return _client_singleton
+        # Create client with config parameters
+        _global_client = Brokle(
+            api_key=config.api_key,
+            base_url=config.base_url,
+            environment=config.environment,
+            debug=config.debug,
+            tracing_enabled=config.tracing_enabled,
+            release=config.release,
+            sample_rate=config.sample_rate,
+            mask=config.mask,
+            flush_at=config.flush_at,
+            flush_interval=config.flush_interval,
+            timeout=config.timeout,
+            use_protobuf=config.use_protobuf,
+            compression=config.compression,
+            cache_enabled=config.cache_enabled,
+            routing_enabled=config.routing_enabled,
+        )
+
+    return _global_client
 
 
-# Export public API
-__all__ = ["Brokle", "AsyncBrokle", "get_client"]
+def reset_client():
+    """
+    Reset global singleton client.
+
+    Useful for testing. Should not be used in production code.
+
+    Example:
+        >>> reset_client()
+        >>> client = get_client()  # Creates new instance
+    """
+    global _global_client
+    if _global_client:
+        _global_client.close()
+    _global_client = None

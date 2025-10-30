@@ -14,7 +14,7 @@ authors = [
 maintainers = [
     {name = "Brokle Platform", email = "support@brokle.com"}
 ]
-keywords = ["ai", "llm", "brokle", "openai", "observability", "routing", "caching", "drop-in", "decorator", "patterns"]
+keywords = ["ai", "llm", "brokle", "openai", "observability", "routing", "caching", "wrapper", "decorator", "patterns"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -57,6 +57,20 @@ anthropic = [
 google = [
     "google-generativeai>=0.3.0",
 ]
+langchain = [
+    "langchain>=0.1.0",
+    "langchain-core>=0.1.0",
+    "langchain-openai>=0.0.2",
+]
+llamaindex = [
+    "llama-index>=0.9.0",
+]
+integrations = [
+    "langchain>=0.1.0",
+    "langchain-core>=0.1.0",
+    "langchain-openai>=0.0.2",
+    "llama-index>=0.9.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
@@ -77,6 +91,10 @@ all = [
     "wrapt>=1.15.0",
     "anthropic>=0.5.0",
     "google-generativeai>=0.3.0",
+    "langchain>=0.1.0",
+    "langchain-core>=0.1.0",
+    "langchain-openai>=0.0.2",
+    "llama-index>=0.9.0",
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.0.0",
@@ -98,7 +116,7 @@ Repository = "https://github.com/brokle-ai/brokle-python"
 Changelog = "https://github.com/brokle-ai/brokle-python/blob/main/CHANGELOG.md"
 
 [tool.setuptools.dynamic]
-version = {attr = "brokle._version.__version__"}
+version = {attr = "brokle.version.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -2,7 +2,7 @@
 Telemetry batch API types for unified event submission.
 
 This module defines the event envelope pattern for the unified
-/v1/telemetry/batch endpoint, supporting traces, observations,
+/v1/ingest/batch endpoint, supporting traces, observations,
 quality scores, and generic events.
 """
 
@@ -13,15 +13,27 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class TelemetryEventType(str, Enum):
-    """Immutable event types for telemetry."""
+    """
+    Immutable event types for telemetry batch API.
 
-    # Generic events
-    EVENT = "event"
+    IMPORTANT: Batch events are write-once and immutable. They represent
+    initial creation only. For updates/corrections after initial submission,
+    use the REST API endpoints:
+    - PUT /api/v1/analytics/traces/:id
+    - PUT /api/v1/analytics/observations/:id
+    - PUT /api/v1/analytics/scores/:id
+    - PUT /api/v1/analytics/sessions/:id
 
-    # Structured observability
+    This follows industry patterns where:
+    - Batch API = immutable, async, high-throughput (create operations)
+    - REST API = mutable, sync, for corrections/enrichment (update operations)
+    """
+
+    # Structured observability (immutable batch creation)
     TRACE = "trace"
     OBSERVATION = "observation"
     QUALITY_SCORE = "quality_score"
+    SESSION = "session"
 
 
 class TelemetryEvent(BaseModel):
@@ -57,42 +69,26 @@ class TelemetryEvent(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
 
-class DeduplicationConfig(BaseModel):
-    """
-    Deduplication configuration for batch submission.
-
-    Controls how the batch API handles duplicate events based on event_id.
-
-    Attributes:
-        enabled: Enable deduplication (default: True)
-        ttl: Time-to-live for deduplication cache in seconds (default: 3600)
-        use_redis_cache: Use Redis for distributed deduplication (default: True)
-        fail_on_duplicate: Fail entire batch if duplicates found (default: False)
-    """
-
-    enabled: bool = Field(True, description="Enable event deduplication")
-    ttl: int = Field(3600, description="Deduplication cache TTL in seconds", ge=60, le=86400)
-    use_redis_cache: bool = Field(
-        True, description="Use Redis for distributed deduplication"
-    )
-    fail_on_duplicate: bool = Field(
-        False, description="Fail entire batch on duplicate events"
-    )
-
-
 class TelemetryBatchRequest(BaseModel):
     """
-    Unified telemetry batch request.
+    Unified telemetry batch request for immutable event creation.
 
     Submits multiple telemetry events (traces, observations, scores) in a
-    single batch to /v1/telemetry/batch endpoint.
+    single batch to /v1/ingest/batch endpoint.
+
+    IMPORTANT: This endpoint is for INITIAL CREATION ONLY. Events are immutable
+    once submitted. For updates/corrections after creation, use the REST API
+    PUT endpoints on the dashboard.
+
+    Best Practice: Buffer complete event data before submission. Ensure all
+    fields (input, output, metadata, cost details, etc.) are finalized before
+    sending to this endpoint.
 
     Attributes:
-        events: List of telemetry events to submit
+        events: List of telemetry events to submit (immutable after processing)
         environment: Optional environment tag (e.g., "production", "staging")
         metadata: Optional batch-level metadata
         async_mode: Process batch asynchronously (default: False)
-        deduplication: Deduplication configuration
     """
 
     events: List[TelemetryEvent] = Field(
@@ -105,9 +101,6 @@ class TelemetryBatchRequest(BaseModel):
         None, description="Batch-level metadata"
     )
     async_mode: bool = Field(False, description="Process batch asynchronously")
-    deduplication: Optional[DeduplicationConfig] = Field(
-        None, description="Deduplication configuration"
-    )
 
 
 class BatchEventError(BaseModel):
@@ -162,7 +155,6 @@ class TelemetryBatchResponse(BaseModel):
 __all__ = [
     "TelemetryEventType",
     "TelemetryEvent",
-    "DeduplicationConfig",
     "TelemetryBatchRequest",
     "TelemetryBatchResponse",
     "BatchEventError",

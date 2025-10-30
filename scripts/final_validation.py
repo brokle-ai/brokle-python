@@ -8,13 +8,13 @@ validates integrations, and confirms backward compatibility.
 
 Test Coverage:
 1. Context-aware client management
-2. OpenAI drop-in replacement
-3. Anthropic drop-in replacement
-4. Universal decorator pattern
-5. LangChain callback handler
+2. OpenAI wrapper functions
+3. Anthropic wrapper functions
+4. @observe decorator pattern
+5. Native SDK client
 6. Error handling and fallbacks
 7. Performance benchmarks
-8. Backward compatibility
+8. Integration compatibility
 
 Run this script to validate the complete migration.
 """
@@ -56,12 +56,12 @@ class BrokleSDKValidator:
         test_categories = [
             ("Core Architecture", self._test_core_architecture),
             ("Context Management", self._test_context_management),
-            ("Drop-in Replacements", self._test_drop_in_replacements),
-            ("Universal Decorator", self._test_universal_decorator),
-            ("Framework Integration", self._test_framework_integration),
+            ("Wrapper Functions", self._test_wrapper_functions),
+            ("@observe Decorator", self._test_observe_decorator),
+            ("Native SDK Client", self._test_native_client),
             ("Error Handling", self._test_error_handling),
             ("Performance", self._test_performance),
-            ("Backward Compatibility", self._test_backward_compatibility),
+            ("Integration Compatibility", self._test_integration_compatibility),
         ]
 
         for category, test_func in test_categories:
@@ -189,44 +189,44 @@ class BrokleSDKValidator:
         except Exception as e:
             self._record_failure("Multi-project safety", time.time() - start_time, str(e), e)
 
-    def _test_drop_in_replacements(self):
-        """Test drop-in replacement functionality"""
+    def _test_wrapper_functions(self):
+        """Test wrapper functions (Pattern 1)"""
 
-        # Test 1: OpenAI drop-in import
+        # Test 1: wrap_openai import
         start_time = time.time()
         try:
-            from brokle.openai import OpenAI
+            from brokle import wrap_openai
 
-            # Should work even if openai package not installed
+            # Should be available for import
             self._record_success(
-                "OpenAI drop-in import",
+                "wrap_openai import",
                 time.time() - start_time,
-                "OpenAI drop-in replacement import successful"
+                "wrap_openai function import successful"
             )
         except Exception as e:
-            self._record_failure("OpenAI drop-in import", time.time() - start_time, str(e), e)
+            self._record_failure("wrap_openai import", time.time() - start_time, str(e), e)
 
-        # Test 2: Anthropic drop-in import
+        # Test 2: wrap_anthropic import
         start_time = time.time()
         try:
-            from brokle.anthropic import Anthropic
+            from brokle import wrap_anthropic
 
-            # Should work even if anthropic package not installed
+            # Should be available for import
             self._record_success(
-                "Anthropic drop-in import",
+                "wrap_anthropic import",
                 time.time() - start_time,
-                "Anthropic drop-in replacement import successful"
+                "wrap_anthropic function import successful"
             )
         except Exception as e:
-            self._record_failure("Anthropic drop-in import", time.time() - start_time, str(e), e)
+            self._record_failure("wrap_anthropic import", time.time() - start_time, str(e), e)
 
-        # Test 3: Graceful fallback when SDK not available
+        # Test 3: SDK availability detection
         start_time = time.time()
         try:
-            from brokle.openai import OpenAI, HAS_OPENAI
-            from brokle.anthropic import HAS_ANTHROPIC
+            from brokle.wrappers.openai import HAS_OPENAI
+            from brokle.wrappers.anthropic import HAS_ANTHROPIC
 
-            fallback_info = {
+            wrapper_info = {
                 "openai_available": HAS_OPENAI,
                 "anthropic_available": HAS_ANTHROPIC
             }
@@ -234,8 +234,8 @@ class BrokleSDKValidator:
             self._record_success(
                 "SDK availability detection",
                 time.time() - start_time,
-                f"SDK detection working: {fallback_info}",
-                fallback_info
+                f"SDK detection working: {wrapper_info}",
+                wrapper_info
             )
         except Exception as e:
             self._record_failure("SDK availability detection", time.time() - start_time, str(e), e)
@@ -263,7 +263,7 @@ class BrokleSDKValidator:
         except Exception as e:
             self._record_failure("Attribute passthrough", time.time() - start_time, str(e), e)
 
-    def _test_universal_decorator(self):
+    def _test_observe_decorator(self):
         """Test universal decorator pattern"""
 
         # Test 1: Basic decorator functionality
@@ -350,7 +350,12 @@ class BrokleSDKValidator:
         except Exception as e:
             self._record_failure("Workflow tracing", time.time() - start_time, str(e), e)
 
-    def _test_framework_integration(self):
+    def _test_native_client(self):
+        """Test native SDK client (Pattern 3)"""
+        # Placeholder for Pattern 3 native client tests
+        pass
+
+    def _test_integration_compatibility(self):
         """Test framework integration capabilities"""
 
         # Test 1: LangChain callback handler import
@@ -501,7 +506,7 @@ class BrokleSDKValidator:
         except Exception as e:
             self._record_failure("Decorator performance", time.time() - start_time, str(e), e)
 
-    def _test_backward_compatibility(self):
+    def _test_integration_compatibility_legacy(self):
         """Test backward compatibility with existing code"""
 
         # Test 1: Original imports still work

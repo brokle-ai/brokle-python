@@ -1,9 +1,9 @@
 """
 Example: Using the Unified Telemetry Batch API
 
-Demonstrates the new batch telemetry capabilities including:
+Demonstrates the batch telemetry capabilities including:
 - Structured event submission with ULIDs
-- Event deduplication
+- Server-side event deduplication (24h TTL)
 - Partial failure handling
 - Batch configuration
 """
@@ -16,7 +16,6 @@ from brokle.types.telemetry import (
     TelemetryEvent,
     TelemetryEventType,
     TelemetryBatchRequest,
-    DeduplicationConfig,
 )
 from brokle._utils.ulid import generate_event_id
 
@@ -38,7 +37,7 @@ def example_1_legacy_telemetry():
     print("✅ Legacy telemetry submitted (auto-converted to batch format)")
     print("   - Event type: event (default)")
     print("   - Event ID: auto-generated ULID")
-    print("   - Endpoint: /v1/telemetry/batch")
+    print("   - Endpoint: /v1/ingest/batch")
 
     client.close()
 
@@ -106,18 +105,15 @@ def example_3_custom_batch_config():
     client = Brokle(
         api_key=os.getenv("BROKLE_API_KEY", "bk_test"),
         # Custom batch settings
-        batch_max_size=200,              # Larger batches
+        batch_max_size=200,              # Larger batches (max 1000)
         batch_flush_interval=2.0,        # Flush every 2 seconds
-        batch_enable_deduplication=True, # Enable dedup
-        batch_deduplication_ttl=7200,    # 2-hour cache
-        batch_use_redis_cache=True,      # Use Redis
+        # Note: Deduplication is always enabled server-side (24h TTL)
     )
 
     print("✅ Client configured with custom batch settings:")
     print(f"   - Max batch size: {client.config.batch_max_size}")
     print(f"   - Flush interval: {client.config.batch_flush_interval}s")
-    print(f"   - Deduplication: {client.config.batch_enable_deduplication}")
-    print(f"   - Dedup TTL: {client.config.batch_deduplication_ttl}s")
+    print("   - Deduplication: Always enabled (server-side, 24h TTL)")
 
     # Submit multiple events
     for i in range(5):
@@ -136,18 +132,19 @@ def example_3_custom_batch_config():
 
 
 def example_4_deduplication():
-    """Example 4: Event deduplication with ULID."""
-    print("\n=== Example 4: Event Deduplication ===")
+    """Example 4: Server-side event deduplication with ULID."""
+    print("\n=== Example 4: Server-Side Event Deduplication ===")
 
-    client = Brokle(
-        api_key=os.getenv("BROKLE_API_KEY", "bk_test"),
-        batch_enable_deduplication=True,
-        batch_deduplication_ttl=3600  # 1 hour
-    )
+    client = Brokle(api_key=os.getenv("BROKLE_API_KEY", "bk_test"))
+
+    print("ℹ️  Deduplication is always enabled server-side:")
+    print("   - Fixed 24-hour TTL (not configurable)")
+    print("   - Atomic claim-based processing")
+    print("   - Duplicate detection by event_id (ULID)")
 
     # Generate a specific event ID
     event_id = generate_event_id()
-    print(f"Generated event ID: {event_id}")
+    print(f"\nGenerated event ID: {event_id}")
 
     # Submit the same event multiple times with same ID
     from brokle.types.telemetry import TelemetryEvent
@@ -162,7 +159,7 @@ def example_4_deduplication():
     client._background_processor.submit_batch_event(event)
     print("✅ First submission - will be processed")
 
-    # Second submission (duplicate)
+    # Second submission (duplicate - same event_id)
     client._background_processor.submit_batch_event(event)
     print("⚠️  Second submission - will be deduplicated (same event_id)")
 
@@ -172,7 +169,7 @@ def example_4_deduplication():
     print("\nBackend response will show:")
     print("  - processed_events: 1")
     print("  - duplicate_events: 1")
-    print("  - duplicate_event_ids: ['{event_id}']")
+    print(f"  - duplicate_event_ids: ['{event_id}']")
 
     client.close()
 

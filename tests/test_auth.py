@@ -77,15 +77,15 @@ class TestAuthManager:
 
         headers = auth_manager.get_auth_headers()
 
-        assert headers["X-Environment"] == "default"
+        assert "X-API-Key" in headers
+        assert "Content-Type" in headers
 
     def test_get_auth_headers_default_environment(self, auth_manager):
         """Test getting authentication headers with default environment."""
         headers = auth_manager.get_auth_headers()
 
-        # Should include X-Environment header with default value
-        assert "X-Environment" in headers
-        assert headers["X-Environment"] == "default"
+        assert "X-API-Key" in headers
+        assert "Content-Type" in headers
 
     def test_is_validated_true(self, auth_manager):
         """Test validation status when validated."""

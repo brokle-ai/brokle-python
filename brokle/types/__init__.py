@@ -1,38 +1,23 @@
 """
-Type definitions for Brokle SDK.
+Brokle OpenTelemetry type definitions and attribute constants.
 """
 
-# from .attributes import BrokleOtelSpanAttributes  # TODO: Add when attributes module is created
-from .requests import (
-    AnalyticsRequest,
-    ChatCompletionRequest,
-    CompletionRequest,
-    EmbeddingRequest,
-    EvaluationRequest,
-)
-
-# Import from modular response structure
-from .responses.core import (
-    ChatCompletionResponse,
-    CompletionResponse,
-    EmbeddingResponse,
-)
-from .responses.observability import (
-    AnalyticsResponse,
-    EvaluationResponse,
+from .attributes import (
+    BrokleOtelSpanAttributes,
+    Attrs,  # Convenience alias
+    ObservationType,
+    ObservationLevel,
+    LLMProvider,
+    OperationType,
+    ScoreDataType,
 )
 
 __all__ = [
-    # Requests
-    "CompletionRequest",
-    "ChatCompletionRequest",
-    "EmbeddingRequest",
-    "AnalyticsRequest",
-    "EvaluationRequest",
-    # Responses
-    "CompletionResponse",
-    "ChatCompletionResponse",
-    "EmbeddingResponse",
-    "AnalyticsResponse",
-    "EvaluationResponse",
+    "BrokleOtelSpanAttributes",
+    "Attrs",
+    "ObservationType",
+    "ObservationLevel",
+    "LLMProvider",
+    "OperationType",
+    "ScoreDataType",
 ]

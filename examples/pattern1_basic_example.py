@@ -1,17 +1,16 @@
 """
-Example usage of Brokle SDK's auto-instrumentation features.
+Example usage of Brokle SDK's wrapper functions (Pattern 1).
 
-This example demonstrates how to automatically instrument popular LLM libraries
-for comprehensive observability without manual decoration.
+This example demonstrates how to use wrapper functions to add Brokle observability
+to existing OpenAI and Anthropic clients with explicit wrapping.
 """
 
 import asyncio
 import os
-from typing import List
 
 # Import Brokle SDK
 import brokle
-from brokle.auto_instrumentation import auto_instrument, get_status, print_status
+from brokle import wrap_openai
 
 # Create Brokle client with explicit configuration
 client = brokle.Brokle(
@@ -20,43 +19,23 @@ client = brokle.Brokle(
 )
 
 
-def setup_auto_instrumentation():
-    """Setup auto-instrumentation for all available libraries."""
-    print("=== Setting up Brokle Auto-Instrumentation ===\n")
-
-    # Show current status
-    print("📋 Current instrumentation status:")
-    print_status()
-
-    # Auto-instrument all available libraries
-    print("\n🔧 Starting auto-instrumentation...")
-    results = auto_instrument()
-
-    print(f"\n✅ Auto-instrumentation completed:")
-    for library, success in results.items():
-        status = "✅ Success" if success else "❌ Failed"
-        print(f"   {library}: {status}")
-
-    print("\n📋 Final instrumentation status:")
-    print_status()
-
-    return results
-
-
-def openai_example():
-    """Example using OpenAI with auto-instrumentation."""
-    print("\n=== OpenAI Auto-Instrumentation Example ===")
+def openai_wrapper_example():
+    """Example using OpenAI with Brokle wrapper."""
+    print("\n=== OpenAI Wrapper Example ===")
 
     try:
-        import openai
+        from openai import OpenAI
 
         # Create OpenAI client
-        openai_client = openai.OpenAI(api_key="your-openai-api-key")
+        openai_client = OpenAI(api_key="your-openai-api-key")
 
-        print("🤖 Making OpenAI API call (automatically instrumented)...")
+        # Wrap the client with Brokle observability
+        wrapped_client = wrap_openai(openai_client)
+
+        print("🤖 Making OpenAI API call (wrapped with Brokle)...")
 
         # This call will be automatically traced by Brokle
-        response = openai_client.chat.completions.create(
+        response = wrapped_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": "What is artificial intelligence?"}],
             max_tokens=100,
@@ -68,27 +47,30 @@ def openai_example():
         return response
 
     except ImportError:
-        print("❌ OpenAI library not installed")
+        print("❌ OpenAI library not installed. Install with: pip install openai")
         return None
     except Exception as e:
         print(f"❌ OpenAI example failed: {e}")
         return None
 
 
-async def openai_async_example():
-    """Example using OpenAI async client with auto-instrumentation."""
-    print("\n=== OpenAI Async Auto-Instrumentation Example ===")
+async def openai_async_wrapper_example():
+    """Example using OpenAI async client with Brokle wrapper."""
+    print("\n=== OpenAI Async Wrapper Example ===")
 
     try:
-        import openai
+        from openai import AsyncOpenAI
 
         # Create async OpenAI client
-        openai_client = openai.AsyncOpenAI(api_key="your-openai-api-key")
+        openai_client = AsyncOpenAI(api_key="your-openai-api-key")
 
-        print("🤖 Making async OpenAI API call (automatically instrumented)...")
+        # Wrap the async client with Brokle observability
+        wrapped_client = wrap_openai(openai_client)
+
+        print("🤖 Making async OpenAI API call (wrapped with Brokle)...")
 
         # This async call will be automatically traced by Brokle
-        response = await openai_client.chat.completions.create(
+        response = await wrapped_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "user", "content": "Explain machine learning in simple terms."}
@@ -102,27 +84,32 @@ async def openai_async_example():
         return response
 
     except ImportError:
-        print("❌ OpenAI library not installed")
+        print("❌ OpenAI library not installed. Install with: pip install openai")
         return None
     except Exception as e:
         print(f"❌ Async OpenAI example failed: {e}")
         return None
 
 
-def anthropic_example():
-    """Example using Anthropic with auto-instrumentation."""
-    print("\n=== Anthropic Auto-Instrumentation Example ===")
+def anthropic_wrapper_example():
+    """Example using Anthropic with Brokle wrapper."""
+    print("\n=== Anthropic Wrapper Example ===")
 
     try:
-        import anthropic
+        from anthropic import Anthropic
+
+        from brokle import wrap_anthropic
 
         # Create Anthropic client
-        anthropic_client = anthropic.Anthropic(api_key="your-anthropic-api-key")
+        anthropic_client = Anthropic(api_key="your-anthropic-api-key")
 
-        print("🤖 Making Anthropic API call (automatically instrumented)...")
+        # Wrap the client with Brokle observability
+        wrapped_client = wrap_anthropic(anthropic_client)
+
+        print("🤖 Making Anthropic API call (wrapped with Brokle)...")
 
         # This call will be automatically traced by Brokle
-        response = anthropic_client.messages.create(
+        response = wrapped_client.messages.create(
             model="claude-3-sonnet-20240229",
             messages=[{"role": "user", "content": "What is the future of AI?"}],
             max_tokens=100,
@@ -134,74 +121,28 @@ def anthropic_example():
         return response
 
     except ImportError:
-        print("❌ Anthropic library not installed")
+        print("❌ Anthropic library not installed. Install with: pip install anthropic")
         return None
     except Exception as e:
         print(f"❌ Anthropic example failed: {e}")
         return None
 
 
-def langchain_example():
-    """Example using LangChain with auto-instrumentation."""
-    print("\n=== LangChain Auto-Instrumentation Example ===")
-
-    try:
-        from langchain.chains import LLMChain
-        from langchain.llms import OpenAI
-        from langchain.prompts import PromptTemplate
-
-        print("🔗 Creating LangChain components (automatically instrumented)...")
-
-        # Create LLM
-        llm = OpenAI(openai_api_key="your-openai-api-key", temperature=0.7)
-
-        # Create prompt template
-        prompt = PromptTemplate(
-            input_variables=["topic"],
-            template="Write a brief explanation about {topic}:",
-        )
-
-        # Create chain
-        chain = LLMChain(llm=llm, prompt=prompt)
-
-        print("🤖 Running LangChain (automatically instrumented)...")
-
-        # This chain execution will be automatically traced by Brokle
-        result = chain.run(topic="quantum computing")
-
-        print(f"📝 Result: {result[:100]}...")
-        print("✅ LangChain execution completed with automatic observability")
-
-        return result
-
-    except ImportError:
-        print("❌ LangChain library not installed")
-        return None
-    except Exception as e:
-        print(f"❌ LangChain example failed: {e}")
-        return None
-
-
 def multiple_providers_example():
     """Example using multiple providers in sequence."""
-    print("\n=== Multiple Providers Auto-Instrumentation Example ===")
+    print("\n=== Multiple Providers Wrapper Example ===")
 
     results = []
 
     # Try OpenAI
-    openai_result = openai_example()
+    openai_result = openai_wrapper_example()
     if openai_result:
         results.append(("OpenAI", openai_result))
 
     # Try Anthropic
-    anthropic_result = anthropic_example()
+    anthropic_result = anthropic_wrapper_example()
     if anthropic_result:
         results.append(("Anthropic", anthropic_result))
-
-    # Try LangChain
-    langchain_result = langchain_example()
-    if langchain_result:
-        results.append(("LangChain", langchain_result))
 
     print(
         f"\n📊 Completed {len(results)} provider examples with automatic observability"
@@ -246,66 +187,63 @@ async def check_observability_data():
         print(f"❌ Failed to check observability data: {e}")
 
 
-def selective_instrumentation_example():
-    """Example of selective instrumentation."""
-    print("\n=== Selective Auto-Instrumentation Example ===")
+def inline_wrapping_example():
+    """Example of inline wrapping (single expression)."""
+    print("\n=== Inline Wrapping Example ===")
 
-    from brokle.auto_instrumentation import get_registry, instrument, uninstrument
+    try:
+        from openai import OpenAI
 
-    registry = get_registry()
+        print("🔧 Creating and wrapping OpenAI client in one line...")
 
-    # Show current status
-    print("📋 Current status:")
-    registry.print_status()
+        # You can also wrap inline during client creation
+        client = wrap_openai(OpenAI(api_key="your-openai-api-key"))
 
-    # Uninstrument all
-    print("\n🔧 Removing all instrumentation...")
-    uninstrument_results = registry.uninstrument_all()
+        print("🤖 Making API call with inline-wrapped client...")
 
-    # Instrument only OpenAI
-    print("\n🎯 Instrumenting only OpenAI...")
-    openai_result = instrument("openai")
-    print(f"OpenAI instrumentation: {'✅ Success' if openai_result else '❌ Failed'}")
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": "Hello, world!"}],
+            max_tokens=50,
+        )
 
-    # Show updated status
-    print("\n📋 Updated status:")
-    registry.print_status()
+        print(f"📝 Response: {response.choices[0].message.content}")
+        print("✅ Inline wrapping works perfectly!")
 
-    # Re-instrument all for other examples
-    print("\n🔧 Re-instrumenting all libraries...")
-    auto_instrument()
+        return response
+
+    except ImportError:
+        print("❌ OpenAI library not installed")
+        return None
+    except Exception as e:
+        print(f"❌ Inline example failed: {e}")
+        return None
 
 
 async def main():
     """Main example function."""
-    print("=== Brokle Auto-Instrumentation Examples ===\n")
+    print("=== Brokle Wrapper Functions Examples (Pattern 1) ===\n")
 
-    # 1. Setup auto-instrumentation
-    setup_results = setup_auto_instrumentation()
-
-    # 2. Selective instrumentation example
-    selective_instrumentation_example()
-
-    # 3. Run examples with different providers
+    # 1. Run examples with different providers
     multiple_providers_example()
 
-    # 4. Async example
-    await openai_async_example()
+    # 2. Inline wrapping example
+    inline_wrapping_example()
 
-    # 5. Check captured observability data
+    # 3. Async example
+    await openai_async_wrapper_example()
+
+    # 4. Check captured observability data
     await check_observability_data()
 
-    # 6. Final status
-    print("\n📋 Final instrumentation status:")
-    print_status()
-
-    print("\n✅ All auto-instrumentation examples completed!")
-    print("\n💡 Benefits of Auto-Instrumentation:")
-    print("   • Zero code changes required")
+    print("\n✅ All wrapper function examples completed!")
+    print("\n💡 Benefits of Wrapper Functions:")
+    print("   • Explicit and clear wrapping with wrap_openai() / wrap_anthropic()")
     print("   • Automatic trace and observation creation")
     print("   • Cost and performance tracking")
     print("   • Provider-agnostic observability")
     print("   • Quality scoring and analytics")
+    print("   • Preserves original SDK API")
 
 
 if __name__ == "__main__":
