@@ -13,7 +13,7 @@ response = brokle.chat.completions.create(
 
 # ✅ Feature 2: Structured observability
 trace = brokle.trace(name="my-workflow")
-obs = trace.observation(name="step-1", type="llm")
+span = trace.span(name="step-1", type="llm")
 obs.complete(...)
 trace.score(name="quality", value=0.9)
 
@@ -55,14 +55,14 @@ brokle = Brokle(api_key="bk_...")
 
 @observe(name="rag-pipeline")
 def my_rag():
-    with brokle.observation(name="embed"):
+    with brokle.span(name="embed"):
         ...
-    with brokle.observation(name="search"):
+    with brokle.span(name="search"):
         ...
 ```
 
 - **Network:** App → OpenAI/Anthropic directly (NOT through Brokle)  
-- **Backend:** Structured traces/observations  
+- **Backend:** Structured traces/spans  
 
 ---
 
@@ -78,7 +78,7 @@ response = brokle.chat.completions.create(...)
 
 # Advanced usage (gateway + traces)
 trace = brokle.trace(name="workflow")
-with trace.observation(name="llm"):
+with trace.span(name="llm"):
     response = brokle.chat.completions.create(...)
 ```
 
@@ -144,10 +144,10 @@ from brokle import Brokle
 brokle = Brokle(api_key="bk_...")
 
 trace = brokle.trace(name="rag-pipeline")
-with trace.observation(name="embed"):
+with trace.span(name="embed"):
     import openai
     openai.embeddings.create(...)  # Direct to OpenAI
-with trace.observation(name="search"):
+with trace.span(name="search"):
     pinecone.query(...)
 ```
 
@@ -162,13 +162,13 @@ brokle = Brokle(api_key="bk_...")
 
 trace = brokle.trace(name="rag-pipeline")
 
-with trace.observation(name="embed"):
+with trace.span(name="embed"):
     brokle.embeddings.create(...)  # Via Brokle gateway
 
-with trace.observation(name="search"):
+with trace.span(name="search"):
     pinecone.query(...)  # Direct to Pinecone
 
-with trace.observation(name="llm"):
+with trace.span(name="llm"):
     brokle.chat.completions.create(...)  # Via Brokle gateway
 
 trace.score(name="quality", value=0.9)

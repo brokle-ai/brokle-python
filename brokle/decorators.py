@@ -13,19 +13,19 @@ from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
 from .client import get_client
-from .types import Attrs, ObservationType
+from .types import Attrs, SpanType
 
 
 def observe(
     *,
     name: Optional[str] = None,
-    as_type: str = ObservationType.SPAN,
+    as_type: str = SpanType.SPAN,
     # Trace-level attributes
     session_id: Optional[str] = None,
     user_id: Optional[str] = None,
     tags: Optional[List[str]] = None,
     metadata: Optional[Dict[str, Any]] = None,
-    # Observation-level attributes
+    # Span-level attributes
     level: str = "DEFAULT",
     version: Optional[str] = None,
     model: Optional[str] = None,
@@ -42,12 +42,12 @@ def observe(
 
     Args:
         name: Custom span name (default: function name)
-        as_type: Observation type (span, generation, event)
+        as_type: Span type (span, generation, event)
         session_id: Session grouping identifier
         user_id: User identifier
         tags: Categorization tags
         metadata: Custom metadata
-        level: Observation level (DEBUG, DEFAULT, WARNING, ERROR)
+        level: Span level (DEBUG, DEFAULT, WARNING, ERROR)
         version: Operation version
         model: LLM model (for generation type)
         model_parameters: Model parameters (for generation type)
@@ -76,8 +76,8 @@ def observe(
 
             # Build initial attributes
             attrs = {
-                Attrs.BROKLE_OBSERVATION_TYPE: as_type,
-                Attrs.BROKLE_OBSERVATION_LEVEL: level,
+                Attrs.BROKLE_SPAN_TYPE: as_type,
+                Attrs.BROKLE_SPAN_LEVEL: level,
             }
 
             # Add trace-level attributes
@@ -96,7 +96,7 @@ def observe(
                 attrs[Attrs.BROKLE_VERSION] = version
 
             # Add generation-specific attributes
-            if as_type == ObservationType.GENERATION:
+            if as_type == SpanType.GENERATION:
                 if model:
                     attrs[Attrs.GEN_AI_REQUEST_MODEL] = model
                 if model_parameters:
@@ -150,8 +150,8 @@ def observe(
 
             # Build initial attributes (same as sync)
             attrs = {
-                Attrs.BROKLE_OBSERVATION_TYPE: as_type,
-                Attrs.BROKLE_OBSERVATION_LEVEL: level,
+                Attrs.BROKLE_SPAN_TYPE: as_type,
+                Attrs.BROKLE_SPAN_LEVEL: level,
             }
 
             # Add trace-level attributes
@@ -168,7 +168,7 @@ def observe(
                 attrs[Attrs.BROKLE_VERSION] = version
 
             # Add generation-specific attributes
-            if as_type == ObservationType.GENERATION:
+            if as_type == SpanType.GENERATION:
                 if model:
                     attrs[Attrs.GEN_AI_REQUEST_MODEL] = model
 

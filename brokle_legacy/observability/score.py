@@ -1,7 +1,7 @@
 """
 Score management for quality evaluation.
 
-Provides utility functions for adding scores to traces, observations, and sessions.
+Provides utility functions for adding scores to traces, spans, and sessions.
 """
 
 from datetime import datetime, timezone
@@ -75,9 +75,9 @@ def score_trace(
     return score_id
 
 
-def score_observation(
+def score_span(
     client: 'Brokle',
-    observation_id: str,
+    span_id: str,
     name: str,
     value: Optional[float] = None,
     string_value: Optional[str] = None,
@@ -87,11 +87,11 @@ def score_observation(
     **kwargs
 ) -> str:
     """
-    Add quality score to an observation.
+    Add quality score to an span.
 
     Args:
         client: Brokle client instance
-        observation_id: Observation ULID
+        span_id: Span ULID
         name: Score name/metric
         value: Numeric value (for NUMERIC/BOOLEAN types)
         string_value: String value (for CATEGORICAL type)
@@ -104,9 +104,9 @@ def score_observation(
         Score ID (ULID)
 
     Example:
-        >>> score_observation(
+        >>> score_span(
         ...     client=client,
-        ...     observation_id="01ABCDEFGHIJKLMNOPQRSTUVWX",
+        ...     span_id="01ABCDEFGHIJKLMNOPQRSTUVWX",
         ...     name="accuracy",
         ...     value=0.88
         ... )
@@ -115,7 +115,7 @@ def score_observation(
 
     score = Score(
         id=score_id,
-        observation_id=observation_id,
+        span_id=span_id,
         name=name,
         value=value,
         string_value=string_value,
@@ -195,4 +195,4 @@ def score_session(
     return score_id
 
 
-__all__ = ["score_trace", "score_observation", "score_session"]
+__all__ = ["score_trace", "score_span", "score_session"]

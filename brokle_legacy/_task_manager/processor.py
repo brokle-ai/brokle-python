@@ -145,7 +145,7 @@ class BackgroundProcessor:
                 payload = dict(item["data"])  # work on a shallow copy
 
                 # Ensure identifier fields are valid ULID strings
-                for field in ("id", "trace_id", "observation_id", "session_id", "parent_observation_id"):
+                for field in ("id", "trace_id", "span_id", "session_id", "parent_span_id"):
                     value = payload.get(field)
                     if not value:
                         continue
@@ -158,7 +158,7 @@ class BackgroundProcessor:
                     payload[field] = value_str
                 else:
                     # Only executed if loop did not break (i.e., all ULIDs valid)
-                    event_type = item.get("event_type", TelemetryEventType.OBSERVATION)
+                    event_type = item.get("event_type", TelemetryEventType.SPAN)
                     event_id = item.get("event_id")
                     if not event_id or not is_valid_ulid(str(event_id)):
                         event_id = generate_event_id()
@@ -295,7 +295,7 @@ class BackgroundProcessor:
         logger.debug("Evaluation submission not implemented yet")
 
     def submit_telemetry(
-        self, data: Dict[str, Any], event_type: str = TelemetryEventType.OBSERVATION
+        self, data: Dict[str, Any], event_type: str = TelemetryEventType.SPAN
     ) -> None:
         """
         Submit telemetry data for background processing.
@@ -418,16 +418,16 @@ class BackgroundProcessor:
 
     @staticmethod
     def _event_sort_key(event: TelemetryEvent) -> tuple:
-        """Sort events to ensure parent observations precede children."""
+        """Sort events to ensure parent spans precede children."""
         order_map = {
             TelemetryEventType.TRACE: 0,
             TelemetryEventType.SESSION: 1,
-            TelemetryEventType.OBSERVATION: 2,
+            TelemetryEventType.SPAN: 2,
             TelemetryEventType.QUALITY_SCORE: 3,
         }
         base = order_map.get(event.event_type, 4)
 
-        if event.event_type == TelemetryEventType.OBSERVATION:
+        if event.event_type == TelemetryEventType.SPAN:
             start_time = event.payload.get("start_time")
             if isinstance(start_time, str):
                 try:

@@ -122,11 +122,11 @@ def test_otlp_integration():
     print("Next steps:")
     print("1. Verify data in ClickHouse:")
     print("   docker exec brokle-clickhouse clickhouse-client \\")
-    print("     --query \"SELECT name, provider, model_name, usage_details FROM observations WHERE environment='e2e-test' ORDER BY start_time DESC LIMIT 5 FORMAT Vertical\"")
+    print("     --query \"SELECT name, provider, model_name, usage_details FROM spans WHERE environment='e2e-test' ORDER BY start_time DESC LIMIT 5 FORMAT Vertical\"")
     print()
     print("2. Check attributes JSON:")
     print("   docker exec brokle-clickhouse clickhouse-client \\")
-    print("     --query \"SELECT attributes FROM observations WHERE provider='openai-test' LIMIT 1 FORMAT Vertical\"")
+    print("     --query \"SELECT attributes FROM spans WHERE provider='openai-test' LIMIT 1 FORMAT Vertical\"")
     print("=" * 60)
 
     return True

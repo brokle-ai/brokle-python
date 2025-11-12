@@ -11,7 +11,7 @@ from typing import Any, Optional, TYPE_CHECKING
 from opentelemetry.trace import Status, StatusCode
 
 from ..client import get_client
-from ..types import Attrs, ObservationType, LLMProvider, OperationType
+from ..types import Attrs, SpanType, LLMProvider, OperationType
 from ..utils.attributes import (
     serialize_messages,
     extract_system_messages,
@@ -79,7 +79,7 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
 
         # Build OTEL GenAI attributes
         attrs = {
-            Attrs.BROKLE_OBSERVATION_TYPE: ObservationType.GENERATION,
+            Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
             Attrs.GEN_AI_PROVIDER_NAME: LLMProvider.OPENAI,
             Attrs.GEN_AI_OPERATION_NAME: OperationType.CHAT,
             Attrs.GEN_AI_REQUEST_MODEL: model,
@@ -264,7 +264,7 @@ def wrap_openai_async(client: "openai.AsyncOpenAI") -> "openai.AsyncOpenAI":
 
         # Build OTEL GenAI attributes (same as sync)
         attrs = {
-            Attrs.BROKLE_OBSERVATION_TYPE: ObservationType.GENERATION,
+            Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
             Attrs.GEN_AI_PROVIDER_NAME: LLMProvider.OPENAI,
             Attrs.GEN_AI_OPERATION_NAME: OperationType.CHAT,
             Attrs.GEN_AI_REQUEST_MODEL: model,

@@ -292,11 +292,11 @@ if __name__ == "__main__":
         print()
         print("Verify data in ClickHouse:")
         print("  docker exec brokle-clickhouse clickhouse-client \\")
-        print("    --query \"SELECT name, provider, model_name, usage_details['total'] as tokens FROM observations WHERE provider='openai' ORDER BY start_time DESC LIMIT 10 FORMAT Vertical\"")
+        print("    --query \"SELECT name, provider, model_name, usage_details['total'] as tokens FROM spans WHERE provider='openai' ORDER BY start_time DESC LIMIT 10 FORMAT Vertical\"")
         print()
         print("Check complete attributes:")
         print("  docker exec brokle-clickhouse clickhouse-client \\")
-        print("    --query \"SELECT attributes FROM observations WHERE provider='openai' LIMIT 1 FORMAT Vertical\"")
+        print("    --query \"SELECT attributes FROM spans WHERE provider='openai' LIMIT 1 FORMAT Vertical\"")
 
     except KeyboardInterrupt:
         print("\n\nTest interrupted")

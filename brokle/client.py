@@ -1,7 +1,7 @@
 """
 Main Brokle OpenTelemetry client.
 
-Provides high-level API for creating traces, spans, and LLM observations
+Provides high-level API for creating traces, spans, and LLM spans
 using OpenTelemetry as the underlying telemetry framework.
 """
 
@@ -20,7 +20,7 @@ from opentelemetry.trace import Tracer, SpanKind, Status, StatusCode
 from .config import BrokleConfig
 from .exporter import create_exporter_for_config
 from .processor import BrokleSpanProcessor
-from .types import Attrs, ObservationType, LLMProvider, OperationType
+from .types import Attrs, SpanType, LLMProvider, OperationType
 
 
 # Global singleton instance
@@ -32,7 +32,7 @@ class Brokle:
     Main Brokle client for OpenTelemetry-based observability.
 
     This client initializes OpenTelemetry with Brokle-specific configuration
-    and provides high-level methods for creating traces and observations.
+    and provides high-level methods for creating traces and spans.
 
     Example:
         >>> from brokle import Brokle
@@ -219,9 +219,9 @@ class Brokle:
         if version:
             attrs[Attrs.BROKLE_VERSION] = version
 
-        # Set observation type for Brokle backend
-        if Attrs.BROKLE_OBSERVATION_TYPE not in attrs:
-            attrs[Attrs.BROKLE_OBSERVATION_TYPE] = ObservationType.SPAN
+        # Set span type for Brokle backend
+        if Attrs.BROKLE_SPAN_TYPE not in attrs:
+            attrs[Attrs.BROKLE_SPAN_TYPE] = SpanType.SPAN
 
         with self._tracer.start_as_current_span(
             name=name,
@@ -273,7 +273,7 @@ class Brokle:
         """
         # Build OTEL GenAI attributes
         attrs = {
-            Attrs.BROKLE_OBSERVATION_TYPE: ObservationType.GENERATION,
+            Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
             Attrs.GEN_AI_PROVIDER_NAME: provider,
             Attrs.GEN_AI_OPERATION_NAME: name,
             Attrs.GEN_AI_REQUEST_MODEL: model,
@@ -324,7 +324,7 @@ class Brokle:
         """
         Create a point-in-time event span.
 
-        Events are instantaneous observations (e.g., logging, metrics).
+        Events are instantaneous spans (e.g., logging, metrics).
 
         Args:
             name: Event name
@@ -339,7 +339,7 @@ class Brokle:
             ...     event.set_attribute("user_id", "user-123")
         """
         attrs = attributes.copy() if attributes else {}
-        attrs[Attrs.BROKLE_OBSERVATION_TYPE] = ObservationType.EVENT
+        attrs[Attrs.BROKLE_SPAN_TYPE] = SpanType.EVENT
 
         if version:
             attrs[Attrs.BROKLE_VERSION] = version

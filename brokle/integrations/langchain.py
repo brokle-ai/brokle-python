@@ -38,7 +38,7 @@ except ImportError:
 from opentelemetry.trace import Status, StatusCode
 
 from ..client import get_client
-from ..types import Attrs, ObservationType, LLMProvider, OperationType
+from ..types import Attrs, SpanType, LLMProvider, OperationType
 
 
 class BrokleLangChainCallback(BaseCallbackHandler):
@@ -130,7 +130,7 @@ class BrokleLangChainCallback(BaseCallbackHandler):
         # Build span attributes
         attrs = self._get_common_attributes()
         attrs.update({
-            Attrs.BROKLE_OBSERVATION_TYPE: ObservationType.GENERATION,
+            Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
             Attrs.GEN_AI_OPERATION_NAME: operation,
         })
 
@@ -292,7 +292,7 @@ class BrokleLangChainCallback(BaseCallbackHandler):
         # Build span attributes
         attrs = self._get_common_attributes()
         attrs.update({
-            Attrs.BROKLE_OBSERVATION_TYPE: ObservationType.SPAN,
+            Attrs.BROKLE_SPAN_TYPE: SpanType.SPAN,
             "langchain.chain_type": chain_name,
         })
 
@@ -391,7 +391,7 @@ class BrokleLangChainCallback(BaseCallbackHandler):
         # Build span attributes
         attrs = self._get_common_attributes()
         attrs.update({
-            Attrs.BROKLE_OBSERVATION_TYPE: ObservationType.TOOL,
+            Attrs.BROKLE_SPAN_TYPE: SpanType.TOOL,
             "langchain.tool_name": tool_name,
             "langchain.tool_input": input_str,
         })

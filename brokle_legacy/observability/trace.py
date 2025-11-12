@@ -7,21 +7,21 @@ Provides client-side trace management with auto-submit on completion.
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from ..types.observability import Observation, ObservationType, Score, Trace, ScoreDataType, ScoreSource
+from ..types.observability import Span, SpanType, Score, Trace, ScoreDataType, ScoreSource
 from ..types.telemetry import TelemetryEventType
 from .._utils.ulid import generate_ulid
 from .context import push_trace, pop_trace
 
 if TYPE_CHECKING:
     from ..client import Brokle, AsyncBrokle
-    from .observation import ObservationClient
+    from .span import ObservationClient
 
 
 class TraceClient:
     """
     Client-side trace management with auto-submit on completion.
 
-    Provides a fluent API for building traces with observations and scores.
+    Provides a fluent API for building traces with spans and scores.
 
     Example:
         >>> trace = client.trace(
@@ -29,7 +29,7 @@ class TraceClient:
         ...     user_id="user_123",
         ...     metadata={"intent": "search"}
         ... )
-        >>> obs = trace.observation(ObservationType.LLM, "openai-call")
+        >>> obs = trace.span(SpanType.LLM, "openai-call")
         >>> obs.generation(model="gpt-4", input={...}, output={...})
         >>> obs.end()
         >>> trace.score("quality", 0.95)
@@ -57,47 +57,47 @@ class TraceClient:
         )
 
         self._client = client
-        self._observations: List['ObservationClient'] = []
+        self._spans: List['ObservationClient'] = []
         self._submitted = False
         
         # Push to context for Pattern 1/2 compatibility
         push_trace(self.trace.id)
 
-    def observation(
+    def span(
         self,
-        type: ObservationType,
+        type: SpanType,
         name: str,
-        parent_observation_id: Optional[str] = None,
+        parent_span_id: Optional[str] = None,
         **kwargs
     ) -> 'ObservationClient':
         """
-        Create child observation.
+        Create child span.
 
         Args:
-            type: Observation type (LLM, GENERATION, SPAN, etc.)
-            name: Human-readable observation name
-            parent_observation_id: Optional parent observation ID for nesting
-            **kwargs: Additional observation fields
+            type: Span type (LLM, GENERATION, SPAN, etc.)
+            name: Human-readable span name
+            parent_span_id: Optional parent span ID for nesting
+            **kwargs: Additional span fields
 
         Returns:
             ObservationClient for fluent API
 
         Example:
-            >>> obs = trace.observation(ObservationType.LLM, "openai-call")
+            >>> obs = trace.span(SpanType.LLM, "openai-call")
             >>> obs.generation(model="gpt-4", input={...}, output={...})
             >>> obs.end()
         """
-        from .observation import ObservationClient
+        from .span import ObservationClient
 
         obs = ObservationClient(
             client=self._client,
             trace_id=self.trace.id,
             type=type,
             name=name,
-            parent_observation_id=parent_observation_id,
+            parent_span_id=parent_span_id,
             **kwargs
         )
-        self._observations.append(obs)
+        self._spans.append(obs)
         return obs
 
     def score(
@@ -229,7 +229,7 @@ class AsyncTraceClient:
 
     Example:
         >>> trace = await async_client.trace(name="user-query")
-        >>> obs = await trace.observation(ObservationType.LLM, "openai-call")
+        >>> obs = await trace.span(SpanType.LLM, "openai-call")
         >>> await obs.end()
         >>> await trace.end()
     """
@@ -255,28 +255,28 @@ class AsyncTraceClient:
         )
 
         self._client = client
-        self._observations: List['ObservationClient'] = []
+        self._spans: List['ObservationClient'] = []
         self._submitted = False
 
-    def observation(
+    def span(
         self,
-        type: ObservationType,
+        type: SpanType,
         name: str,
-        parent_observation_id: Optional[str] = None,
+        parent_span_id: Optional[str] = None,
         **kwargs
     ) -> 'ObservationClient':
-        """Create child observation (sync method, observation submission is async)."""
-        from .observation import ObservationClient
+        """Create child span (sync method, span submission is async)."""
+        from .span import ObservationClient
 
         obs = ObservationClient(
             client=self._client,
             trace_id=self.trace.id,
             type=type,
             name=name,
-            parent_observation_id=parent_observation_id,
+            parent_span_id=parent_span_id,
             **kwargs
         )
-        self._observations.append(obs)
+        self._spans.append(obs)
         return obs
 
     def score(

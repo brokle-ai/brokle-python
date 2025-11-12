@@ -85,12 +85,12 @@ class BrokleOtelSpanAttributes:
     BROKLE_TRACE_OUTPUT = "brokle.trace.output"  # Trace-level output
     BROKLE_TRACE_PUBLIC = "brokle.trace.public"  # Public visibility flag
 
-    # ========== Brokle Observation Management ==========
-    BROKLE_OBSERVATION_ID = "brokle.observation_id"
-    BROKLE_OBSERVATION_TYPE = "brokle.observation_type"  # generation/span/event
-    BROKLE_OBSERVATION_NAME = "brokle.observation_name"
-    BROKLE_PARENT_OBSERVATION_ID = "brokle.parent_observation_id"
-    BROKLE_OBSERVATION_LEVEL = "brokle.observation.level"  # DEBUG/DEFAULT/WARNING/ERROR
+    # ========== Brokle Span Management ==========
+    BROKLE_SPAN_ID = "brokle.span_id"
+    BROKLE_SPAN_TYPE = "brokle.span_type"  # generation/span/event
+    BROKLE_SPAN_NAME = "brokle.span_name"
+    BROKLE_PARENT_SPAN_ID = "brokle.parent_span_id"
+    BROKLE_SPAN_LEVEL = "brokle.span.level"  # DEBUG/DEFAULT/WARNING/ERROR
 
     # ========== Brokle Extended Usage Metrics ==========
     BROKLE_USAGE_TOTAL_TOKENS = "brokle.usage.total_tokens"  # Convenience metric
@@ -128,8 +128,8 @@ class BrokleOtelSpanAttributes:
     ENVIRONMENT = "environment"  # Maps from brokle.environment
 
 
-class ObservationType:
-    """Observation type constants for brokle.observation_type attribute."""
+class SpanType:
+    """Span type constants for brokle.span_type attribute."""
     GENERATION = "generation"  # LLM generation (chat, completion)
     SPAN = "span"  # Generic span
     EVENT = "event"  # Point-in-time event
@@ -138,8 +138,8 @@ class ObservationType:
     EMBEDDING = "embedding"  # Embedding generation
 
 
-class ObservationLevel:
-    """Observation level constants for brokle.observation.level attribute."""
+class SpanLevel:
+    """Span level constants for brokle.span.level attribute."""
     DEBUG = "DEBUG"
     DEFAULT = "DEFAULT"
     WARNING = "WARNING"

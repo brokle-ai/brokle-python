@@ -29,7 +29,7 @@ def simple_function():
 
 @observe(name="custom-function-name")
 def custom_named_function():
-    """Function with custom observation name."""
+    """Function with custom span name."""
     return "Custom named function result"
 
 
@@ -40,7 +40,7 @@ def custom_named_function():
     capture_outputs=True,
 )
 def generate_story(prompt: str) -> str:
-    """Generate a story using LLM with enhanced observation."""
+    """Generate a story using LLM with enhanced span."""
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[
@@ -100,7 +100,7 @@ def process_documents(documents: List[str]) -> Dict[str, Any]:
 
 @observe(name="document-summarization", tags=["generation", "summarization"])
 def summarize_document(document: str) -> str:
-    """Summarize a document - nested observation."""
+    """Summarize a document - nested span."""
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[
@@ -155,7 +155,7 @@ def sensitive_operation(api_key: str, user_data: Dict[str, Any]) -> str:
 
 @observe()
 def error_prone_function():
-    """Function that demonstrates error handling in observations."""
+    """Function that demonstrates error handling in spans."""
     raise ValueError("This is a test error for demonstration")
 
 
@@ -228,7 +228,7 @@ def validate_and_format(content: str) -> str:
 
 
 def main():
-    """Main function demonstrating various observation patterns."""
+    """Main function demonstrating various span patterns."""
     print("=== @observe Decorator Examples ===\n")
 
     # Simple function
@@ -241,8 +241,8 @@ def main():
     result = custom_named_function()
     print(f"Result: {result}\n")
 
-    # LLM generation with observation
-    print("3. LLM Generation with Observation:")
+    # LLM generation with span
+    print("3. LLM Generation with Span:")
     try:
         story = generate_story("A robot discovers emotions")
         print(f"Generated story: {story[:100]}...\n")
@@ -294,7 +294,7 @@ def main():
 
 
 async def async_main():
-    """Async main function demonstrating async observations."""
+    """Async main function demonstrating async spans."""
     print("=== Async @observe Examples ===\n")
 
     # Simple async function

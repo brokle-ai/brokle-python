@@ -2,7 +2,7 @@
 Decorator-based observability helpers (Pattern 2).
 
 The ``@observe`` decorator instruments arbitrary callables by creating either
-root traces or child observations, automatically capturing inputs/outputs, and
+root traces or child spans, automatically capturing inputs/outputs, and
 propagating errors as structured telemetry events.
 """
 
@@ -13,8 +13,8 @@ import inspect
 from typing import Any, Awaitable, Callable, Dict, Optional, TypeVar
 
 from .observability.context import get_client, get_current_trace_id
-from .observability.observation import ObservationClient
-from .types.observability import ObservationLevel, ObservationType
+from .observability.span import ObservationClient
+from .types.observability import ObservationLevel, SpanType
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -22,22 +22,22 @@ F = TypeVar("F", bound=Callable[..., Any])
 def observe(
     *,
     name: Optional[str] = None,
-    type: ObservationType = ObservationType.SPAN,
+    type: SpanType = SpanType.SPAN,
     capture_input: bool = True,
     capture_output: bool = True,
     as_trace: bool = False,
     metadata: Optional[Dict[str, Any]] = None,
 ) -> Callable[[F], F]:
     """
-    Instrument a callable with automatic trace/observation creation.
+    Instrument a callable with automatic trace/span creation.
 
     Args:
         name: Optional override for the generated span/trace name.
-        type: Observation type to emit when not operating as a trace.
+        type: Span type to emit when not operating as a trace.
         capture_input: Whether to capture args/kwargs as structured input.
         capture_output: Whether to capture the return value as structured output.
         as_trace: Force creation of a root trace even if one already exists.
-        metadata: Static metadata to attach to the observation or trace.
+        metadata: Static metadata to attach to the span or trace.
     """
 
     def decorator(func: F) -> F:
@@ -64,7 +64,7 @@ def observe(
                         metadata,
                     )
 
-                return await _execute_as_observation_async(
+                return await _execute_as_span_async(
                     func,
                     func_name,
                     client,
@@ -98,7 +98,7 @@ def observe(
                     metadata,
                 )
 
-            return _execute_as_observation(
+            return _execute_as_span(
                 func,
                 func_name,
                 client,
@@ -119,10 +119,10 @@ def observe(
 def observe_llm(
     *, name: Optional[str] = None, capture_input: bool = True, capture_output: bool = True
 ) -> Callable[[F], F]:
-    """Convenience decorator for LLM observations."""
+    """Convenience decorator for LLM spans."""
     return observe(
         name=name,
-        type=ObservationType.LLM,
+        type=SpanType.LLM,
         capture_input=capture_input,
         capture_output=capture_output,
     )
@@ -134,10 +134,10 @@ def observe_retrieval(
     capture_input: bool = True,
     capture_output: bool = True,
 ) -> Callable[[F], F]:
-    """Convenience decorator for retrieval/tooling observations."""
+    """Convenience decorator for retrieval/tooling spans."""
     return observe(
         name=name,
-        type=ObservationType.RETRIEVAL,
+        type=SpanType.RETRIEVAL,
         capture_input=capture_input,
         capture_output=capture_output,
     )
@@ -201,12 +201,12 @@ def _execute_as_trace(
         return result
 
 
-def _execute_as_observation(
+def _execute_as_span(
     func: Callable[..., Any],
     name: str,
     client,
     trace_id: str,
-    obs_type: ObservationType,
+    obs_type: SpanType,
     args: tuple,
     kwargs: dict,
     capture_input: bool,
@@ -222,18 +222,18 @@ def _execute_as_observation(
     )
 
     if capture_input:
-        obs.observation.input = _capture_function_input(func, args, kwargs)
+        obs.span.input = _capture_function_input(func, args, kwargs)
 
     try:
         result = func(*args, **kwargs)
     except Exception as exc:
-        obs.observation.level = ObservationLevel.ERROR
-        obs.observation.status_message = str(exc)
+        obs.span.level = ObservationLevel.ERROR
+        obs.span.status_message = str(exc)
         obs.end()
         raise
     else:
         if capture_output:
-            obs.observation.output = {"result": result}
+            obs.span.output = {"result": result}
         obs.end()
         return result
 
@@ -267,12 +267,12 @@ async def _execute_as_trace_async(
         return result
 
 
-async def _execute_as_observation_async(
+async def _execute_as_span_async(
     func: Callable[..., Awaitable[Any]],
     name: str,
     client,
     trace_id: str,
-    obs_type: ObservationType,
+    obs_type: SpanType,
     args: tuple,
     kwargs: dict,
     capture_input: bool,
@@ -288,18 +288,18 @@ async def _execute_as_observation_async(
     )
 
     if capture_input:
-        obs.observation.input = _capture_function_input(func, args, kwargs)
+        obs.span.input = _capture_function_input(func, args, kwargs)
 
     try:
         result = await func(*args, **kwargs)
     except Exception as exc:
-        obs.observation.level = ObservationLevel.ERROR
-        obs.observation.status_message = str(exc)
+        obs.span.level = ObservationLevel.ERROR
+        obs.span.status_message = str(exc)
         obs.end()
         raise
     else:
         if capture_output:
-            obs.observation.output = {"result": result}
+            obs.span.output = {"result": result}
         obs.end()
         return result
 

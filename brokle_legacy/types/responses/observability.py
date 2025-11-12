@@ -52,7 +52,7 @@ class QualityScoreMixin(BaseModel):
 class ObservabilityStatsCore(BaseModel):
     """Mixin for core observability statistics."""
 
-    total_observations: int = Field(description="Total observations")
+    total_spans: int = Field(description="Total spans")
     total_latency_ms: int = Field(description="Total latency in milliseconds")
     total_tokens: int = Field(description="Total tokens")
     total_cost: float = Field(description="Total cost")
@@ -77,8 +77,8 @@ class ObservabilityTraceResponse(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(
         default=None, description="Trace metadata"
     )
-    observations: Optional[List["ObservabilityObservationResponse"]] = Field(
-        default=None, description="Trace observations"
+    spans: Optional[List["ObservabilityObservationResponse"]] = Field(
+        default=None, description="Trace spans"
     )
     created_at: datetime = Field(description="Creation timestamp")
     updated_at: datetime = Field(description="Update timestamp")
@@ -86,22 +86,22 @@ class ObservabilityTraceResponse(BaseModel):
 
 class ObservabilityObservationResponse(BaseModel):
     """
-    Observation response from observability service.
+    Span response from observability service.
 
     Maintains complete backward compatibility with original.
     """
 
-    id: str = Field(description="Observation ID")
+    id: str = Field(description="Span ID")
     trace_id: str = Field(description="Trace ID")
-    external_observation_id: str = Field(description="External observation ID")
-    parent_observation_id: Optional[str] = Field(
-        default=None, description="Parent observation ID"
+    external_span_id: str = Field(description="External span ID")
+    parent_span_id: Optional[str] = Field(
+        default=None, description="Parent span ID"
     )
-    type: str = Field(description="Observation type")
-    name: str = Field(description="Observation name")
+    type: str = Field(description="Span type")
+    name: str = Field(description="Span name")
     start_time: datetime = Field(description="Start timestamp")
     end_time: Optional[datetime] = Field(default=None, description="End timestamp")
-    level: str = Field(description="Observation level")
+    level: str = Field(description="Span level")
     status_message: Optional[str] = Field(default=None, description="Status message")
     version: Optional[str] = Field(default=None, description="Version")
     model: Optional[str] = Field(default=None, description="Model name")
@@ -111,9 +111,9 @@ class ObservabilityObservationResponse(BaseModel):
     input: Optional[Dict[str, Any]] = Field(default=None, description="Input data")
     output: Optional[Dict[str, Any]] = Field(default=None, description="Output data")
     metadata: Optional[Dict[str, Any]] = Field(
-        default=None, description="Observation metadata"
+        default=None, description="Span metadata"
     )
-    tags: Optional[Dict[str, Any]] = Field(default=None, description="Observation tags")
+    tags: Optional[Dict[str, Any]] = Field(default=None, description="Span tags")
     usage: Optional[Dict[str, Any]] = Field(
         default=None, description="Usage statistics"
     )
@@ -144,7 +144,7 @@ class ObservabilityQualityScoreResponse(BaseModel):
 
     id: str = Field(description="Score ID")
     trace_id: str = Field(description="Trace ID")
-    observation_id: Optional[str] = Field(default=None, description="Observation ID")
+    span_id: Optional[str] = Field(default=None, description="Span ID")
     score_name: str = Field(description="Score name")
     score_value: Optional[float] = Field(
         default=None, description="Numeric score value"
@@ -170,7 +170,7 @@ class ObservabilityStatsResponse(BaseModel):
     """
 
     trace_id: str = Field(description="Trace ID")
-    total_observations: int = Field(description="Total observations")
+    total_spans: int = Field(description="Total spans")
     total_latency_ms: int = Field(description="Total latency in milliseconds")
     total_tokens: int = Field(description="Total tokens")
     total_cost: float = Field(description="Total cost")
@@ -178,7 +178,7 @@ class ObservabilityStatsResponse(BaseModel):
         default=None, description="Average quality score"
     )
     error_count: int = Field(description="Error count")
-    llm_observation_count: int = Field(description="LLM observation count")
+    llm_span_count: int = Field(description="LLM span count")
     provider_distribution: Dict[str, int] = Field(
         description="Provider usage distribution"
     )
@@ -194,7 +194,7 @@ class ObservabilityListResponse(BaseModel):
     traces: Optional[List[ObservabilityTraceResponse]] = Field(
         default=None, description="Traces list"
     )
-    observations: Optional[List[ObservabilityObservationResponse]] = Field(
+    spans: Optional[List[ObservabilityObservationResponse]] = Field(
         default=None, description="Observations list"
     )
     quality_scores: Optional[List[ObservabilityQualityScoreResponse]] = Field(
@@ -215,8 +215,8 @@ class ObservabilityBatchResponse(BaseModel):
     traces: Optional[List[ObservabilityTraceResponse]] = Field(
         default=None, description="Created traces"
     )
-    observations: Optional[List[ObservabilityObservationResponse]] = Field(
-        default=None, description="Created observations"
+    spans: Optional[List[ObservabilityObservationResponse]] = Field(
+        default=None, description="Created spans"
     )
     quality_scores: Optional[List[ObservabilityQualityScoreResponse]] = Field(
         default=None, description="Created quality scores"

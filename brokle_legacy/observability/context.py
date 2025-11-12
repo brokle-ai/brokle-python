@@ -2,7 +2,7 @@
 Thread-local context helpers for observability.
 
 This module keeps track of the active Brokle client along with the current
-trace/observation stacks so Pattern 1 (wrappers) and Pattern 2 (decorators)
+trace/span stacks so Pattern 1 (wrappers) and Pattern 2 (decorators)
 can automatically build the proper hierarchy without requiring callers to pass
 identifiers around manually.
 """
@@ -19,12 +19,12 @@ from ..client import Brokle, get_client as get_global_client
 class ObservabilityContext:
     """Per-thread observability context."""
 
-    __slots__ = ("client", "trace_stack", "observation_stack", "session_id")
+    __slots__ = ("client", "trace_stack", "span_stack", "session_id")
 
     def __init__(self) -> None:
         self.client: Optional[Brokle] = None
         self.trace_stack: List[str] = []
-        self.observation_stack: List[str] = []
+        self.span_stack: List[str] = []
         self.session_id: Optional[str] = None
 
 
@@ -127,7 +127,7 @@ def get_context_info() -> Dict[str, object]:
         "api_key": api_key_display,
         "session_id": ctx.session_id,
         "trace_depth": len(ctx.trace_stack),
-        "observation_depth": len(ctx.observation_stack),
+        "span_depth": len(ctx.span_stack),
     }
 
 
@@ -148,20 +148,20 @@ def pop_trace() -> Optional[str]:
     return stack.pop() if stack else None
 
 
-def get_current_observation_id() -> Optional[str]:
-    """Return the active observation identifier, if any."""
-    stack = _get_or_create_context().observation_stack
+def get_current_span_id() -> Optional[str]:
+    """Return the active span identifier, if any."""
+    stack = _get_or_create_context().span_stack
     return stack[-1] if stack else None
 
 
-def push_observation(observation_id: str) -> None:
-    """Push an observation identifier onto the stack."""
-    _get_or_create_context().observation_stack.append(observation_id)
+def push_span(span_id: str) -> None:
+    """Push an span identifier onto the stack."""
+    _get_or_create_context().span_stack.append(span_id)
 
 
-def pop_observation() -> Optional[str]:
-    """Pop the most recent observation identifier."""
-    stack = _get_or_create_context().observation_stack
+def pop_span() -> Optional[str]:
+    """Pop the most recent span identifier."""
+    stack = _get_or_create_context().span_stack
     return stack.pop() if stack else None
 
 
@@ -183,12 +183,12 @@ __all__ = [
     "get_client_context",
     "get_context",
     "get_context_info",
-    "get_current_observation_id",
+    "get_current_span_id",
     "get_current_trace_id",
     "get_session_id",
-    "pop_observation",
+    "pop_span",
     "pop_trace",
-    "push_observation",
+    "push_span",
     "push_trace",
     "set_client",
     "set_session_id",

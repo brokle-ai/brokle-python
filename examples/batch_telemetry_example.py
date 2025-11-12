@@ -66,9 +66,9 @@ def example_2_structured_events():
     print(f"   - Length: {len(trace_event_id)} characters (ULID)")
     print("   - Trackable across distributed systems")
 
-    # Submit observation for the trace
-    observation_event_id = client.submit_batch_event(
-        event_type="observation",
+    # Submit span for the trace
+    span_event_id = client.submit_batch_event(
+        event_type="span",
         payload={
             "trace_id": trace_event_id,
             "type": "llm",
@@ -79,14 +79,14 @@ def example_2_structured_events():
         }
     )
 
-    print(f"✅ Observation created with ID: {observation_event_id}")
+    print(f"✅ Span created with ID: {span_event_id}")
 
     # Submit quality score
     score_event_id = client.submit_batch_event(
         event_type="quality_score",
         payload={
             "trace_id": trace_event_id,
-            "observation_id": observation_event_id,
+            "span_id": span_event_id,
             "name": "response_quality",
             "value": 0.95,
             "data_type": "numeric"

@@ -2,7 +2,7 @@
 Telemetry batch API types for unified event submission.
 
 This module defines the event envelope pattern for the unified
-/v1/ingest/batch endpoint, supporting traces, observations,
+/v1/ingest/batch endpoint, supporting traces, spans,
 quality scores, and generic events.
 """
 
@@ -20,7 +20,7 @@ class TelemetryEventType(str, Enum):
     initial creation only. For updates/corrections after initial submission,
     use the REST API endpoints:
     - PUT /api/v1/analytics/traces/:id
-    - PUT /api/v1/analytics/observations/:id
+    - PUT /api/v1/analytics/spans/:id
     - PUT /api/v1/analytics/scores/:id
     - PUT /api/v1/analytics/sessions/:id
 
@@ -31,7 +31,7 @@ class TelemetryEventType(str, Enum):
 
     # Structured observability (immutable batch creation)
     TRACE = "trace"
-    OBSERVATION = "observation"
+    OBSERVATION = "span"
     QUALITY_SCORE = "quality_score"
     SESSION = "session"
 
@@ -40,13 +40,13 @@ class TelemetryEvent(BaseModel):
     """
     Telemetry event envelope.
 
-    Wraps individual telemetry operations (traces, observations, scores)
+    Wraps individual telemetry operations (traces, spans, scores)
     in a consistent envelope format for batch submission.
 
     Attributes:
         event_id: Unique ULID identifier for deduplication
         event_type: Type of telemetry event
-        payload: Event-specific data (trace fields, observation fields, etc.)
+        payload: Event-specific data (trace fields, span fields, etc.)
         timestamp: Optional Unix timestamp (defaults to server time)
     """
 
@@ -73,7 +73,7 @@ class TelemetryBatchRequest(BaseModel):
     """
     Unified telemetry batch request for immutable event creation.
 
-    Submits multiple telemetry events (traces, observations, scores) in a
+    Submits multiple telemetry events (traces, spans, scores) in a
     single batch to /v1/ingest/batch endpoint.
 
     IMPORTANT: This endpoint is for INITIAL CREATION ONLY. Events are immutable

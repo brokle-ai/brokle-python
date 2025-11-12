@@ -2,7 +2,7 @@
 Utilities for instrumenting OpenAI clients (Pattern 1).
 
 This module exposes a ``wrap_openai`` helper that monkey-patches the relevant
-methods on an OpenAI client so every call emits Brokle traces/observations.
+methods on an OpenAI client so every call emits Brokle traces/spans.
 """
 
 from __future__ import annotations
@@ -26,12 +26,12 @@ from .._version import __version__
 from ..exceptions import ProviderError
 from ..observability import (
     get_client,
-    get_current_observation_id,
+    get_current_span_id,
     get_current_trace_id,
 )
-from ..observability.observation import ObservationClient
+from ..observability.span import ObservationClient
 from ..observability.trace import TraceClient
-from ..types.observability import ObservationLevel, ObservationType
+from ..types.observability import ObservationLevel, SpanType
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ class _OpenAIInstrumentor:
 
         if hasattr(self._client, "embeddings"):
             original = self._client.embeddings.create
-            patched = self._wrap_method(original, "embeddings.create", obs_type=ObservationType.EMBEDDING)
+            patched = self._wrap_method(original, "embeddings.create", obs_type=SpanType.EMBEDDING)
             self._client.embeddings.create = patched  # type: ignore[assignment]
 
     # --------------------------------------------------------------------- #
@@ -100,7 +100,7 @@ class _OpenAIInstrumentor:
         method: Callable[..., Any],
         method_name: str,
         *,
-        obs_type: ObservationType = ObservationType.LLM,
+        obs_type: SpanType = SpanType.LLM,
     ) -> Callable[..., Any]:
         """Wrap a sync or async OpenAI client method."""
 
@@ -125,13 +125,13 @@ class _OpenAIInstrumentor:
         self,
         method: Callable[..., Any],
         method_name: str,
-        obs_type: ObservationType,
+        obs_type: SpanType,
         args: Tuple[Any, ...],
         kwargs: Dict[str, Any],
     ) -> Any:
         try:
             trace_client, created_trace = self._ensure_trace(method_name, kwargs)
-            observation = self._start_observation(
+            span = self._start_span(
                 trace_client.trace.id if trace_client else get_current_trace_id(),
                 obs_type,
                 method_name,
@@ -145,10 +145,10 @@ class _OpenAIInstrumentor:
         try:
             response = await method(*args, **kwargs)
         except Exception as exc:
-            self._record_error(observation, trace_client if created_trace else None, exc)
+            self._record_error(span, trace_client if created_trace else None, exc)
             raise
         else:
-            self._record_success(observation, response)
+            self._record_success(span, response)
             if created_trace and trace_client:
                 trace_client.end()
             return response
@@ -157,7 +157,7 @@ class _OpenAIInstrumentor:
         self,
         method: Callable[..., Any],
         method_name: str,
-        obs_type: ObservationType,
+        obs_type: SpanType,
         args: Tuple[Any, ...],
         kwargs: Dict[str, Any],
         *,
@@ -169,7 +169,7 @@ class _OpenAIInstrumentor:
 
         try:
             trace_client, created_trace = self._ensure_trace(method_name, kwargs)
-            observation = self._start_observation(
+            span = self._start_span(
                 trace_client.trace.id if trace_client else get_current_trace_id(),
                 obs_type,
                 method_name,
@@ -183,10 +183,10 @@ class _OpenAIInstrumentor:
         try:
             response = method(*args, **kwargs)
         except Exception as exc:
-            self._record_error(observation, trace_client if created_trace else None, exc)
+            self._record_error(span, trace_client if created_trace else None, exc)
             raise
         else:
-            self._record_success(observation, response)
+            self._record_success(span, response)
             if created_trace and trace_client:
                 trace_client.end()
             return response
@@ -215,10 +215,10 @@ class _OpenAIInstrumentor:
         trace_client = brokle_client.trace(name=trace_name, metadata=metadata)
         return trace_client, True
 
-    def _start_observation(
+    def _start_span(
         self,
         trace_id: Optional[str],
-        obs_type: ObservationType,
+        obs_type: SpanType,
         method_name: str,
         args: Tuple[Any, ...],
         kwargs: Dict[str, Any],
@@ -232,43 +232,43 @@ class _OpenAIInstrumentor:
             # As a last resort, skip instrumentation
             raise ProviderError("Unable to determine trace context for OpenAI call.")
 
-        parent_id = get_current_observation_id()
+        parent_id = get_current_span_id()
 
-        observation = ObservationClient(
+        span = ObservationClient(
             client=self._resolve_brokle_client(),
             trace_id=trace_id,
             type=obs_type,
             name=f"openai.{method_name}",
-            parent_observation_id=parent_id,
+            parent_span_id=parent_id,
         )
 
         request_payload = _summarize_request(args, kwargs)
         if request_payload:
-            observation.observation.input = request_payload
+            span.span.input = request_payload
 
         model = kwargs.get("model")
         if model:
-            observation.observation.model = str(model)
+            span.span.model = str(model)
 
-        return observation
+        return span
 
-    def _record_success(self, observation: ObservationClient, response: Any) -> None:
+    def _record_success(self, span: SpanClient, response: Any) -> None:
         payload, usage = _summarize_response(response)
         if payload:
-            observation.observation.output = payload
+            span.span.output = payload
         if usage:
-            observation.observation.usage_details = usage
-        observation.end()
+            span.span.usage_details = usage
+        span.end()
 
     def _record_error(
         self,
-        observation: ObservationClient,
+        span: SpanClient,
         trace_client: Optional[TraceClient],
         exc: Exception,
     ) -> None:
-        observation.observation.level = ObservationLevel.ERROR
-        observation.observation.status_message = str(exc)
-        observation.end()
+        span.span.level = ObservationLevel.ERROR
+        span.span.status_message = str(exc)
+        span.end()
 
         if trace_client is not None:
             trace_client.trace.metadata.setdefault("error", str(exc))

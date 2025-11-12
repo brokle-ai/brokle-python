@@ -508,18 +508,18 @@ class ObservabilityTraceRequest(BaseModel):
 
 
 class ObservabilityObservationRequest(BaseModel):
-    """Create observation request for observability service."""
+    """Create span request for observability service."""
 
     trace_id: str = Field(description="Trace ID")
-    external_observation_id: str = Field(description="External observation ID")
-    parent_observation_id: Optional[str] = Field(
-        default=None, description="Parent observation ID"
+    external_span_id: str = Field(description="External span ID")
+    parent_span_id: Optional[str] = Field(
+        default=None, description="Parent span ID"
     )
-    type: str = Field(description="Observation type (llm, span, event, etc.)")
-    name: str = Field(description="Observation name")
+    type: str = Field(description="Span type (llm, span, event, etc.)")
+    name: str = Field(description="Span name")
     start_time: str = Field(description="Start time in ISO format")
     end_time: Optional[str] = Field(default=None, description="End time in ISO format")
-    level: Optional[str] = Field(default="DEFAULT", description="Observation level")
+    level: Optional[str] = Field(default="DEFAULT", description="Span level")
     status_message: Optional[str] = Field(default=None, description="Status message")
     version: Optional[str] = Field(default=None, description="Version")
     model: Optional[str] = Field(default=None, description="Model name")
@@ -543,7 +543,7 @@ class ObservabilityQualityScoreRequest(BaseModel):
     """Create quality score request for observability service."""
 
     trace_id: str = Field(description="Trace ID")
-    observation_id: Optional[str] = Field(default=None, description="Observation ID")
+    span_id: Optional[str] = Field(default=None, description="Span ID")
     score_name: str = Field(description="Score name")
     score_value: Optional[float] = Field(
         default=None, description="Numeric score value"
@@ -565,8 +565,8 @@ class ObservabilityBatchRequest(BaseModel):
     traces: Optional[List[Dict[str, Any]]] = Field(
         default=None, description="Batch traces"
     )
-    observations: Optional[List[Dict[str, Any]]] = Field(
-        default=None, description="Batch observations"
+    spans: Optional[List[Dict[str, Any]]] = Field(
+        default=None, description="Batch spans"
     )
     quality_scores: Optional[List[Dict[str, Any]]] = Field(
         default=None, description="Batch quality scores"

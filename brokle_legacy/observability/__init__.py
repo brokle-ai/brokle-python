@@ -7,9 +7,9 @@ remain private to avoid API churn.
 """
 
 from ..types.observability import (
-    Observation,
+    Span,
     ObservationLevel,
-    ObservationType,
+    SpanType,
     Score,
     ScoreDataType,
     ScoreSource,
@@ -23,26 +23,26 @@ from .context import (
     get_client_context,
     get_context,
     get_context_info,
-    get_current_observation_id,
+    get_current_span_id,
     get_current_trace_id,
     get_session_id,
-    pop_observation,
+    pop_span,
     pop_trace,
-    push_observation,
+    push_span,
     push_trace,
     set_client,
     set_session_id,
 )
-from .observation import ObservationClient
-from .score import score_observation, score_session, score_trace
+from .span import ObservationClient
+from .score import score_span, score_session, score_trace
 from .session import SessionClient
 from .trace import TraceClient
 
 __all__ = [
     # Domain types
-    "Observation",
+    "Span",
     "ObservationLevel",
-    "ObservationType",
+    "SpanType",
     "Score",
     "ScoreDataType",
     "ScoreSource",
@@ -55,12 +55,12 @@ __all__ = [
     "get_client_context",
     "get_context",
     "get_context_info",
-    "get_current_observation_id",
+    "get_current_span_id",
     "get_current_trace_id",
     "get_session_id",
-    "pop_observation",
+    "pop_span",
     "pop_trace",
-    "push_observation",
+    "push_span",
     "push_trace",
     "set_client",
     "set_session_id",
@@ -69,7 +69,7 @@ __all__ = [
     "SessionClient",
     "TraceClient",
     # Score helpers
-    "score_observation",
+    "score_span",
     "score_session",
     "score_trace",
 ]

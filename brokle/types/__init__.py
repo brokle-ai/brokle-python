@@ -5,8 +5,8 @@ Brokle OpenTelemetry type definitions and attribute constants.
 from .attributes import (
     BrokleOtelSpanAttributes,
     Attrs,  # Convenience alias
-    ObservationType,
-    ObservationLevel,
+    SpanType,
+    SpanLevel,
     LLMProvider,
     OperationType,
     ScoreDataType,
@@ -15,8 +15,8 @@ from .attributes import (
 __all__ = [
     "BrokleOtelSpanAttributes",
     "Attrs",
-    "ObservationType",
-    "ObservationLevel",
+    "SpanType",
+    "SpanLevel",
     "LLMProvider",
     "OperationType",
     "ScoreDataType",

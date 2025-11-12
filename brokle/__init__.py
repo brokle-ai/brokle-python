@@ -33,8 +33,8 @@ from .decorators import observe
 from .types import (
     BrokleOtelSpanAttributes,
     Attrs,
-    ObservationType,
-    ObservationLevel,
+    SpanType,
+    SpanLevel,
     LLMProvider,
     OperationType,
     ScoreDataType,
@@ -62,8 +62,8 @@ __all__ = [
     # Type constants
     "BrokleOtelSpanAttributes",
     "Attrs",
-    "ObservationType",
-    "ObservationLevel",
+    "SpanType",
+    "SpanLevel",
     "LLMProvider",
     "OperationType",
     "ScoreDataType",

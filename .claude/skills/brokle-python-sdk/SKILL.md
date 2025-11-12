@@ -33,8 +33,8 @@ Attrs               # Convenience alias
 BrokleOtelSpanAttributes  # Full attribute constants
 
 # Types
-ObservationType     # generation, span, event, tool, chain, retriever
-ObservationLevel    # DEBUG, DEFAULT, WARNING, ERROR
+SpanType     # generation, span, event, tool, chain, retriever
+SpanLevel    # DEBUG, DEFAULT, WARNING, ERROR
 LLMProvider         # openai, anthropic, google, cohere, etc.
 OperationType       # chat, embeddings, completion
 ScoreDataType       # numeric, boolean, categorical
@@ -336,8 +336,8 @@ Attrs.GEN_AI_USAGE_OUTPUT_TOKENS
 
 ### Brokle Custom Attributes
 ```python
-# Observation type
-Attrs.BROKLE_OBSERVATION_TYPE     # generation, span, event, tool
+# Span type
+Attrs.BROKLE_SPAN_TYPE     # generation, span, event, tool
 
 # Usage metrics
 Attrs.BROKLE_USAGE_TOTAL_TOKENS

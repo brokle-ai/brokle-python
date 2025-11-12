@@ -168,16 +168,16 @@ async def check_observability_data():
             for trace in traces.traces[:5]:
                 print(f"   • {trace.name} (ID: {trace.id[:8]}...)")
 
-        # Get recent observations
-        observations = await client.observability.list_observations(
+        # Get recent spans
+        spans = await client.observability.list_spans(
             limit=10, sort_by="created_at", sort_order="desc"
         )
 
-        print(f"\n📊 Found {observations.total} total observations")
+        print(f"\n📊 Found {spans.total} total spans")
 
-        if observations.observations:
-            print("\n🔍 Recent observations:")
-            for obs in observations.observations[:5]:
+        if spans.spans:
+            print("\n🔍 Recent spans:")
+            for obs in spans.spans[:5]:
                 provider = obs.provider or "unknown"
                 model = obs.model or "unknown"
                 cost = f"${obs.total_cost:.6f}" if obs.total_cost else "N/A"
@@ -239,7 +239,7 @@ async def main():
     print("\n✅ All wrapper function examples completed!")
     print("\n💡 Benefits of Wrapper Functions:")
     print("   • Explicit and clear wrapping with wrap_openai() / wrap_anthropic()")
-    print("   • Automatic trace and observation creation")
+    print("   • Automatic trace and span creation")
     print("   • Cost and performance tracking")
     print("   • Provider-agnostic observability")
     print("   • Quality scoring and analytics")

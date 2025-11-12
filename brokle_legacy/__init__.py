@@ -8,7 +8,7 @@ from .config import Config
 from .decorators import observe, observe_llm, observe_retrieval, trace_workflow
 from .types.observability import (
     ObservationLevel,
-    ObservationType,
+    SpanType,
     ScoreDataType,
     ScoreSource,
 )
@@ -26,7 +26,7 @@ __all__ = [
     "observe_retrieval",
     "trace_workflow",
     # Types
-    "ObservationType",
+    "SpanType",
     "ObservationLevel",
     "ScoreDataType",
     "ScoreSource",

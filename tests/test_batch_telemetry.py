@@ -83,7 +83,7 @@ class TestTelemetryEventTypes:
     def test_event_type_enum_values(self):
         """Event types should have correct string values."""
         assert TelemetryEventType.TRACE == "trace"
-        assert TelemetryEventType.OBSERVATION == "observation"
+        assert TelemetryEventType.SPAN == "span"
         assert TelemetryEventType.QUALITY_SCORE == "quality_score"
 
     def test_telemetry_event_creation(self):
@@ -135,7 +135,7 @@ class TestTelemetryBatchRequest:
         """Batch request should serialize to JSON correctly."""
         event = TelemetryEvent(
             event_id=generate_event_id(),
-            event_type=TelemetryEventType.OBSERVATION,
+            event_type=TelemetryEventType.SPAN,
             payload={"type": "llm", "name": "OpenAI Chat"},
             timestamp=1677610602
         )
@@ -145,7 +145,7 @@ class TestTelemetryBatchRequest:
 
         assert "events" in data
         assert len(data["events"]) == 1
-        assert data["events"][0]["event_type"] == "observation"
+        assert data["events"][0]["event_type"] == "span"
         assert data["events"][0]["payload"]["name"] == "OpenAI Chat"
 
     def test_batch_request_max_size(self):
@@ -154,7 +154,7 @@ class TestTelemetryBatchRequest:
         events = [
             TelemetryEvent(
                 event_id=generate_event_id(),
-                event_type=TelemetryEventType.OBSERVATION,
+                event_type=TelemetryEventType.SPAN,
                 payload={}
             )
             for _ in range(1001)
@@ -288,7 +288,7 @@ class TestBatchTelemetryIntegration:
             ),
             TelemetryEvent(
                 event_id=generate_event_id(),
-                event_type=TelemetryEventType.OBSERVATION,
+                event_type=TelemetryEventType.SPAN,
                 payload={"trace_id": "01ABC", "type": "llm"}
             ),
         ]
@@ -306,7 +306,7 @@ class TestBatchTelemetryIntegration:
         assert data["environment"] == "staging"
         assert len(data["events"]) == 2
         assert data["events"][0]["event_type"] == "trace"
-        assert data["events"][1]["event_type"] == "observation"
+        assert data["events"][1]["event_type"] == "span"
 
     def test_partial_failure_handling(self):
         """Batch response should handle partial failures."""

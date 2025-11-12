@@ -1,29 +1,29 @@
 """
-Observation client for observability.
+Span client for observability.
 
-Provides client-side observation management with fluent API for different observation types.
+Provides client-side span management with fluent API for different span types.
 """
 
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from ..types.observability import Observation, ObservationLevel, ObservationType, Score, ScoreDataType, ScoreSource
+from ..types.observability import Span, ObservationLevel, SpanType, Score, ScoreDataType, ScoreSource
 from .._utils.ulid import generate_ulid
-from .context import push_observation, pop_observation, get_current_observation_id
+from .context import push_span, pop_span, get_current_span_id
 
 if TYPE_CHECKING:
     from ..client import Brokle, AsyncBrokle
 
 
-class ObservationClient:
+class SpanClient:
     """
-    Client-side observation management.
+    Client-side span management.
 
-    Provides fluent API for building observations with type-specific helpers
+    Provides fluent API for building spans with type-specific helpers
     (generation, span, event, etc.).
 
     Example:
-        >>> obs = trace.observation(ObservationType.GENERATION, "openai-call")
+        >>> obs = trace.span(SpanType.GENERATION, "openai-call")
         >>> obs.generation(
         ...     model="gpt-4",
         ...     input={"prompt": "Hello"},
@@ -36,34 +36,34 @@ class ObservationClient:
         self,
         client: 'Brokle',
         trace_id: str,
-        type: ObservationType,
+        type: SpanType,
         name: str,
-        parent_observation_id: Optional[str] = None,
+        parent_span_id: Optional[str] = None,
         **kwargs
     ):
         """
-        Initialize observation client.
+        Initialize span client.
 
         Args:
             client: Brokle client instance
             trace_id: Parent trace ULID
-            type: Observation type
-            name: Human-readable observation name
-            parent_observation_id: Optional parent observation ULID
-            **kwargs: Additional observation fields
+            type: Span type
+            name: Human-readable span name
+            parent_span_id: Optional parent span ULID
+            **kwargs: Additional span fields
         """
         # Generate ULID if not provided
         obs_id = kwargs.pop('id', None) or generate_ulid()
 
         # Auto-detect parent if not provided
-        if parent_observation_id is None:
-            parent_observation_id = get_current_observation_id()
+        if parent_span_id is None:
+            parent_span_id = get_current_span_id()
         
-        # Create observation entity
-        self.observation = Observation(
+        # Create span entity
+        self.span = Span(
             id=obs_id,
             trace_id=trace_id,
-            parent_observation_id=parent_observation_id,
+            parent_span_id=parent_span_id,
             type=type,
             name=name,
             start_time=datetime.now(timezone.utc),
@@ -73,8 +73,8 @@ class ObservationClient:
         self._client = client
         self._submitted = False
         
-        # Push to context for child observations
-        push_observation(self.observation.id)
+        # Push to context for child spans
+        push_span(self.span.id)
 
     def generation(
         self,
@@ -86,7 +86,7 @@ class ObservationClient:
         **kwargs
     ) -> 'ObservationClient':
         """
-        Configure as LLM generation observation.
+        Configure as LLM generation span.
 
         Auto-extracts token usage and calculates costs from output.
 
@@ -96,7 +96,7 @@ class ObservationClient:
             output: Output data (e.g., {"response": "...", "usage": {...}})
             model_parameters: Model configuration (temperature, max_tokens, etc.)
             usage: Token usage dict (prompt_tokens, completion_tokens, total_tokens)
-            **kwargs: Additional observation fields
+            **kwargs: Additional span fields
 
         Returns:
             Self for fluent chaining
@@ -109,15 +109,15 @@ class ObservationClient:
             ...     model_parameters={"temperature": "0.7"}
             ... )
         """
-        # Set observation type to GENERATION
-        self.observation.type = ObservationType.GENERATION
-        self.observation.model = model
+        # Set span type to GENERATION
+        self.span.type = SpanType.GENERATION
+        self.span.model = model
 
         if input is not None:
-            self.observation.input = input
+            self.span.input = input
 
         if output is not None:
-            self.observation.output = output
+            self.span.output = output
 
             # Auto-extract token usage from output
             if "usage" in output and usage is None:
@@ -125,13 +125,13 @@ class ObservationClient:
 
         if model_parameters is not None:
             # Convert all values to strings for ClickHouse Map(String, String)
-            self.observation.model_parameters = {
+            self.span.model_parameters = {
                 k: str(v) for k, v in model_parameters.items()
             }
 
         # Set token usage
         if usage is not None:
-            self.observation.usage_details = {
+            self.span.usage_details = {
                 "prompt_tokens": usage.get("prompt_tokens", 0),
                 "completion_tokens": usage.get("completion_tokens", 0),
                 "total_tokens": usage.get("total_tokens", 0),
@@ -139,8 +139,8 @@ class ObservationClient:
 
         # Set additional fields
         for key, value in kwargs.items():
-            if hasattr(self.observation, key):
-                setattr(self.observation, key, value)
+            if hasattr(self.span, key):
+                setattr(self.span, key, value)
 
         return self
 
@@ -152,13 +152,13 @@ class ObservationClient:
         **kwargs
     ) -> 'ObservationClient':
         """
-        Configure as generic span observation.
+        Configure as generic span span.
 
         Args:
             input: Input data
             output: Output data
             metadata: String key-value metadata
-            **kwargs: Additional observation fields
+            **kwargs: Additional span fields
 
         Returns:
             Self for fluent chaining
@@ -170,20 +170,20 @@ class ObservationClient:
             ...     metadata={"db": "postgres"}
             ... )
         """
-        self.observation.type = ObservationType.SPAN
+        self.span.type = SpanType.SPAN
 
         if input is not None:
-            self.observation.input = input
+            self.span.input = input
 
         if output is not None:
-            self.observation.output = output
+            self.span.output = output
 
         if metadata is not None:
-            self.observation.metadata = metadata
+            self.span.metadata = metadata
 
         for key, value in kwargs.items():
-            if hasattr(self.observation, key):
-                setattr(self.observation, key, value)
+            if hasattr(self.span, key):
+                setattr(self.span, key, value)
 
         return self
 
@@ -194,12 +194,12 @@ class ObservationClient:
         **kwargs
     ) -> 'ObservationClient':
         """
-        Configure as point-in-time event observation.
+        Configure as point-in-time event span.
 
         Args:
             input: Event data
             metadata: String key-value metadata
-            **kwargs: Additional observation fields
+            **kwargs: Additional span fields
 
         Returns:
             Self for fluent chaining
@@ -210,56 +210,56 @@ class ObservationClient:
             ...     metadata={"source": "frontend"}
             ... )
         """
-        self.observation.type = ObservationType.EVENT
+        self.span.type = SpanType.EVENT
 
         if input is not None:
-            self.observation.input = input
+            self.span.input = input
 
         if metadata is not None:
-            self.observation.metadata = metadata
+            self.span.metadata = metadata
 
         # Events typically don't have end_time (point-in-time)
-        self.observation.end_time = self.observation.start_time
+        self.span.end_time = self.span.start_time
 
         for key, value in kwargs.items():
-            if hasattr(self.observation, key):
-                setattr(self.observation, key, value)
+            if hasattr(self.span, key):
+                setattr(self.span, key, value)
 
         return self
 
-    def child_observation(
+    def child_span(
         self,
-        type: ObservationType,
+        type: SpanType,
         name: str,
         **kwargs
     ) -> 'ObservationClient':
         """
-        Create child observation.
+        Create child span.
         
         Args:
-            type: Observation type
-            name: Human-readable observation name
-            **kwargs: Additional observation fields
+            type: Span type
+            name: Human-readable span name
+            **kwargs: Additional span fields
             
         Returns:
-            New ObservationClient for child observation
+            New ObservationClient for child span
             
         Example:
-            >>> child_obs = obs.child_observation(ObservationType.TOOL, "vector-search")
+            >>> child_obs = obs.child_span(SpanType.TOOL, "vector-search")
             >>> child_obs.end()
         """
         return ObservationClient(
             client=self._client,
-            trace_id=self.observation.trace_id,
+            trace_id=self.span.trace_id,
             type=type,
             name=name,
-            parent_observation_id=self.observation.id,
+            parent_span_id=self.span.id,
             **kwargs
         )
 
     def update(self, **kwargs) -> None:
         """
-        Update observation fields.
+        Update span fields.
 
         This creates a new version in the backend (immutable event pattern).
 
@@ -271,23 +271,23 @@ class ObservationClient:
             >>> obs.update(output={"result": "success"})
         """
         for key, value in kwargs.items():
-            if hasattr(self.observation, key):
-                setattr(self.observation, key, value)
+            if hasattr(self.span, key):
+                setattr(self.span, key, value)
 
-    def set_level(self, level: ObservationLevel, status_message: Optional[str] = None) -> None:
+    def set_level(self, level: SpanLevel, status_message: Optional[str] = None) -> None:
         """
-        Set observation level and optional status message.
+        Set span level and optional status message.
 
         Args:
-            level: Observation level (DEBUG, DEFAULT, WARNING, ERROR)
+            level: Span level (DEBUG, DEFAULT, WARNING, ERROR)
             status_message: Optional status/error message
 
         Example:
             >>> obs.set_level(ObservationLevel.ERROR, "Connection failed")
         """
-        self.observation.level = level
+        self.span.level = level
         if status_message is not None:
-            self.observation.status_message = status_message
+            self.span.status_message = status_message
 
     def score(
         self,
@@ -298,7 +298,7 @@ class ObservationClient:
         **kwargs
     ) -> str:
         """
-        Add quality score to observation.
+        Add quality score to span.
 
         Args:
             name: Score name/metric
@@ -324,7 +324,7 @@ class ObservationClient:
         
         score = Score(
             id=generate_ulid(),
-            observation_id=self.observation.id,
+            span_id=self.span.id,
             name=name,
             value=value,
             string_value=string_value,
@@ -345,7 +345,7 @@ class ObservationClient:
 
     def end(self, output: Optional[Dict[str, Any]] = None, **kwargs) -> None:
         """
-        Complete observation and submit to backend.
+        Complete span and submit to backend.
 
         Args:
             output: Optional output data
@@ -358,27 +358,27 @@ class ObservationClient:
             return  # Already submitted, ignore duplicate calls
 
         # Set end time
-        self.observation.end_time = datetime.now(timezone.utc)
+        self.span.end_time = datetime.now(timezone.utc)
 
         # Update final fields
         if output is not None:
-            self.observation.output = output
+            self.span.output = output
 
         for key, value in kwargs.items():
-            if hasattr(self.observation, key):
-                setattr(self.observation, key, value)
+            if hasattr(self.span, key):
+                setattr(self.span, key, value)
 
         # Submit to backend via batch API
         from ..types.telemetry import TelemetryEventType
 
         self._client.submit_batch_event(
-            TelemetryEventType.OBSERVATION,
-            self.observation.model_dump(mode="json", exclude_none=True)
+            TelemetryEventType.SPAN,
+            self.span.model_dump(mode="json", exclude_none=True)
         )
 
         self._submitted = True
         # Pop from context
-        pop_observation()
+        pop_span()
 
     def __enter__(self):
         """Context manager entry."""
@@ -388,8 +388,8 @@ class ObservationClient:
         """Context manager exit with auto-end."""
         if exc_type is not None:
             # Error occurred, set error level and message
-            self.observation.level = ObservationLevel.ERROR
-            self.observation.status_message = str(exc_val)
+            self.span.level = ObservationLevel.ERROR
+            self.span.status_message = str(exc_val)
 
         self.end()
 

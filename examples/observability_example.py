@@ -71,11 +71,11 @@ async def score_generation_quality(response: str, prompt: str) -> float:
     quality_score = min(0.95, len(response) / 100.0)  # Simple quality metric
 
     # Create a quality score in the observability system
-    # This would typically be done in the trace/observation context
+    # This would typically be done in the trace/span context
     return quality_score
 
 
-# Example 4: Complex workflow with nested observations
+# Example 4: Complex workflow with nested spans
 @observe_enhanced(name="complex_ai_workflow", as_type="span")
 async def complex_ai_workflow(user_query: str) -> Dict[str, Any]:
     """A complex AI workflow with multiple steps and observability."""
@@ -137,32 +137,32 @@ async def direct_observability_example():
 
     print(f"Created trace: {trace.id}")
 
-    # Create an observation
-    observation = await client.observability.create_observation(
+    # Create an span
+    span = await client.observability.create_span(
         trace_id=trace.id,
-        name="manual_observation",
-        observation_type="llm",
+        name="manual_span",
+        span_type="llm",
         model="gpt-4",
         provider="openai",
         input_data={"prompt": "What is the capital of France?"},
         prompt_tokens=10,
     )
 
-    print(f"Created observation: {observation.id}")
+    print(f"Created span: {span.id}")
 
     # Simulate some work
     await asyncio.sleep(1)
 
-    # Complete the observation
-    completed = await client.observability.complete_observation(
-        observation.id,
+    # Complete the span
+    completed = await client.observability.complete_span(
+        span.id,
         output_data={"response": "The capital of France is Paris."},
         completion_tokens=8,
         total_tokens=18,
         total_cost=0.0001,
     )
 
-    print(f"Completed observation: {completed.id}")
+    print(f"Completed span: {completed.id}")
 
     # Get trace statistics
     stats = await client.observability.get_trace_stats(trace.id)
@@ -171,7 +171,7 @@ async def direct_observability_example():
     # Create a quality score
     quality_score = await client.observability.create_quality_score(
         trace_id=trace.id,
-        observation_id=observation.id,
+        span_id=span.id,
         score_name="relevance",
         score_value=0.95,
         data_type="NUMERIC",
@@ -200,12 +200,12 @@ async def batch_operations_example():
     traces = await client.observability.create_traces_batch(trace_data)
     print(f"Created {len(traces)} traces in batch")
 
-    # Create multiple observations in batch
-    observation_data = [
+    # Create multiple spans in batch
+    span_data = [
         {
             "trace_id": traces[i % len(traces)].id,
-            "name": f"batch_observation_{i}",
-            "external_observation_id": f"ext_obs_{i}",
+            "name": f"batch_span_{i}",
+            "external_span_id": f"ext_obs_{i}",
             "type": "llm",
             "start_time": datetime.now(timezone.utc).isoformat(),
             "model": "gpt-3.5-turbo",
@@ -214,10 +214,10 @@ async def batch_operations_example():
         for i in range(10)
     ]
 
-    observations = await client.observability.create_observations_batch(
-        observation_data
+    spans = await client.observability.create_spans_batch(
+        span_data
     )
-    print(f"Created {len(observations)} observations in batch")
+    print(f"Created {len(spans)} spans in batch")
 
 
 # Example 7: Analytics and querying
@@ -232,9 +232,9 @@ async def analytics_example():
         f"Found {traces.total} total traces, showing {len(traces.traces or [])} recent ones"
     )
 
-    # List observations for a specific model
-    observations = await client.observability.list_observations(model="gpt-4", limit=5)
-    print(f"Found {observations.total} observations for GPT-4")
+    # List spans for a specific model
+    spans = await client.observability.list_spans(model="gpt-4", limit=5)
+    print(f"Found {spans.total} spans for GPT-4")
 
     # List quality scores
     quality_scores = await client.observability.list_quality_scores(

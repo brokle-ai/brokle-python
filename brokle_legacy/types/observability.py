@@ -18,9 +18,9 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
 
 
-class ObservationType(str, Enum):
+class SpanType(str, Enum):
     """
-    Observation types.
+    Span types.
 
     - LLM: Legacy type for LLM calls (deprecated in favor of GENERATION)
     - GENERATION: LLM text generation
@@ -43,9 +43,9 @@ class ObservationType(str, Enum):
     CHAIN = "CHAIN"
 
 
-class ObservationLevel(str, Enum):
+class SpanLevel(str, Enum):
     """
-    Observation severity/logging level matching backend exactly.
+    Span severity/logging level matching backend exactly.
 
     - DEBUG: Detailed debugging information
     - INFO: Informational messages
@@ -93,7 +93,7 @@ class Trace(BaseModel):
     Complete operation trace with hierarchy and session support.
 
     Traces represent top-level operations (e.g., user queries, workflows) and can
-    contain multiple observations (LLM calls, tool calls, etc.).
+    contain multiple spans (LLM calls, tool calls, etc.).
 
     Attributes:
         id: ULID identifier (26 chars) - generated client-side
@@ -149,22 +149,22 @@ class Trace(BaseModel):
         return v
 
 
-class Observation(BaseModel):
+class Span(BaseModel):
     """
     Span/event/generation within a trace.
 
     Observations represent individual operations within a trace (LLM calls, tool calls,
-    embeddings, etc.) and can be nested via parent_observation_id.
+    embeddings, etc.) and can be nested via parent_span_id.
 
     Attributes:
         id: ULID identifier (26 chars) - generated client-side
         trace_id: Parent trace ULID
-        parent_observation_id: Optional parent observation ULID for nesting
+        parent_span_id: Optional parent span ULID for nesting
         project_id: Project ULID - set by backend from API key
-        type: Observation type (LLM, GENERATION, SPAN, etc.)
-        name: Human-readable observation name
-        start_time: Observation start timestamp
-        end_time: Optional observation end timestamp
+        type: Span type (LLM, GENERATION, SPAN, etc.)
+        name: Human-readable span name
+        start_time: Span start timestamp
+        end_time: Optional span end timestamp
         model: Optional model identifier (e.g., "gpt-4", "claude-3-opus")
         model_parameters: Model configuration as string key-value pairs
         input: Optional input data as dict
@@ -181,12 +181,12 @@ class Observation(BaseModel):
     # Identifiers
     id: str = Field(..., description="ULID identifier (26 chars)", min_length=26, max_length=26)
     trace_id: str = Field(..., description="Parent trace ULID", min_length=26, max_length=26)
-    parent_observation_id: Optional[str] = Field(None, description="Parent observation ULID")
+    parent_span_id: Optional[str] = Field(None, description="Parent span ULID")
     project_id: Optional[str] = Field(None, description="Project ULID (set by backend)")
 
-    # Observation metadata
-    type: ObservationType = Field(..., description="Observation type")
-    name: str = Field(..., description="Human-readable observation name")
+    # Span metadata
+    type: SpanType = Field(..., description="Span type")
+    name: str = Field(..., description="Human-readable span name")
     start_time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Start timestamp")
     end_time: Optional[datetime] = Field(None, description="End timestamp")
 
@@ -206,14 +206,14 @@ class Observation(BaseModel):
     usage_details: Dict[str, int] = Field(default_factory=dict, description="Token usage")
 
     # Status and logging
-    level: ObservationLevel = Field(default=ObservationLevel.DEFAULT, description="Severity level")
+    level: SpanLevel = Field(default=ObservationLevel.DEFAULT, description="Severity level")
     status_message: Optional[str] = Field(None, description="Status/error message")
 
     # Completion tracking for streaming responses
     completion_start_time: Optional[datetime] = Field(None, description="Completion start timestamp")
     time_to_first_token_ms: Optional[int] = Field(None, description="Time to first token (ms)", ge=0)
 
-    @field_validator('id', 'trace_id', 'parent_observation_id', 'project_id')
+    @field_validator('id', 'trace_id', 'parent_span_id', 'project_id')
     @classmethod
     def validate_ulid(cls, v: Optional[str]) -> Optional[str]:
         """Validate ULID format (26 chars, Crockford's base32)."""
@@ -231,14 +231,14 @@ class Score(BaseModel):
     """
     Quality evaluation score.
 
-    Scores can be attached to traces, observations, or sessions for quality evaluation.
-    At least one of trace_id, observation_id, or session_id must be set.
+    Scores can be attached to traces, spans, or sessions for quality evaluation.
+    At least one of trace_id, span_id, or session_id must be set.
 
     Attributes:
         id: ULID identifier (26 chars) - generated client-side
         project_id: Project ULID - set by backend from API key
         trace_id: Optional trace ULID
-        observation_id: Optional observation ULID
+        span_id: Optional span ULID
         session_id: Optional session ULID
         name: Score name/metric (e.g., "accuracy", "quality", "relevance")
         value: Numeric value (for NUMERIC and BOOLEAN types)
@@ -253,11 +253,11 @@ class Score(BaseModel):
         timestamp: Score timestamp
     """
 
-    # Identifiers (at least one of trace_id, observation_id, session_id must be set)
+    # Identifiers (at least one of trace_id, span_id, session_id must be set)
     id: str = Field(..., description="ULID identifier (26 chars)", min_length=26, max_length=26)
     project_id: Optional[str] = Field(None, description="Project ULID (set by backend)")
     trace_id: Optional[str] = Field(None, description="Trace ULID")
-    observation_id: Optional[str] = Field(None, description="Observation ULID")
+    span_id: Optional[str] = Field(None, description="Span ULID")
     session_id: Optional[str] = Field(None, description="Session ULID")
 
     # Score data
@@ -281,7 +281,7 @@ class Score(BaseModel):
     # Timestamp
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Score timestamp")
 
-    @field_validator('id', 'project_id', 'trace_id', 'observation_id', 'session_id', 'author_user_id')
+    @field_validator('id', 'project_id', 'trace_id', 'span_id', 'session_id', 'author_user_id')
     @classmethod
     def validate_ulid(cls, v: Optional[str]) -> Optional[str]:
         """Validate ULID format (26 chars, Crockford's base32)."""
@@ -341,12 +341,12 @@ class Session(BaseModel):
 
 
 __all__ = [
-    "ObservationType",
+    "SpanType",
     "ObservationLevel",
     "ScoreDataType",
     "ScoreSource",
     "Trace",
-    "Observation",
+    "Span",
     "Score",
     "Session",
 ]

@@ -87,7 +87,7 @@ brokle/
 ├── _client/              # Core HTTP client implementation
 ├── evaluation/           # Response evaluation framework
 ├── integrations/         # Auto-instrumentation for various libraries
-├── observability/        # Observability primitives (trace, observation, score)
+├── observability/        # Observability primitives (trace, span, score)
 ├── _task_manager/       # Background task management
 ├── testing/             # Testing utilities
 ├── types/               # Type definitions and attributes
@@ -119,7 +119,7 @@ brokle/
    - Full platform feature access via `Brokle` client
    - Async/await support throughout
    - Advanced routing, caching, and evaluation
-   - Direct access to observability primitives (trace, observation, score)
+   - Direct access to observability primitives (trace, span, score)
 
 ### Core Components
 
@@ -456,7 +456,7 @@ with brokle.start_as_current_generation(
 ```python
 with brokle.start_as_current_span(
     name="operation",
-    as_type="span",                       # Observation type
+    as_type="span",                       # Span type
     input="input data",
     metadata={"key": "value"},
     level="DEFAULT",
@@ -479,7 +479,7 @@ with brokle.start_as_current_span("parent") as parent:
     parent.update(output="parent result")
 ```
 
-### 3. Manual Observations (Maximum Control)
+### 3. Manual Spans (Maximum Control)
 
 **Manual span with explicit lifecycle:**
 ```python
@@ -521,7 +521,7 @@ child.end()
 parent.end()
 ```
 
-### Updating Observations
+### Updating Spans
 
 **Update during execution:**
 ```python
@@ -616,13 +616,13 @@ brokle.set_trace_input({"user_query": "..."})
 brokle.set_trace_output({"response": "..."})
 ```
 
-### Trace and Observation IDs
+### Trace and Span IDs
 
 **Automatic ULID generation:**
 ```python
 with brokle.start_as_current_span("op") as span:
     trace_id = span.trace_id          # "01HQXYZ..." (26 chars, sortable)
-    observation_id = span.observation_id
+    span_id = span.span_id
 ```
 
 **Custom trace ID (link to existing trace):**

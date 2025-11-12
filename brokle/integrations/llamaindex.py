@@ -41,7 +41,7 @@ except ImportError:
 from opentelemetry.trace import Status, StatusCode
 
 from ..client import get_client
-from ..types import Attrs, ObservationType, LLMProvider, OperationType
+from ..types import Attrs, SpanType, LLMProvider, OperationType
 
 
 class BrokleLlamaIndexHandler(BaseCallbackHandler):
@@ -151,33 +151,33 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
 
         elif event_type == CBEventType.QUERY:
             span_name = "query"
-            attrs[Attrs.BROKLE_OBSERVATION_TYPE] = ObservationType.SPAN
+            attrs[Attrs.BROKLE_SPAN_TYPE] = SpanType.SPAN
             if EventPayload.QUERY_STR in payload:
                 attrs["llamaindex.query"] = payload[EventPayload.QUERY_STR]
 
         elif event_type == CBEventType.RETRIEVE:
             span_name = "retrieve"
-            attrs[Attrs.BROKLE_OBSERVATION_TYPE] = ObservationType.RETRIEVAL
+            attrs[Attrs.BROKLE_SPAN_TYPE] = SpanType.RETRIEVAL
             if EventPayload.QUERY_STR in payload:
                 attrs["llamaindex.query"] = payload[EventPayload.QUERY_STR]
 
         elif event_type == CBEventType.EMBEDDING:
             span_name = "embedding"
-            attrs[Attrs.BROKLE_OBSERVATION_TYPE] = ObservationType.EMBEDDING
+            attrs[Attrs.BROKLE_SPAN_TYPE] = SpanType.EMBEDDING
             attrs[Attrs.GEN_AI_OPERATION_NAME] = OperationType.EMBEDDINGS
 
         elif event_type == CBEventType.NODE_PARSING:
             span_name = "node_parsing"
-            attrs[Attrs.BROKLE_OBSERVATION_TYPE] = ObservationType.SPAN
+            attrs[Attrs.BROKLE_SPAN_TYPE] = SpanType.SPAN
 
         elif event_type == CBEventType.CHUNKING:
             span_name = "chunking"
-            attrs[Attrs.BROKLE_OBSERVATION_TYPE] = ObservationType.SPAN
+            attrs[Attrs.BROKLE_SPAN_TYPE] = SpanType.SPAN
 
         else:
             # Generic span for other event types
             span_name = str(event_type).lower()
-            attrs[Attrs.BROKLE_OBSERVATION_TYPE] = ObservationType.SPAN
+            attrs[Attrs.BROKLE_SPAN_TYPE] = SpanType.SPAN
 
         # Create span
         span = self._client._tracer.start_span(name=span_name, attributes=attrs)
@@ -262,7 +262,7 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
             Tuple of (span_name, attributes)
         """
         attrs = {
-            Attrs.BROKLE_OBSERVATION_TYPE: ObservationType.GENERATION,
+            Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
             Attrs.GEN_AI_OPERATION_NAME: OperationType.CHAT,
         }
 

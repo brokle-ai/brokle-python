@@ -21,7 +21,7 @@ client = Brokle()
 event_types = [
     ("event", {"name": "generic-event", "data": "some_data"}),
     ("trace", {"name": "test-trace", "user_id": "user_123"}),
-    ("observation", {"name": "test-observation", "type": "llm"}),
+    ("span", {"name": "test-span", "type": "llm"}),
     ("quality_score", {"name": "test-score", "score": 0.95}),
 ]
 

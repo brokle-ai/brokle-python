@@ -20,7 +20,7 @@
 │  ┌──────────────────────────────────────────────────────┐      │
 │  │ @observe()                                            │      │
 │  │ - Telemetry + Span management                        │      │
-│  │ - Creates traces/observations                        │      │
+│  │ - Creates traces/spans                        │      │
 │  │ - NO gateway routing                                 │      │
 │  │ Use case: "I want to track my multi-step pipeline"   │      │
 │  └──────────────────────────────────────────────────────┘      │
@@ -65,13 +65,13 @@ brokle = Brokle(api_key="bk_...")
 
 @observe(name="rag-pipeline")
 def customer_support_rag(question: str):
-    with brokle.observation(name="embed", type="embedding"):
+    with brokle.span(name="embed", type="embedding"):
         embedding = embed_text(question)
 
-    with brokle.observation(name="search", type="retrieval"):
+    with brokle.span(name="search", type="retrieval"):
         docs = pinecone.query(embedding)
 
-    with brokle.observation(name="llm", type="llm"):
+    with brokle.span(name="llm", type="llm"):
         import openai
         response = openai.chat.completions.create(...)
 
@@ -106,7 +106,7 @@ brokle = Brokle(api_key="bk_...")
 response = brokle.chat.completions.create(model="gpt-4", messages=[...])
 
 trace = brokle.trace(name="workflow")
-with trace.observation(name="llm", type="llm"):
+with trace.span(name="llm", type="llm"):
     response = brokle.chat.completions.create(...)
 trace.score(name="quality", value=0.9)
 ```

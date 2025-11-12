@@ -108,7 +108,7 @@ class Brokle(HTTPBase):
             ...     user_id="user_123",
             ...     metadata={"intent": "search"}
             ... )
-            >>> obs = trace.observation(ObservationType.LLM, "openai-call")
+            >>> obs = trace.span(SpanType.LLM, "openai-call")
             >>> obs.generation(model="gpt-4", input={...}, output={...})
             >>> obs.end()
             >>> trace.score("quality", 0.95)
@@ -116,7 +116,7 @@ class Brokle(HTTPBase):
 
             Or with context manager:
             >>> with client.trace(name="user-query") as trace:
-            ...     obs = trace.observation(ObservationType.LLM, "openai-call")
+            ...     obs = trace.span(SpanType.LLM, "openai-call")
             ...     obs.end()
             ...     # trace.end() called automatically
         """
@@ -170,14 +170,14 @@ class Brokle(HTTPBase):
         return getattr(self, '_disabled', False)
 
     def submit_telemetry(
-        self, data: Dict[str, Any], event_type: str = "observation"
+        self, data: Dict[str, Any], event_type: str = "span"
     ) -> None:
         """
         Submit telemetry data for background processing.
 
         Args:
             data: Telemetry data to submit
-            event_type: Event type (defaults to "observation" for LLM/SDK operations)
+            event_type: Event type (defaults to "span" for LLM/SDK operations)
         """
         if self.is_disabled or not self._background_processor:
             return  # Skip telemetry when disabled
@@ -190,7 +190,7 @@ class Brokle(HTTPBase):
         This is the preferred method for submitting structured telemetry events.
 
         Args:
-            event_type: Type of event (trace, observation, etc.)
+            event_type: Type of event (trace, span, etc.)
             payload: Event payload data
 
         Returns:
@@ -486,7 +486,7 @@ class AsyncBrokle(HTTPBase):
 
         Example:
             >>> async with client.trace(name="user-query") as trace:
-            ...     obs = trace.observation(ObservationType.LLM, "openai-call")
+            ...     obs = trace.span(SpanType.LLM, "openai-call")
             ...     obs.end()
         """
         from .observability.trace import AsyncTraceClient
@@ -533,14 +533,14 @@ class AsyncBrokle(HTTPBase):
         return getattr(self, '_disabled', False)
 
     def submit_telemetry(
-        self, data: Dict[str, Any], event_type: str = "observation"
+        self, data: Dict[str, Any], event_type: str = "span"
     ) -> None:
         """
         Submit telemetry data for background processing.
 
         Args:
             data: Telemetry data to submit
-            event_type: Event type (defaults to "observation" for LLM/SDK operations)
+            event_type: Event type (defaults to "span" for LLM/SDK operations)
         """
         if self.is_disabled or not self._background_processor:
             return  # Skip telemetry when disabled
@@ -553,7 +553,7 @@ class AsyncBrokle(HTTPBase):
         This is the preferred method for submitting structured telemetry events.
 
         Args:
-            event_type: Type of event (trace, observation, etc.)
+            event_type: Type of event (trace, span, etc.)
             payload: Event payload data
 
         Returns:

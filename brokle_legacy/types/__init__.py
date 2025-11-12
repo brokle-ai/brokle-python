@@ -4,9 +4,9 @@ Type definitions for Brokle SDK.
 
 # from .attributes import BrokleOtelSpanAttributes  # TODO: Add when attributes module is created
 from .observability import (
-    Observation,
+    Span,
     ObservationLevel,
-    ObservationType,
+    SpanType,
     Score,
     ScoreDataType,
     ScoreSource,
@@ -54,10 +54,10 @@ __all__ = [
     "EvaluationResponse",
     # Observability entities
     "Trace",
-    "Observation",
+    "Span",
     "Score",
     "Session",
-    "ObservationType",
+    "SpanType",
     "ObservationLevel",
     "ScoreDataType",
     "ScoreSource",

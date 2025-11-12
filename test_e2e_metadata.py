@@ -10,7 +10,7 @@ from brokle import Brokle
 from brokle.types.attributes import BrokleOtelSpanAttributes as Attrs
 
 # Configuration
-API_KEY = "bk_fzwUZlCBIE3Z0QfGnfAIKjZ4DuK4ChJHf3mPnnbV"
+API_KEY = "bk_J4opq4VfeKP3Cg5MB6w5KgxiRcG6YoXcG79tf7xY"
 BASE_URL = "http://localhost:8080"
 
 # Initialize client
@@ -38,7 +38,7 @@ print("✓ Simple span created")
 # Test 2: LLM Generation
 print("\n=== Test 2: LLM Generation ===")
 with client.start_as_current_span("python-chat-gpt4") as span:
-    span.set_attribute(Attrs.BROKLE_OBSERVATION_TYPE, "generation")
+    span.set_attribute(Attrs.BROKLE_SPAN_TYPE, "generation")
     span.set_attribute(Attrs.GEN_AI_PROVIDER_NAME, "openai")
     span.set_attribute(Attrs.GEN_AI_REQUEST_MODEL, "gpt-4")
     span.set_attribute(Attrs.GEN_AI_USAGE_INPUT_TOKENS, 12)
@@ -73,7 +73,7 @@ print("\n$ docker exec brokle-clickhouse clickhouse-client \\")
 print("    --user brokle --password brokle_password \\")
 print("    --query \"")
 print("    SELECT name, metadata, attributes")
-print("    FROM observations")
+print("    FROM spans")
 print("    WHERE attributes LIKE '%python-%'")
 print("    ORDER BY start_time DESC")
 print("    LIMIT 3")
