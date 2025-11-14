@@ -87,15 +87,22 @@ class BrokleOtelSpanAttributes:
 
     # ========== Brokle Span Management ==========
     BROKLE_SPAN_ID = "brokle.span_id"
-    BROKLE_SPAN_TYPE = "brokle.span_type"  # generation/span/event
+    BROKLE_SPAN_TYPE = "brokle.span.type"  # generation/span/event
     BROKLE_SPAN_NAME = "brokle.span_name"
     BROKLE_PARENT_SPAN_ID = "brokle.parent_span_id"
     BROKLE_SPAN_LEVEL = "brokle.span.level"  # DEBUG/DEFAULT/WARNING/ERROR
 
     # ========== Brokle Extended Usage Metrics ==========
     BROKLE_USAGE_TOTAL_TOKENS = "brokle.usage.total_tokens"  # Convenience metric
-    BROKLE_USAGE_COST_USD = "brokle.usage.cost_usd"  # Estimated cost
     BROKLE_USAGE_LATENCY_MS = "brokle.usage.latency_ms"  # Response latency
+
+    # Note: brokle.cost.* attributes are set by BACKEND only (calculated from usage + model pricing)
+    # SDKs should NOT set cost attributes - backend calculates costs server-side
+
+    # ========== Brokle Prompt Management ==========
+    BROKLE_PROMPT_ID = "brokle.prompt.id"
+    BROKLE_PROMPT_NAME = "brokle.prompt.name"
+    BROKLE_PROMPT_VERSION = "brokle.prompt.version"
 
     # ========== Brokle Quality Scores ==========
     BROKLE_SCORE_NAME = "brokle.score.name"
