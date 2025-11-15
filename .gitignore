@@ -159,3 +159,6 @@ benchmark_results/
 
 competitors/
 test_installation/
+
+# Claude Code local settings
+.claude/settings.local.json
