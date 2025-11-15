@@ -50,7 +50,8 @@ jobs:
       if: github.event_name == 'release'
       run: |
         TAG_VERSION="${{ steps.version.outputs.VERSION }}"
-        FILE_VERSION=$(python -c "from brokle.version import __version__; print(__version__)")
+        # Read version directly from file without importing (avoids dependency issues)
+        FILE_VERSION=$(grep '__version__ = ' brokle/version.py | sed 's/__version__ = "\(.*\)"/\1/')
 
         echo "Git tag version: $TAG_VERSION"
         echo "File version: $FILE_VERSION"
