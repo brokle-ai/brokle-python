@@ -77,8 +77,8 @@ def increment_version(current_version, increment_type):
 
 
 def update_version_file(version):
-    """Update the version in brokle/_version.py."""
-    version_file_path = "brokle/_version.py"
+    """Update the version in brokle/version.py."""
+    version_file_path = "brokle/version.py"
     logging.info(f"Updating version in {version_file_path} to {version}...")
 
     with open(version_file_path, "r") as file:
