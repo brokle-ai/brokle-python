@@ -193,31 +193,28 @@ def main():
         logging.info("Step 7: Pushing the tags...")
         run_command("git push --tags")
 
-        # Step 8: GitHub Release Instructions
-        logging.info("Step 8: Create GitHub Release")
-        print("🎉 Release process completed successfully!")
+        # Step 8: Success Message
+        logging.info("Step 8: Release Completed")
+        print("━" * 80)
+        print("✅ Release v{} created successfully!".format(new_version))
+        print("━" * 80)
         print("")
-        print("📝 Custom release notes template:")
-        print("─" * 50)
-        print(f"""### Installation
-
-```bash
-pip install brokle=={new_version}
-```
-
-### Documentation
-📖 **[Complete Documentation](https://github.com/brokle-ai/brokle-python/blob/main/README.md)**
-
-""")
-        print("─" * 50)
+        print("📦 What happens next:")
         print("")
-        print("Next steps for GitHub release:")
-        print("1. Go to: https://github.com/brokle-ai/brokle-python/releases")
-        print("2. Click 'Create a new release'")
-        print(f"3. Select tag: v{new_version}")
-        print("4. Add the custom template above at the TOP")
-        print("5. Click 'Generate release notes' to add auto-generated changelog")
-        print("6. Review and publish release")
+        print("1. GitHub Actions is now running:")
+        print("   • Building Python package")
+        print("   • Publishing to PyPI (OIDC Trusted Publishing)")
+        print("   • Creating GitHub Release automatically")
+        print("")
+        print("2. Monitor the workflow:")
+        print(f"   🔗 https://github.com/brokle-ai/brokle-python/actions")
+        print("")
+        print("3. After ~5 minutes, verify:")
+        print(f"   📦 PyPI: https://pypi.org/project/brokle/{new_version}/")
+        print(f"   📋 Release: https://github.com/brokle-ai/brokle-python/releases/tag/v{new_version}")
+        print("")
+        print("⚠️  Note: GitHub Release is created automatically by GitHub Actions.")
+        print("   No manual steps required!")
         print("")
         logging.info("🚀 Brokle SDK release process completed successfully!")
 
