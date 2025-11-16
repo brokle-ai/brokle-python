@@ -1,8 +1,10 @@
 name: Publish to PyPI
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
   workflow_dispatch:
     inputs:
       target:
@@ -37,17 +39,19 @@ jobs:
     - name: Extract version information
       id: version
       run: |
-        if [ "${{ github.event_name }}" = "release" ]; then
-          VERSION="${{ github.event.release.tag_name }}"
+        if [ "${{ github.event_name }}" = "push" ]; then
+          # Extract from tag (v0.2.11 → 0.2.11)
+          VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#v}"  # Remove 'v' prefix if present
         else
-          VERSION=$(python -c "from brokle.version import __version__; print(__version__)")
+          # Manual workflow_dispatch - read from file
+          VERSION=$(grep -oP '__version__ = "\K[^"]+' brokle/version.py)
         fi
         echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
         echo "Publishing version: ${VERSION}"
 
     - name: Validate version consistency
-      if: github.event_name == 'release'
+      if: github.event_name == 'push'
       run: |
         TAG_VERSION="${{ steps.version.outputs.VERSION }}"
         # Read version directly from file without importing (avoids dependency issues)
@@ -104,7 +108,7 @@ jobs:
         python -m twine upload --repository testpypi dist/* --verbose
 
     - name: Publish to PyPI (Trusted Publishing)
-      if: (github.event_name == 'release' || github.event.inputs.target == 'pypi') && steps.prerelease.outputs.IS_PRERELEASE != 'true'
+      if: (github.event_name == 'push' || github.event.inputs.target == 'pypi') && steps.prerelease.outputs.IS_PRERELEASE != 'true'
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         verbose: true
@@ -117,3 +121,33 @@ jobs:
       with:
         name: python-package-distributions
         path: dist/
+
+    - name: Create GitHub Release
+      if: github.event_name == 'push' && success()
+      uses: softprops/action-gh-release@v1
+      with:
+        name: v${{ steps.version.outputs.VERSION }}
+        body: |
+          ## Brokle Python SDK v${{ steps.version.outputs.VERSION }}
+
+          ### Installation
+
+          ```bash
+          pip install brokle==${{ steps.version.outputs.VERSION }}
+          ```
+
+          ### PyPI Package
+
+          📦 https://pypi.org/project/brokle/${{ steps.version.outputs.VERSION }}/
+
+          ### Changelog
+
+          See [CHANGELOG.md](./CHANGELOG.md) for detailed changes.
+
+          ---
+
+          **Full Changelog**: https://github.com/brokle-ai/brokle-python/compare/v${{ steps.version.outputs.VERSION }}...HEAD
+        files: dist/*
+        draft: false
+        prerelease: ${{ steps.prerelease.outputs.IS_PRERELEASE == 'true' }}
+        generate_release_notes: true
