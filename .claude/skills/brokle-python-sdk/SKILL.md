@@ -54,7 +54,7 @@ BrokleSpanProcessor (BatchSpanProcessor)
   ↓
 OTLPSpanExporter (Protobuf + Gzip)
   ↓
-HTTP POST /v1/otlp/traces
+HTTP POST /v1/traces (OTLP standard)
   ↓
 Brokle Backend
 ```
@@ -73,7 +73,7 @@ Brokle Backend
 - `export_timeout_millis`: `timeout * 1000` (default 30000ms)
 
 **OTLP/HTTP Exporter**:
-- Endpoint: `{base_url}/v1/otlp/traces`
+- Endpoint: `{base_url}/v1/traces` (OpenTelemetry standard)
 - Headers: `X-API-Key`, `X-Brokle-Environment`
 - Compression: Gzip (automatic)
 - Format: Protobuf

@@ -293,9 +293,9 @@ class BrokleConfig:
         return env_lower in ("true", "1", "yes", "on", "enabled")
 
     def get_otlp_endpoint(self) -> str:
-        """Get the OTLP traces endpoint URL."""
+        """Get the OTLP traces endpoint URL (OpenTelemetry standard)."""
         base = self.base_url.rstrip("/")
-        return f"{base}/v1/otlp/traces"
+        return f"{base}/v1/traces"
 
     def get_headers(self) -> dict:
         """Get HTTP headers for OTLP export."""

@@ -356,7 +356,7 @@ SDK → OpenTelemetry SDK → OTLP/HTTP → Brokle Backend → ClickHouse
 **Key Components:**
 
 1. **Brokle Client**: Initializes OpenTelemetry TracerProvider
-2. **OTLP Exporter**: Sends data to `/v1/otlp/traces` endpoint
+2. **OTLP Exporter**: Sends data to `/v1/traces` endpoint (OpenTelemetry standard)
 3. **Span Processor**: Handles batching and sampling
 4. **SDK Wrappers**: Automatic instrumentation for LLM SDKs
 
