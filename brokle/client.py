@@ -50,6 +50,7 @@ class Brokle:
         debug: bool = False,
         tracing_enabled: bool = True,
         release: Optional[str] = None,
+        version: Optional[str] = None,
         sample_rate: float = 1.0,
         mask: Optional[callable] = None,
         flush_at: int = 100,
@@ -66,7 +67,8 @@ class Brokle:
             environment: Environment tag (e.g., 'production', 'staging')
             debug: Enable debug logging
             tracing_enabled: Enable/disable tracing (if False, all calls are no-ops)
-            release: Release version/hash for grouping analytics
+            release: Release identifier for deployment tracking (e.g., 'v2.1.24', 'abc123')
+            version: Trace-level version for A/B testing experiments (e.g., 'experiment-A', 'control')
             sample_rate: Sampling rate for traces (0.0 to 1.0)
             mask: Optional function to mask sensitive data
             flush_at: Maximum batch size before flush (1-1000)
@@ -85,6 +87,7 @@ class Brokle:
             debug=debug,
             tracing_enabled=tracing_enabled,
             release=release,
+            version=version,
             sample_rate=sample_rate,
             mask=mask,
             flush_at=flush_at,
@@ -103,15 +106,19 @@ class Brokle:
         # Create Resource (respects OTEL environment variables)
         # Note: We don't set service.name to respect user's OTEL_SERVICE_NAME
         # SDK identification is done via instrumentation scope (get_tracer name/version)
-        # Project ID comes from backend auth, environment set as span attribute 
+        # Project ID comes from backend auth, environment set as span attribute
         # Using create({}) triggers OTEL's default resource detection
         resource = Resource.create({})
 
-        # Add release if provided
+        # Add release and version if provided (trace-level metadata)
+        resource_attrs = {}
         if release:
-            resource = resource.merge(
-                Resource.create({Attrs.BROKLE_RELEASE: release})
-            )
+            resource_attrs[Attrs.BROKLE_RELEASE] = release
+        if version:
+            resource_attrs[Attrs.BROKLE_VERSION] = version
+
+        if resource_attrs:
+            resource = resource.merge(Resource.create(resource_attrs))
 
         # Create sampler based on sample_rate
         # Uses OpenTelemetry's TraceIdRatioBased sampler for trace-level sampling
@@ -187,9 +194,12 @@ class Brokle:
     def start_as_current_span(
         self,
         name: str,
+        as_type: Optional[str] = None,
         kind: SpanKind = SpanKind.INTERNAL,
         attributes: Optional[Dict[str, Any]] = None,
         version: Optional[str] = None,
+        input: Optional[Any] = None,
+        output: Optional[Any] = None,
         **kwargs,
     ) -> Iterator[Span]:
         """
@@ -200,18 +210,29 @@ class Brokle:
 
         Args:
             name: Span name
+            as_type: Span type for categorization (span, generation, tool, agent, chain, etc.)
             kind: Span kind (INTERNAL, CLIENT, SERVER, PRODUCER, CONSUMER)
             attributes: Initial span attributes
             version: Version identifier for A/B testing and experiment tracking
+            input: Input data (LLM messages or generic data)
+                   - LLM format: [{"role": "user", "content": "..."}]
+                   - Generic format: {"query": "...", "count": 5} or any value
+            output: Output data (LLM messages or generic data)
             **kwargs: Additional arguments passed to tracer.start_as_current_span()
 
         Yields:
             Span instance
 
         Example:
-            >>> with client.start_as_current_span("my-operation", version="1.0") as span:
-            ...     span.set_attribute("key", "value")
-            ...     # Span automatically ends when context exits
+            >>> # Generic input/output
+            >>> with client.start_as_current_span("process", input={"query": "test"}) as span:
+            ...     result = do_work()
+            ...     span.set_attribute(Attrs.OUTPUT_VALUE, json.dumps(result))
+            >>>
+            >>> # LLM messages
+            >>> with client.start_as_current_span("llm-trace",
+            ...     input=[{"role": "user", "content": "Hello"}]) as span:
+            ...     pass
         """
         # Build attributes (layer version on top of user attributes)
         attrs = attributes.copy() if attributes else {}
@@ -219,9 +240,33 @@ class Brokle:
         if version:
             attrs[Attrs.BROKLE_VERSION] = version
 
-        # Set span type for Brokle backend
-        if Attrs.BROKLE_SPAN_TYPE not in attrs:
+        # Set span type for Brokle backend (as_type takes precedence)
+        if as_type:
+            attrs[Attrs.BROKLE_SPAN_TYPE] = as_type
+        elif Attrs.BROKLE_SPAN_TYPE not in attrs:
             attrs[Attrs.BROKLE_SPAN_TYPE] = SpanType.SPAN
+
+        # Handle input (auto-detect LLM messages vs generic data)
+        if input is not None:
+            if _is_llm_messages_format(input):
+                # LLM messages → use OTLP GenAI standard
+                attrs[Attrs.GEN_AI_INPUT_MESSAGES] = json.dumps(input)
+            else:
+                # Generic data → use OpenInference pattern
+                input_str, mime_type = _serialize_with_mime(input)
+                attrs[Attrs.INPUT_VALUE] = input_str
+                attrs[Attrs.INPUT_MIME_TYPE] = mime_type
+
+        # Handle output (auto-detect LLM messages vs generic data)
+        if output is not None:
+            if _is_llm_messages_format(output):
+                # LLM messages → use OTLP GenAI standard
+                attrs[Attrs.GEN_AI_OUTPUT_MESSAGES] = json.dumps(output)
+            else:
+                # Generic data → use OpenInference pattern
+                output_str, mime_type = _serialize_with_mime(output)
+                attrs[Attrs.OUTPUT_VALUE] = output_str
+                attrs[Attrs.OUTPUT_MIME_TYPE] = mime_type
 
         with self._tracer.start_as_current_span(
             name=name,
@@ -414,6 +459,76 @@ class Brokle:
     def __repr__(self) -> str:
         """String representation."""
         return f"Brokle(environment='{self.config.environment}', tracing_enabled={self.config.tracing_enabled})"
+
+
+def _serialize_with_mime(value: Any) -> tuple[str, str]:
+    """
+    Serialize value to string with MIME type detection.
+
+    Handles edge cases: None, bytes, non-serializable objects, circular references.
+
+    Args:
+        value: Value to serialize
+
+    Returns:
+        Tuple of (serialized_string, mime_type)
+
+    Examples:
+        >>> _serialize_with_mime({"key": "value"})
+        ('{"key":"value"}', 'application/json')
+        >>> _serialize_with_mime("hello")
+        ('hello', 'text/plain')
+    """
+    try:
+        if value is None:
+            return "null", "application/json"
+
+        if isinstance(value, (dict, list)):
+            # Use default=str to handle non-serializable objects
+            return json.dumps(value, default=str), "application/json"
+
+        if isinstance(value, str):
+            return value, "text/plain"
+
+        if isinstance(value, bytes):
+            # Decode with error replacement for malformed UTF-8
+            return value.decode('utf-8', errors='replace'), "text/plain"
+
+        # Fallback for custom objects (Pydantic models, dataclasses, etc.)
+        if hasattr(value, "model_dump"):
+            # Pydantic model
+            return json.dumps(value.model_dump(exclude_none=True)), "application/json"
+
+        if hasattr(value, "__dataclass_fields__"):
+            # Dataclass
+            import dataclasses
+            return json.dumps(dataclasses.asdict(value)), "application/json"
+
+        # Last resort: string representation
+        return str(value), "text/plain"
+
+    except Exception as e:
+        # Serialization failed - return error message
+        return f"<serialization failed: {type(value).__name__}: {str(e)}>", "text/plain"
+
+
+def _is_llm_messages_format(data: Any) -> bool:
+    """
+    Check if data is in LLM ChatML messages format.
+
+    ChatML format: List of dicts with "role" and "content" keys.
+
+    Args:
+        data: Data to check
+
+    Returns:
+        True if ChatML format, False otherwise
+    """
+    return (
+        isinstance(data, list) and
+        len(data) > 0 and
+        all(isinstance(m, dict) and "role" in m for m in data)
+    )
 
 
 def get_client(**overrides) -> Brokle:

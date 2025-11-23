@@ -1,0 +1,18 @@
+# E2E Test Dependencies
+# =====================
+# Install with: pip install -r tests/requirements-test.txt
+
+# ClickHouse Python Driver
+# Used for direct database queries to validate data
+clickhouse-connect>=0.6.0
+
+# OpenAI Python SDK (optional, for Test 8)
+# Used to make real LLM calls and validate end-to-end flow
+openai>=1.0.0
+
+# Testing utilities
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+
+# For pretty output
+colorama>=0.4.6

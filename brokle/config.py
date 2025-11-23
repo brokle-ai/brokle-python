@@ -36,7 +36,10 @@ class BrokleConfig:
     """Environment tag (e.g., 'production', 'staging', 'development')"""
 
     release: Optional[str] = None
-    """Release version/hash for grouping analytics"""
+    """Release identifier for deployment tracking (e.g., 'v2.1.24', git commit hash)"""
+
+    version: Optional[str] = None
+    """Trace-level version for A/B testing experiments (e.g., 'experiment-A', 'control')"""
 
     # ========== Tracing Control ==========
     tracing_enabled: bool = True
@@ -163,7 +166,8 @@ class BrokleConfig:
             BROKLE_API_KEY - API key (required)
             BROKLE_BASE_URL - Base URL (default: http://localhost:8080)
             BROKLE_ENVIRONMENT - Environment tag (default: "default")
-            BROKLE_RELEASE - Release version
+            BROKLE_RELEASE - Release identifier for deployment tracking
+            BROKLE_VERSION - Trace-level version for A/B testing experiments
             BROKLE_TRACING_ENABLED - Enable tracing (default: true)
             BROKLE_SAMPLE_RATE - Sampling rate (default: 1.0)
             BROKLE_DEBUG - Enable debug logging (default: false)
@@ -203,6 +207,7 @@ class BrokleConfig:
             "BROKLE_ENVIRONMENT", "default"
         )
         release = overrides.get("release") or os.getenv("BROKLE_RELEASE")
+        version = overrides.get("version") or os.getenv("BROKLE_VERSION")
 
         # Tracing control
         tracing_enabled = cls._parse_bool(
@@ -259,6 +264,7 @@ class BrokleConfig:
             timeout=timeout,
             environment=environment,
             release=release,
+            version=version,
             tracing_enabled=tracing_enabled,
             sample_rate=sample_rate,
             debug=debug,

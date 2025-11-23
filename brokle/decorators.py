@@ -110,10 +110,14 @@ def observe(
                 # Serialize function arguments
                 try:
                     input_data = _serialize_function_input(func, args, kwargs)
-                    attrs[Attrs.BROKLE_TRACE_INPUT] = json.dumps(input_data)
+                    input_str = json.dumps(input_data, default=str)  # default=str handles non-serializable
+                    attrs[Attrs.INPUT_VALUE] = input_str
+                    attrs[Attrs.INPUT_MIME_TYPE] = "application/json"  # Function args always JSON
                 except Exception as e:
-                    # If serialization fails, store error
-                    attrs["brokle.input.error"] = str(e)
+                    # If serialization fails, store error message
+                    error_msg = f"<serialization failed: {str(e)}>"
+                    attrs[Attrs.INPUT_VALUE] = error_msg
+                    attrs[Attrs.INPUT_MIME_TYPE] = "text/plain"
 
             # Create span using client
             with client.start_as_current_span(span_name, attributes=attrs) as span:
@@ -125,9 +129,13 @@ def observe(
                     if capture_output:
                         try:
                             output_data = _serialize_value(result)
-                            span.set_attribute(Attrs.BROKLE_TRACE_OUTPUT, json.dumps(output_data))
+                            output_str = json.dumps(output_data, default=str)
+                            span.set_attribute(Attrs.OUTPUT_VALUE, output_str)
+                            span.set_attribute(Attrs.OUTPUT_MIME_TYPE, "application/json")
                         except Exception as e:
-                            span.set_attribute("brokle.output.error", str(e))
+                            error_msg = f"<serialization failed: {str(e)}>"
+                            span.set_attribute(Attrs.OUTPUT_VALUE, error_msg)
+                            span.set_attribute(Attrs.OUTPUT_MIME_TYPE, "text/plain")
 
                     # Mark span as successful
                     span.set_status(Status(StatusCode.OK))
@@ -190,9 +198,13 @@ def observe(
                     if capture_output:
                         try:
                             output_data = _serialize_value(result)
-                            span.set_attribute(Attrs.BROKLE_TRACE_OUTPUT, json.dumps(output_data))
+                            output_str = json.dumps(output_data, default=str)
+                            span.set_attribute(Attrs.OUTPUT_VALUE, output_str)
+                            span.set_attribute(Attrs.OUTPUT_MIME_TYPE, "application/json")
                         except Exception as e:
-                            span.set_attribute("brokle.output.error", str(e))
+                            error_msg = f"<serialization failed: {str(e)}>"
+                            span.set_attribute(Attrs.OUTPUT_VALUE, error_msg)
+                            span.set_attribute(Attrs.OUTPUT_MIME_TYPE, "text/plain")
 
                     # Mark span as successful
                     span.set_status(Status(StatusCode.OK))

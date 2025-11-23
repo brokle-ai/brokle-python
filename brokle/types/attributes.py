@@ -45,6 +45,24 @@ class BrokleOtelSpanAttributes:
     GEN_AI_USAGE_OUTPUT_TOKENS = "gen_ai.usage.output_tokens"
     # Note: total_tokens is NOT in OTEL spec, use brokle.usage.total_tokens
 
+    # ========== GenAI Extended Usage (Cache, Audio, Multi-modal) ==========
+    # Cache tokens (Anthropic/OpenAI prompt caching)
+    GEN_AI_USAGE_INPUT_TOKENS_CACHE_READ = "gen_ai.usage.input_tokens.cache_read"
+    GEN_AI_USAGE_INPUT_TOKENS_CACHE_CREATION = "gen_ai.usage.input_tokens.cache_creation"
+
+    # Audio tokens (OpenAI Whisper, TTS, Realtime API)
+    GEN_AI_USAGE_INPUT_AUDIO_TOKENS = "gen_ai.usage.input_audio_tokens"
+    GEN_AI_USAGE_OUTPUT_AUDIO_TOKENS = "gen_ai.usage.output_audio_tokens"
+
+    # Reasoning tokens (OpenAI o1 models - internal chain-of-thought)
+    GEN_AI_USAGE_REASONING_TOKENS = "gen_ai.usage.reasoning_tokens"
+
+    # Image tokens (GPT-4V, Claude 3.5 Sonnet Vision)
+    GEN_AI_USAGE_IMAGE_TOKENS = "gen_ai.usage.image_tokens"
+
+    # Video tokens (Future multi-modal support)
+    GEN_AI_USAGE_VIDEO_TOKENS = "gen_ai.usage.video_tokens"
+
     # ========== OpenAI Specific Attributes ==========
     OPENAI_REQUEST_N = "openai.request.n"
     OPENAI_REQUEST_SERVICE_TIER = "openai.request.service_tier"
@@ -76,13 +94,18 @@ class BrokleOtelSpanAttributes:
     # ========== Session Tracking (No OTEL GenAI equivalent) ==========
     SESSION_ID = "session.id"  # Session grouping identifier
 
+    # ========== OpenInference Generic Input/Output (Industry Standard) ==========
+    # https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md
+    INPUT_VALUE = "input.value"  # Generic input data (any format)
+    INPUT_MIME_TYPE = "input.mime_type"  # MIME type: "application/json" or "text/plain"
+    OUTPUT_VALUE = "output.value"  # Generic output data (any format)
+    OUTPUT_MIME_TYPE = "output.mime_type"  # MIME type: "application/json" or "text/plain"
+
     # ========== Brokle Trace Management ==========
     BROKLE_TRACE_ID = "brokle.trace_id"  # Internal trace ID
     BROKLE_TRACE_NAME = "brokle.trace.name"  # Human-readable trace name
     BROKLE_TRACE_TAGS = "brokle.trace.tags"  # Filterable tags
     BROKLE_TRACE_METADATA = "brokle.trace.metadata"  # Custom metadata
-    BROKLE_TRACE_INPUT = "brokle.trace.input"  # Trace-level input
-    BROKLE_TRACE_OUTPUT = "brokle.trace.output"  # Trace-level output
     BROKLE_TRACE_PUBLIC = "brokle.trace.public"  # Public visibility flag
 
     # ========== Brokle Span Management ==========
@@ -91,6 +114,7 @@ class BrokleOtelSpanAttributes:
     BROKLE_SPAN_NAME = "brokle.span_name"
     BROKLE_PARENT_SPAN_ID = "brokle.parent_span_id"
     BROKLE_SPAN_LEVEL = "brokle.span.level"  # DEBUG/DEFAULT/WARNING/ERROR
+    BROKLE_SPAN_VERSION = "brokle.span.version"  # Span-level version for A/B testing
 
     # ========== Brokle Extended Usage Metrics ==========
     BROKLE_USAGE_TOTAL_TOKENS = "brokle.usage.total_tokens"  # Convenience metric
@@ -98,6 +122,8 @@ class BrokleOtelSpanAttributes:
 
     # Note: brokle.cost.* attributes are set by BACKEND only (calculated from usage + model pricing)
     # SDKs should NOT set cost attributes - backend calculates costs server-side
+    # Usage tracking is flexible - send any combination of token types (standard, cache, audio, reasoning, etc.)
+    # Backend supports 10+ token types via flexible usage_details Maps - no schema changes needed for new types
 
     # ========== Brokle Prompt Management ==========
     BROKLE_PROMPT_ID = "brokle.prompt.id"
@@ -141,6 +167,8 @@ class SpanType:
     SPAN = "span"  # Generic span
     EVENT = "event"  # Point-in-time event
     TOOL = "tool"  # Tool/function call
+    AGENT = "agent"  # AI agent operation
+    CHAIN = "chain"  # Chain of operations
     RETRIEVAL = "retrieval"  # RAG retrieval operation
     EMBEDDING = "embedding"  # Embedding generation
 
