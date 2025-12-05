@@ -136,7 +136,6 @@ class TestBrokleClient:
                 response = client.chat.completions.create(
                     model="gpt-4",
                     messages=[{"role": "user", "content": "Hello!"}],
-                    routing_strategy="cost_optimized",
                 )
 
                 assert response.model == "gpt-4"
@@ -261,7 +260,6 @@ class TestAsyncBrokleClient:
                 response = await client.chat.completions.create(
                     model="gpt-4",
                     messages=[{"role": "user", "content": "Hello async!"}],
-                    routing_strategy="quality_optimized",
                 )
 
                 assert response.model == "gpt-4"
@@ -296,7 +294,6 @@ class TestEmbeddingsResource:
                 response = client.embeddings.create(
                     input="Hello world",
                     model="text-embedding-3-small",
-                    cache_strategy="semantic",
                 )
 
                 assert response.model == "text-embedding-3-small"

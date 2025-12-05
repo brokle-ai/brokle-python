@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "brokle"
 dynamic = ["version"]
-description = "Brokle Platform Python SDK for intelligent LLM routing, caching, and observability"
+description = "Brokle Platform Python SDK for OpenTelemetry-native LLM observability and tracing"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -14,7 +14,7 @@ authors = [
 maintainers = [
     {name = "Brokle Platform", email = "support@brokle.com"}
 ]
-keywords = ["ai", "llm", "brokle", "openai", "observability", "routing", "caching", "wrapper", "decorator", "patterns"]
+keywords = ["ai", "llm", "brokle", "openai", "observability", "opentelemetry", "tracing", "wrapper", "decorator", "patterns"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",

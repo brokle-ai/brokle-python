@@ -158,8 +158,6 @@ class TestBackendIntegration:
                 ],
                 max_tokens=30,
                 # Brokle extensions
-                routing_strategy="cost_optimized",
-                cache_strategy="semantic",
                 tags=["test", "integration"]
             )
             

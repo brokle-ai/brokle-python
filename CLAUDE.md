@@ -4,15 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the **Brokle Platform Python SDK** - a comprehensive Python SDK that provides intelligent routing, cost optimization, semantic caching, and observability for AI applications. It's designed as part of the larger Brokle platform ecosystem.
+This is the **Brokle Platform Python SDK** - an OpenTelemetry-native SDK that provides comprehensive observability, tracing, and auto-instrumentation for AI applications. It's designed as part of the larger Brokle platform ecosystem.
 
 **Key Features:**
 - Three integration patterns: wrapper functions, @observe decorator, and native SDK
 - Comprehensive observability with OpenTelemetry integration
-- Cost optimization (30-50% reduction in LLM costs)
-- Semantic caching with vector similarity
-- Real-time analytics and evaluation framework
-- Intelligent routing across 250+ LLM providers
+- Hierarchical tracing with automatic span linking
+- Real-time analytics and quality scoring
+- Sub-3ms overhead for high-performance applications
 
 ## Development Commands
 
@@ -118,7 +117,7 @@ brokle/
 3. **Native SDK** (`brokle.client`):
    - Full platform feature access via `Brokle` client
    - Async/await support throughout
-   - Advanced routing, caching, and evaluation
+   - Context manager support with automatic resource cleanup
    - Direct access to observability primitives (trace, span, score)
 
 ### Core Components
@@ -139,10 +138,9 @@ brokle/
 - Token refresh and error handling
 
 **AI Platform** (`ai_platform/`):
-- Intelligent routing across 250+ LLM providers
-- Semantic caching with similarity matching
 - Quality scoring and evaluation
-- Cost optimization strategies
+- Telemetry aggregation and batching
+- Provider detection and metadata extraction
 
 ## Testing Strategy
 
@@ -731,7 +729,7 @@ async with Brokle() as client:
 Comprehensive tracing with custom attributes:
 ```python
 from brokle.types.attributes import BrokleOtelSpanAttributes
-span.set_attribute(BrokleOtelSpanAttributes.ROUTING_STRATEGY, "cost_optimized")
+span.set_attribute(BrokleOtelSpanAttributes.BROKLE_SESSION_ID, "session-123")
 ```
 
 ## Dependencies and Build System

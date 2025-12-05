@@ -82,3 +82,4 @@ The project follows standard Python development conventions:
 *   **Continuous Integration:** GitHub Actions are used for CI/CD.
 
 The project also has a `pre-commit` configuration to ensure that code quality checks are run before committing code.
+

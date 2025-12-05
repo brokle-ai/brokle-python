@@ -1,8 +1,8 @@
 # Brokle Python SDK
 
-**Three integration patterns. One powerful platform.**
+**OpenTelemetry-native observability for AI applications.**
 
-The Brokle Python SDK provides intelligent routing across 250+ LLM providers, semantic caching (30-50% cost reduction), and comprehensive observability. Choose your integration level:
+The Brokle Python SDK provides comprehensive observability, tracing, and auto-instrumentation for LLM applications. Choose your integration level:
 
 ## 🎯 Three Integration Patterns
 
@@ -13,7 +13,7 @@ Wrap existing SDK clients (OpenAI, Anthropic) for automatic observability and pl
 Framework-agnostic `@observe()` decorator with automatic hierarchical tracing. Works with any AI library.
 
 **Pattern 3: Native SDK (Sync & Async)**
-Full platform capabilities: intelligent routing, semantic caching, cost optimization. OpenAI-compatible interface with Brokle extensions.
+Full platform capabilities with OpenAI-compatible interface. Context manager support with automatic resource cleanup.
 
 ## Installation
 
@@ -55,7 +55,7 @@ response = openai_client.chat.completions.create(
     model="gpt-4",
     messages=[{"role": "user", "content": "Hello!"}]
 )
-# ✅ Automatic Brokle observability, routing, caching, optimization
+# ✅ Automatic Brokle observability and tracing
 ```
 
 ### Pattern 2: Universal Decorator
@@ -111,8 +111,7 @@ with Brokle(
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[{"role": "user", "content": "Hello!"}],
-        routing_strategy="cost_optimized",  # Brokle extension
-        cache_strategy="semantic"           # Brokle extension
+        tags=["production"]  # Analytics tags
     )
     print(f"Response: {response.choices[0].message.content}")
 ```
@@ -129,9 +128,7 @@ async def main():
         response = await client.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": "Hello!"}],
-            routing_strategy="cost_optimized",  # Smart routing
-            cache_strategy="semantic",          # Semantic caching
-            tags=["async", "production"]       # Analytics tags
+            tags=["async", "production"]  # Analytics tags
         )
         print(f"Response: {response.choices[0].message.content}")
 
@@ -141,10 +138,9 @@ asyncio.run(main())
 
 ## Why Choose Brokle?
 
-- **🚀 30-50% Cost Reduction**: Intelligent routing and semantic caching
 - **⚡ <3ms Overhead**: High-performance observability
-- **🔄 250+ Providers**: Route across all major LLM providers
 - **📊 Complete Visibility**: Real-time analytics and quality scoring
+- **🔧 OpenTelemetry Native**: Standards-based tracing and metrics
 - **🛠️ Three Patterns**: Start simple, scale as needed
 
 ## Next Steps
@@ -159,7 +155,6 @@ asyncio.run(main())
 Check the `examples/` directory:
 - [`pattern1_wrapper_functions.py`](examples/pattern1_wrapper_functions.py) - Wrapper functions
 - [`pattern2_decorator.py`](examples/pattern2_decorator.py) - Universal decorator
-- [`pattern3_native_sdk.py`](examples/pattern3_native_sdk.py) - Native SDK features
 
 ## Support
 
@@ -169,4 +164,4 @@ Check the `examples/` directory:
 
 ---
 
-**Simple. Powerful. Three patterns to fit your needs.**
+**Simple. Powerful. OpenTelemetry-native observability for AI.**

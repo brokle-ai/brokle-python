@@ -125,7 +125,6 @@ def sample_analytics_response():
         "average_latency": 250.5,
         "requests_by_model": {"gpt-3.5-turbo": 1200, "gpt-4": 300},
         "cost_by_provider": {"openai": 8.75, "anthropic": 3.75},
-        "cache_hit_rate": 0.85,
     }
 
 

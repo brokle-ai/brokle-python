@@ -10,7 +10,7 @@ from brokle import Brokle
 from brokle.types.attributes import BrokleOtelSpanAttributes as Attrs
 
 # Configuration
-API_KEY = "bk_SZJvBQDr9brY80Ln1ceNtGZMoSNc175rs3gXbnLK"
+API_KEY = "bk_ikwpfPDWRXH7Tcm3hZGOlVvhVXACbr1pPOwcBss0"
 BASE_URL = "http://localhost:8080"
 
 # Initialize client

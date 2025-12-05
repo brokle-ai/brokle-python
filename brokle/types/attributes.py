@@ -136,16 +136,8 @@ class BrokleOtelSpanAttributes:
     BROKLE_SCORE_DATA_TYPE = "brokle.score.data_type"  # numeric/boolean/categorical
     BROKLE_SCORE_COMMENT = "brokle.score.comment"
 
-    # ========== Brokle Intelligent Routing ==========
-    BROKLE_ROUTING_STRATEGY = "brokle.routing.strategy"
-    BROKLE_ROUTING_PROVIDER_SELECTED = "brokle.routing.provider_selected"
-    BROKLE_ROUTING_MODEL_SELECTED = "brokle.routing.model_selected"
-    BROKLE_ROUTING_FALLBACK_COUNT = "brokle.routing.fallback_count"
-    BROKLE_ROUTING_CACHE_HIT = "brokle.routing.cache_hit"
-
     # ========== Brokle Internal Flags ==========
     BROKLE_STREAMING = "brokle.streaming"  # Streaming response flag
-    BROKLE_CACHED = "brokle.cached"  # Response from cache
     BROKLE_PROJECT_ID = "brokle.project_id"  # Project identifier
     BROKLE_ENVIRONMENT = "brokle.environment"  # Environment tag
     BROKLE_VERSION = "brokle.version"  # SDK/app version

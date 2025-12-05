@@ -84,13 +84,6 @@ class BrokleConfig:
     compression: Optional[str] = "gzip"
     """Compression algorithm: 'gzip', 'deflate', or None"""
 
-    # ========== Feature Flags ==========
-    cache_enabled: bool = True
-    """Enable semantic caching"""
-
-    routing_enabled: bool = True
-    """Enable intelligent routing"""
-
     # ========== Internal ==========
     _validated: bool = field(default=False, init=False, repr=False)
     """Internal flag to track validation status"""
@@ -176,8 +169,6 @@ class BrokleConfig:
             BROKLE_TIMEOUT - HTTP timeout in seconds (default: 30)
             BROKLE_USE_PROTOBUF - Use Protobuf format (default: true)
             BROKLE_COMPRESSION - Compression algorithm (default: "gzip")
-            BROKLE_CACHE_ENABLED - Enable caching (default: true)
-            BROKLE_ROUTING_ENABLED - Enable routing (default: true)
 
         Args:
             **overrides: Override specific configuration values
@@ -245,16 +236,6 @@ class BrokleConfig:
         if compression == "none":
             compression = None
 
-        # Feature flags
-        cache_enabled = cls._parse_bool(
-            overrides.get("cache_enabled"),
-            os.getenv("BROKLE_CACHE_ENABLED", "true")
-        )
-        routing_enabled = cls._parse_bool(
-            overrides.get("routing_enabled"),
-            os.getenv("BROKLE_ROUTING_ENABLED", "true")
-        )
-
         # Privacy (only from overrides, not environment)
         mask = overrides.get("mask")
 
@@ -275,8 +256,6 @@ class BrokleConfig:
             export_timeout=export_timeout,
             use_protobuf=use_protobuf,
             compression=compression,
-            cache_enabled=cache_enabled,
-            routing_enabled=routing_enabled,
         )
 
     @staticmethod

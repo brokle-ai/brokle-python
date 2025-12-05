@@ -216,9 +216,6 @@ class TestBrokleResponse:
             latency_ms=150,
             cost_usd=0.002,
             tokens_used=50,
-            cache_hit=True,
-            cache_key="cache_abc",
-            routing_strategy="cost_optimized",
             quality_score=0.95,
         )
 
@@ -227,9 +224,6 @@ class TestBrokleResponse:
         assert metadata.latency_ms == 150
         assert metadata.cost_usd == 0.002
         assert metadata.tokens_used == 50
-        assert metadata.cache_hit is True
-        assert metadata.cache_key == "cache_abc"
-        assert metadata.routing_strategy == "cost_optimized"
         assert metadata.quality_score == 0.95
 
     def test_brokle_metadata_required_fields(self):
@@ -246,7 +240,4 @@ class TestBrokleResponse:
         # Optional fields should have defaults
         assert metadata.cost_usd is None
         assert metadata.tokens_used is None
-        assert metadata.cache_hit is False
-        assert metadata.cache_key is None
-        assert metadata.routing_strategy is None
         assert metadata.quality_score is None
