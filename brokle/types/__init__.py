@@ -10,6 +10,7 @@ from .attributes import (
     LLMProvider,
     OperationType,
     ScoreDataType,
+    SchemaURLs,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "LLMProvider",
     "OperationType",
     "ScoreDataType",
+    "SchemaURLs",
 ]

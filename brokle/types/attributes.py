@@ -34,6 +34,20 @@ class BrokleOtelSpanAttributes:
     GEN_AI_RESPONSE_ID = "gen_ai.response.id"
     GEN_AI_RESPONSE_MODEL = "gen_ai.response.model"  # Actual model used
     GEN_AI_RESPONSE_FINISH_REASONS = "gen_ai.response.finish_reasons"
+    GEN_AI_RESPONSE_FINISH_REASON = "gen_ai.response.finish_reason"  # Single finish reason
+
+    # ========== GenAI Streaming Metrics (OTEL GenAI Extensions) ==========
+    # Time to first token in milliseconds (streaming responses)
+    GEN_AI_RESPONSE_TTFT = "gen_ai.response.time_to_first_token"
+    # Inter-token latency in milliseconds (streaming responses)
+    GEN_AI_RESPONSE_ITL = "gen_ai.response.inter_token_latency"
+    # Total response duration in milliseconds
+    GEN_AI_RESPONSE_DURATION = "gen_ai.response.duration"
+
+    # ========== GenAI Token Usage (Aliases for metrics) ==========
+    GEN_AI_TOKEN_USAGE_INPUT = "gen_ai.token.usage.input"
+    GEN_AI_TOKEN_USAGE_OUTPUT = "gen_ai.token.usage.output"
+    GEN_AI_TOKEN_USAGE_TOTAL = "gen_ai.token.usage.total"
 
     # ========== GenAI Messages (OTEL 1.28+ JSON format) ==========
     GEN_AI_INPUT_MESSAGES = "gen_ai.input.messages"  # JSON array of messages
@@ -152,17 +166,69 @@ class BrokleOtelSpanAttributes:
     VERSION = "version"  # Maps from brokle.version
     ENVIRONMENT = "environment"  # Maps from brokle.environment
 
+    # ========== Framework Component Attributes (GenAI Extension) ==========
+    # For LangChain, LlamaIndex, CrewAI, and other AI framework instrumentation
+    # These extend the gen_ai.* namespace following industry patterns (OpenLIT, OpenLLMetry)
+
+    # Framework identification
+    GEN_AI_FRAMEWORK_NAME = "gen_ai.framework.name"  # e.g., "langchain", "llamaindex", "crewai"
+    GEN_AI_FRAMEWORK_VERSION = "gen_ai.framework.version"
+    GEN_AI_COMPONENT_TYPE = "gen_ai.component.type"  # e.g., "agent", "chain", "retriever"
+
+    # Agent-specific attributes
+    GEN_AI_AGENT_NAME = "gen_ai.agent.name"
+    GEN_AI_AGENT_STRATEGY = "gen_ai.agent.strategy"  # e.g., "react", "cot", "plan_and_execute"
+    GEN_AI_AGENT_ITERATION_COUNT = "gen_ai.agent.iteration_count"
+    GEN_AI_AGENT_MAX_ITERATIONS = "gen_ai.agent.max_iterations"
+
+    # Tool/function calling attributes
+    GEN_AI_TOOL_NAME = "gen_ai.tool.name"
+    GEN_AI_TOOL_DESCRIPTION = "gen_ai.tool.description"
+    GEN_AI_TOOL_PARAMETERS = "gen_ai.tool.parameters"  # JSON schema of tool params
+
+    # Retrieval/RAG attributes
+    GEN_AI_RETRIEVER_TYPE = "gen_ai.retriever.type"  # e.g., "vector", "bm25", "hybrid"
+    GEN_AI_RETRIEVAL_TOP_K = "gen_ai.retrieval.top_k"
+    GEN_AI_RETRIEVAL_SCORE = "gen_ai.retrieval.score"
+    GEN_AI_RETRIEVAL_SOURCE = "gen_ai.retrieval.source"
+
+    # Memory attributes
+    GEN_AI_MEMORY_TYPE = "gen_ai.memory.type"  # e.g., "buffer", "summary", "conversation"
+
+    # Execution context attributes
+    GEN_AI_EXECUTION_PARALLEL_COUNT = "gen_ai.execution.parallel_count"
+    GEN_AI_EXECUTION_SEQUENTIAL_ORDER = "gen_ai.execution.sequential_order"
+
 
 class SpanType:
-    """Span type constants for brokle.span_type attribute."""
+    """
+    Span type constants for brokle.span_type attribute.
+
+    These align with ObservationType enum in the observations module
+    for semantic differentiation in the Brokle backend.
+    """
+
+    # Core types
     GENERATION = "generation"  # LLM generation (chat, completion)
     SPAN = "span"  # Generic span
     EVENT = "event"  # Point-in-time event
+
+    # AI Agent types
     TOOL = "tool"  # Tool/function call
     AGENT = "agent"  # AI agent operation
     CHAIN = "chain"  # Chain of operations
+
+    # RAG types
     RETRIEVAL = "retrieval"  # RAG retrieval operation
     EMBEDDING = "embedding"  # Embedding generation
+
+    # Quality & evaluation types
+    EVALUATOR = "evaluator"  # Quality evaluation
+    GUARDRAIL = "guardrail"  # Safety guardrail check
+
+    # Utility types
+    RERANK = "rerank"  # Reranking operation
+    WORKFLOW = "workflow"  # High-level workflow orchestration
 
 
 class SpanLevel:
@@ -209,5 +275,91 @@ class ScoreDataType:
     CATEGORICAL = "categorical"  # Category/enum value
 
 
+class ComponentType:
+    """
+    Standard component types for framework instrumentation.
+
+    Use with gen_ai.component.type attribute.
+    """
+    AGENT = "agent"  # AI agent operation
+    CHAIN = "chain"  # Chain/pipeline of operations
+    RETRIEVER = "retriever"  # RAG retrieval component
+    MEMORY = "memory"  # Memory/context management
+    TOOL = "tool"  # Tool/function call
+    WORKFLOW = "workflow"  # High-level workflow orchestration
+    PLANNER = "planner"  # Planning component
+
+
+class AgentStrategy:
+    """
+    Standard agent strategy types.
+
+    Use with gen_ai.agent.strategy attribute.
+    """
+    REACT = "react"  # ReAct: Reasoning + Acting
+    COT = "cot"  # Chain of Thought
+    PLAN_AND_EXECUTE = "plan_and_execute"  # Plan then execute
+    TREE_OF_THOUGHT = "tree_of_thought"  # Tree of Thought
+    REFLEXION = "reflexion"  # Reflexion pattern
+    SELF_ASK = "self_ask"  # Self-Ask pattern
+    ZERO_SHOT = "zero_shot"  # Zero-shot prompting
+
+
+class RetrieverType:
+    """
+    Standard retriever types for RAG pipelines.
+
+    Use with gen_ai.retriever.type attribute.
+    """
+    VECTOR = "vector"  # Vector/embedding similarity
+    BM25 = "bm25"  # BM25 keyword search
+    HYBRID = "hybrid"  # Hybrid (vector + keyword)
+    KEYWORD = "keyword"  # Keyword/TF-IDF search
+    SEMANTIC = "semantic"  # Semantic search
+    MULTI_QUERY = "multi_query"  # Multi-query retrieval
+    PARENT_DOCUMENT = "parent_document"  # Parent document retrieval
+
+
+class MemoryType:
+    """
+    Standard memory types for AI frameworks.
+
+    Use with gen_ai.memory.type attribute.
+    """
+    BUFFER = "buffer"  # Simple buffer memory
+    SUMMARY = "summary"  # Summary-based memory
+    CONVERSATION = "conversation"  # Conversation history
+    ENTITY = "entity"  # Entity-based memory
+    KNOWLEDGE_GRAPH = "knowledge_graph"  # Knowledge graph memory
+    VECTOR = "vector"  # Vector store memory
+
+
 # Convenience aliases for common usage
 Attrs = BrokleOtelSpanAttributes
+
+
+class SchemaURLs:
+    """
+    OpenTelemetry semantic convention schema URLs.
+
+    Schema URLs provide versioning for semantic conventions, allowing backends
+    to understand which version of the conventions a span was recorded with.
+    This enables forward compatibility as conventions evolve.
+
+    See: https://opentelemetry.io/docs/specs/otel/schemas/
+    """
+
+    # OpenTelemetry GenAI 1.28+ semantic conventions
+    # This is the primary schema for LLM observability attributes
+    OTEL_GENAI_1_28 = "https://opentelemetry.io/schemas/1.28.0"
+
+    # OpenTelemetry GenAI 1.29+ (includes additional token types)
+    OTEL_GENAI_1_29 = "https://opentelemetry.io/schemas/1.29.0"
+
+    # OpenInference semantic conventions (Arize Phoenix)
+    # https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md
+    OPENINFERENCE_1_0 = "https://arize.com/openinference/1.0.0"
+
+    # Current default schema URL for Brokle SDK
+    # Uses OTEL 1.28+ which includes all GenAI attributes we support
+    DEFAULT = OTEL_GENAI_1_28

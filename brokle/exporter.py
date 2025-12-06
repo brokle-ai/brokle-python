@@ -120,7 +120,11 @@ def create_exporter_for_config(config: BrokleConfig) -> SpanExporter:
     Create appropriate exporter based on configuration.
 
     This is the recommended way to create an exporter as it handles
-    different scenarios (disabled tracing, debug mode, etc.)
+    different scenarios (disabled tracing, transport type, debug mode, etc.)
+
+    Supports both HTTP and gRPC transport:
+    - HTTP: Default, uses /v1/traces endpoint
+    - gRPC: Uses port 4317, requires opentelemetry-exporter-otlp-proto-grpc
 
     Args:
         config: Brokle configuration instance
@@ -131,14 +135,20 @@ def create_exporter_for_config(config: BrokleConfig) -> SpanExporter:
     Example:
         >>> config = BrokleConfig.from_env()
         >>> exporter = create_exporter_for_config(config)
+
+        >>> # Use gRPC transport
+        >>> config = BrokleConfig(api_key="bk_...", transport="grpc")
+        >>> exporter = create_exporter_for_config(config)
     """
     # If tracing is disabled, use no-op exporter
     if not config.tracing_enabled:
         return NoOpExporter()
 
-    # If debug mode, optionally add console exporter
-    # For now, we only use OTLP exporter
-    # In the future, we could support composite exporters
+    # Check transport type
+    if config.transport == "grpc":
+        # Use gRPC transport
+        from .transport import create_trace_exporter, TransportType
+        return create_trace_exporter(config, TransportType.GRPC)
 
-    # Create standard OTLP exporter
+    # Default: HTTP transport via existing implementation
     return create_brokle_exporter(config)

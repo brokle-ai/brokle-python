@@ -38,6 +38,34 @@ from .types import (
     LLMProvider,
     OperationType,
     ScoreDataType,
+    SchemaURLs,
+)
+from .metrics import (
+    GenAIMetrics,
+    create_genai_metrics,
+    MetricNames,
+    TOKEN_BOUNDARIES,
+    DURATION_BOUNDARIES,
+    TTFT_BOUNDARIES,
+)
+from .streaming import (
+    StreamingAccumulator,
+    StreamingResult,
+    StreamingMetrics,
+)
+from .observations import (
+    ObservationType,
+    BrokleObservation,
+    BrokleGeneration,
+    BrokleEvent,
+    BrokleAgent,
+    BrokleTool,
+    BrokleRetrieval,
+)
+from .transport import (
+    TransportType,
+    create_trace_exporter,
+    create_metric_exporter,
 )
 
 # Wrappers are imported separately to avoid requiring provider SDKs
@@ -67,4 +95,32 @@ __all__ = [
     "LLMProvider",
     "OperationType",
     "ScoreDataType",
+    "SchemaURLs",
+
+    # Metrics
+    "GenAIMetrics",
+    "create_genai_metrics",
+    "MetricNames",
+    "TOKEN_BOUNDARIES",
+    "DURATION_BOUNDARIES",
+    "TTFT_BOUNDARIES",
+
+    # Streaming
+    "StreamingAccumulator",
+    "StreamingResult",
+    "StreamingMetrics",
+
+    # Observations
+    "ObservationType",
+    "BrokleObservation",
+    "BrokleGeneration",
+    "BrokleEvent",
+    "BrokleAgent",
+    "BrokleTool",
+    "BrokleRetrieval",
+
+    # Transport
+    "TransportType",
+    "create_trace_exporter",
+    "create_metric_exporter",
 ]

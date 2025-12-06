@@ -20,7 +20,9 @@ from opentelemetry.trace import Tracer, SpanKind, Status, StatusCode
 from .config import BrokleConfig
 from .exporter import create_exporter_for_config
 from .processor import BrokleSpanProcessor
-from .types import Attrs, SpanType, LLMProvider, OperationType
+from .types import Attrs, SpanType, LLMProvider, OperationType, SchemaURLs
+from .metrics import BrokleMeterProvider, GenAIMetrics, create_genai_metrics
+from .logs import BrokleLoggerProvider
 
 
 # Global singleton instance
@@ -49,6 +51,7 @@ class Brokle:
         environment: str = "default",
         debug: bool = False,
         tracing_enabled: bool = True,
+        metrics_enabled: bool = True,
         release: Optional[str] = None,
         version: Optional[str] = None,
         sample_rate: float = 1.0,
@@ -56,6 +59,7 @@ class Brokle:
         flush_at: int = 100,
         flush_interval: float = 5.0,
         timeout: int = 30,
+        config: Optional[BrokleConfig] = None,
         **kwargs,
     ):
         """
@@ -67,6 +71,7 @@ class Brokle:
             environment: Environment tag (e.g., 'production', 'staging')
             debug: Enable debug logging
             tracing_enabled: Enable/disable tracing (if False, all calls are no-ops)
+            metrics_enabled: Enable/disable metrics collection (if False, no metrics recorded)
             release: Release identifier for deployment tracking (e.g., 'v2.1.24', 'abc123')
             version: Trace-level version for A/B testing experiments (e.g., 'experiment-A', 'control')
             sample_rate: Sampling rate for traces (0.0 to 1.0)
@@ -74,83 +79,100 @@ class Brokle:
             flush_at: Maximum batch size before flush (1-1000)
             flush_interval: Maximum delay in seconds before flush (0.1-60.0)
             timeout: HTTP timeout in seconds
+            config: Pre-built BrokleConfig object (if provided, other params are ignored)
             **kwargs: Additional configuration options
 
         Raises:
             ValueError: If configuration is invalid
         """
-        # Create configuration
-        self.config = BrokleConfig(
-            api_key=api_key or "",  # Will be validated by BrokleConfig
-            base_url=base_url,
-            environment=environment,
-            debug=debug,
-            tracing_enabled=tracing_enabled,
-            release=release,
-            version=version,
-            sample_rate=sample_rate,
-            mask=mask,
-            flush_at=flush_at,
-            flush_interval=flush_interval,
-            timeout=timeout,
-            **kwargs,
-        )
+        if config is not None:
+            self.config = config
+        else:
+            self.config = BrokleConfig(
+                api_key=api_key or "",  # Will be validated by BrokleConfig
+                base_url=base_url,
+                environment=environment,
+                debug=debug,
+                tracing_enabled=tracing_enabled,
+                metrics_enabled=metrics_enabled,
+                release=release,
+                version=version,
+                sample_rate=sample_rate,
+                mask=mask,
+                flush_at=flush_at,
+                flush_interval=flush_interval,
+                timeout=timeout,
+                **kwargs,
+            )
 
-        # If tracing is disabled, we still initialize but with no-op behavior
-        if not self.config.tracing_enabled:
-            self._tracer = trace.get_tracer(__name__)
-            self._provider = None
-            self._processor = None
-            return
+        self._meter_provider: Optional[BrokleMeterProvider] = None
+        self._metrics: Optional[GenAIMetrics] = None
+        self._logger_provider: Optional[BrokleLoggerProvider] = None
 
-        # Create Resource (respects OTEL environment variables)
-        # Note: We don't set service.name to respect user's OTEL_SERVICE_NAME
-        # SDK identification is done via instrumentation scope (get_tracer name/version)
-        # Project ID comes from backend auth, environment set as span attribute
-        # Using create({}) triggers OTEL's default resource detection
-        resource = Resource.create({})
+        # Create shared Resource (used by TracerProvider, MeterProvider, LoggerProvider)
+        # Schema URL enables semantic convention versioning
+        resource = Resource.create({}, schema_url=SchemaURLs.DEFAULT)
 
-        # Add release and version if provided (trace-level metadata)
         resource_attrs = {}
-        if release:
-            resource_attrs[Attrs.BROKLE_RELEASE] = release
-        if version:
-            resource_attrs[Attrs.BROKLE_VERSION] = version
+        if self.config.release:
+            resource_attrs[Attrs.BROKLE_RELEASE] = self.config.release
+        if self.config.version:
+            resource_attrs[Attrs.BROKLE_VERSION] = self.config.version
 
         if resource_attrs:
             resource = resource.merge(Resource.create(resource_attrs))
 
-        # Create sampler based on sample_rate
-        # Uses OpenTelemetry's TraceIdRatioBased sampler for trace-level sampling
-        # This ensures entire traces are sampled together (not individual spans)
-        if self.config.sample_rate < 1.0:
-            sampler = TraceIdRatioBased(self.config.sample_rate)
+        if not self.config.tracing_enabled:
+            self._tracer = trace.get_tracer(__name__)
+            self._provider = None
+            self._processor = None
         else:
-            sampler = ALWAYS_ON  # 100% sampling (default)
+            # TraceIdRatioBased sampler ensures entire traces are sampled together
+            if self.config.sample_rate < 1.0:
+                sampler = TraceIdRatioBased(self.config.sample_rate)
+            else:
+                sampler = ALWAYS_ON
 
-        # Create TracerProvider with Resource and Sampler
-        self._provider = TracerProvider(
-            resource=resource,
-            sampler=sampler,  # Trace-level sampling (deterministic by trace_id)
-        )
+            self._provider = TracerProvider(resource=resource, sampler=sampler)
 
-        # Create exporter based on configuration
-        exporter = create_exporter_for_config(self.config)
+            exporter = create_exporter_for_config(self.config)
+            self._processor = BrokleSpanProcessor(
+                span_exporter=exporter,
+                config=self.config,
+            )
+            self._provider.add_span_processor(self._processor)
 
-        # Create Brokle span processor with batching
-        self._processor = BrokleSpanProcessor(
-            span_exporter=exporter,
-            config=self.config,
-        )
+            self._tracer = self._provider.get_tracer(
+                instrumenting_module_name="brokle",
+                instrumenting_library_version=self._get_sdk_version(),
+                schema_url=SchemaURLs.DEFAULT,
+            )
 
-        # Add processor to provider
-        self._provider.add_span_processor(self._processor)
+        if self.config.metrics_enabled:
+            try:
+                self._meter_provider = BrokleMeterProvider(
+                    config=self.config,
+                    resource=resource,
+                )
+                meter = self._meter_provider.get_meter()
+                self._metrics = create_genai_metrics(meter)
+            except ImportError as e:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Metrics disabled: {e}. Install opentelemetry-exporter-otlp-proto-http."
+                )
 
-        # Get tracer from provider
-        self._tracer = self._provider.get_tracer(
-            instrumenting_module_name="brokle",
-            instrumenting_library_version=self._get_sdk_version(),
-        )
+        if self.config.logs_enabled:
+            try:
+                self._logger_provider = BrokleLoggerProvider(
+                    config=self.config,
+                    resource=resource,
+                )
+            except ImportError as e:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Logs disabled: {e}. Install opentelemetry-exporter-otlp-proto-http."
+                )
 
         # Register cleanup on process exit
         atexit.register(self._cleanup)
@@ -189,6 +211,10 @@ class Brokle:
         if self._processor:
             self.flush()
             self._processor.shutdown()
+        if self._meter_provider:
+            self._meter_provider.shutdown()
+        if self._logger_provider:
+            self._logger_provider.shutdown()
 
     @contextmanager
     def start_as_current_span(
@@ -234,13 +260,11 @@ class Brokle:
             ...     input=[{"role": "user", "content": "Hello"}]) as span:
             ...     pass
         """
-        # Build attributes (layer version on top of user attributes)
         attrs = attributes.copy() if attributes else {}
 
         if version:
             attrs[Attrs.BROKLE_VERSION] = version
 
-        # Set span type for Brokle backend (as_type takes precedence)
         if as_type:
             attrs[Attrs.BROKLE_SPAN_TYPE] = as_type
         elif Attrs.BROKLE_SPAN_TYPE not in attrs:
@@ -316,7 +340,6 @@ class Brokle:
             ...     # Make LLM call
             ...     gen.set_attribute(Attrs.GEN_AI_OUTPUT_MESSAGES, [...])
         """
-        # Build OTEL GenAI attributes
         attrs = {
             Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
             Attrs.GEN_AI_PROVIDER_NAME: provider,
@@ -324,11 +347,9 @@ class Brokle:
             Attrs.GEN_AI_REQUEST_MODEL: model,
         }
 
-        # Add input messages if provided
         if input_messages:
             attrs[Attrs.GEN_AI_INPUT_MESSAGES] = json.dumps(input_messages)
 
-        # Add model parameters
         if model_parameters:
             for key, value in model_parameters.items():
                 if key == "temperature":
@@ -342,14 +363,10 @@ class Brokle:
                 elif key == "presence_penalty":
                     attrs[Attrs.GEN_AI_REQUEST_PRESENCE_PENALTY] = value
 
-        # Add version if provided
         if version:
             attrs[Attrs.BROKLE_VERSION] = version
 
-        # Merge additional kwargs
         attrs.update(kwargs)
-
-        # Span name follows OTEL pattern: "{operation} {model}"
         span_name = f"{name} {model}"
 
         with self._tracer.start_as_current_span(
@@ -398,9 +415,9 @@ class Brokle:
 
     def flush(self, timeout_seconds: int = 30) -> bool:
         """
-        Force flush all pending spans.
+        Force flush all pending spans, metrics, and logs.
 
-        Blocks until all pending spans are exported or timeout is reached.
+        Blocks until all pending data is exported or timeout is reached.
         This is important for short-lived applications (scripts, serverless).
 
         Args:
@@ -412,30 +429,75 @@ class Brokle:
         Example:
             >>> client.flush()  # Ensure all data is sent before exit
         """
-        if not self._processor:
-            return True
-
+        success = True
         timeout_millis = timeout_seconds * 1000
-        return self._processor.force_flush(timeout_millis)
+
+        # Flush traces
+        if self._processor:
+            success = self._processor.force_flush(timeout_millis) and success
+
+        # Flush metrics
+        if self._meter_provider:
+            success = self._meter_provider.force_flush(timeout_millis) and success
+
+        # Flush logs
+        if self._logger_provider:
+            success = self._logger_provider.force_flush(timeout_millis) and success
+
+        return success
 
     def shutdown(self, timeout_seconds: int = 30) -> bool:
         """
-        Shutdown the client and flush all pending spans.
+        Shutdown the client and flush all pending spans, metrics, and logs.
 
         Args:
             timeout_seconds: Timeout in seconds
 
         Returns:
-            True if successful
+            True if successful, False on error
 
         Example:
             >>> client.shutdown()
         """
-        if not self._provider:
-            return True
-
+        success = True
         timeout_millis = timeout_seconds * 1000
-        return self._provider.shutdown()
+
+        # Shutdown tracer provider
+        # TracerProvider.shutdown() returns None on success, raises on failure
+        if self._provider:
+            try:
+                self._provider.shutdown()
+            except Exception:
+                success = False
+
+        # Shutdown meter provider
+        # BrokleMeterProvider.shutdown() returns True on success, False on failure
+        if self._meter_provider:
+            if not self._meter_provider.shutdown(timeout_millis):
+                success = False
+
+        # Shutdown logger provider
+        # BrokleLoggerProvider.shutdown() returns True on success, False on failure
+        if self._logger_provider:
+            if not self._logger_provider.shutdown(timeout_millis):
+                success = False
+
+        return success
+
+    def get_metrics(self) -> Optional[GenAIMetrics]:
+        """
+        Get the GenAI metrics instance for recording custom metrics.
+
+        Returns:
+            GenAIMetrics instance if metrics are enabled, None otherwise
+
+        Example:
+            >>> metrics = client.get_metrics()
+            >>> if metrics:
+            ...     metrics.record_tokens(input_tokens=100, output_tokens=50, model="gpt-4")
+            ...     metrics.record_duration(duration_ms=1500, model="gpt-4")
+        """
+        return self._metrics
 
     def close(self):
         """
@@ -458,7 +520,12 @@ class Brokle:
 
     def __repr__(self) -> str:
         """String representation."""
-        return f"Brokle(environment='{self.config.environment}', tracing_enabled={self.config.tracing_enabled})"
+        return (
+            f"Brokle(environment='{self.config.environment}', "
+            f"tracing_enabled={self.config.tracing_enabled}, "
+            f"metrics_enabled={self.config.metrics_enabled}, "
+            f"logs_enabled={self.config.logs_enabled})"
+        )
 
 
 def _serialize_with_mime(value: Any) -> tuple[str, str]:
@@ -539,7 +606,7 @@ def get_client(**overrides) -> Brokle:
     Subsequent calls return the same instance.
 
     Args:
-        **overrides: Override specific configuration values
+        **overrides: Override specific configuration values (e.g., transport="grpc")
 
     Returns:
         Singleton Brokle instance
@@ -553,31 +620,17 @@ def get_client(**overrides) -> Brokle:
         >>> # All calls return same instance
         >>> client2 = get_client()
         >>> assert client is client2
+        >>> # Override specific settings
+        >>> client = get_client(transport="grpc", metrics_export_interval=30.0)
     """
     global _global_client
 
     if _global_client is None:
-        # Create config from environment variables
+        # Create config from environment variables with any overrides
         config = BrokleConfig.from_env(**overrides)
 
-        # Create client with config parameters
-        _global_client = Brokle(
-            api_key=config.api_key,
-            base_url=config.base_url,
-            environment=config.environment,
-            debug=config.debug,
-            tracing_enabled=config.tracing_enabled,
-            release=config.release,
-            sample_rate=config.sample_rate,
-            mask=config.mask,
-            flush_at=config.flush_at,
-            flush_interval=config.flush_interval,
-            timeout=config.timeout,
-            use_protobuf=config.use_protobuf,
-            compression=config.compression,
-            cache_enabled=config.cache_enabled,
-            routing_enabled=config.routing_enabled,
-        )
+        # Pass config object directly - ensures all config fields are forwarded
+        _global_client = Brokle(config=config)
 
     return _global_client
 

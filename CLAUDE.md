@@ -203,9 +203,15 @@ BROKLE_TIMEOUT=30                              # HTTP timeout in seconds (defaul
 
 ### Programmatic Configuration
 
-The SDK offers two initialization patterns depending on your use case:
+The SDK offers **three initialization patterns**. Choose based on your use case:
 
-**Pattern 1: Explicit Configuration (Recommended for Production)**
+| Pattern | Best For | Config Source |
+|---------|----------|---------------|
+| Direct params | Quick setup, scripts | Hardcoded values |
+| `get_client()` | 12-factor apps, serverless | Environment variables |
+| `BrokleConfig` | Testing, DI, programmatic | Config object |
+
+**Pattern 1: Direct Parameters (Simplest)**
 ```python
 from brokle import Brokle
 
@@ -234,6 +240,7 @@ with client.start_as_current_span("my-operation") as span:
 # Close when done
 client.close()
 ```
+✅ Use when: Quick scripts, explicit configuration, learning the SDK
 
 **Pattern 2: Environment-Based Singleton (`get_client()`)**
 ```python
@@ -245,16 +252,41 @@ client = get_client()
 # All calls to get_client() return the same instance
 client2 = get_client()  # Same instance as above
 
+# With overrides (env vars + explicit values)
+client = get_client(release="v2.0.0")  # Override specific values
+
 # Use the client
 with client.start_as_current_span("my-operation") as span:
     span.update(output="Done")
 
 # Singleton is automatically cleaned up on process exit
 ```
+✅ Use when: 12-factor apps, serverless, Docker/K8s deployments
 
-**When to Use Each:**
-- **`Brokle(api_key="...")`**: Production apps, multiple clients, explicit config, different projects
-- **`get_client()`**: Simple apps, single project, 12-factor apps, serverless functions (reads `BROKLE_*` env vars)
+**Pattern 3: Config Object (`BrokleConfig`)**
+```python
+from brokle import Brokle, BrokleConfig
+
+# Build config programmatically
+config = BrokleConfig(
+    api_key="bk_your_secret",
+    release="v1.2.3",
+    transport="grpc",
+    grpc_endpoint="localhost:4317",
+)
+client = Brokle(config=config)
+
+# Or from environment with modifications
+config = BrokleConfig.from_env()
+# Modify config before creating client
+client = Brokle(config=config)
+```
+✅ Use when: Testing (mock config), dependency injection, dynamic configuration
+
+**Decision Guide:**
+- Need quick setup? → **Direct params**
+- Running in container/serverless? → **`get_client()`**
+- Writing tests or need DI? → **`BrokleConfig`**
 
 **Common Configuration Patterns:**
 

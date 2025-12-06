@@ -45,6 +45,17 @@ class BrokleConfig:
     tracing_enabled: bool = True
     """Enable/disable tracing (if False, all calls become no-ops)"""
 
+    # ========== Metrics Configuration ==========
+    metrics_enabled: bool = True
+    """Enable/disable metrics collection (if False, no metrics are recorded)"""
+
+    metrics_export_interval: float = 60.0
+    """Interval in seconds between metric exports (default: 60s)"""
+
+    # ========== Logs Configuration ==========
+    logs_enabled: bool = False
+    """Enable/disable OTLP log export (opt-in, default: False). Set to True to enable."""
+
     sample_rate: float = 1.0
     """
     Sampling rate for traces (0.0 to 1.0, default: 1.0 = 100%).
@@ -83,6 +94,13 @@ class BrokleConfig:
 
     compression: Optional[str] = "gzip"
     """Compression algorithm: 'gzip', 'deflate', or None"""
+
+    # ========== Transport Configuration ==========
+    transport: str = "http"
+    """Transport protocol: 'http' (default) or 'grpc' (requires grpc extras)"""
+
+    grpc_endpoint: Optional[str] = None
+    """Explicit gRPC endpoint (default: derived from base_url with port 4317)"""
 
     # ========== Internal ==========
     _validated: bool = field(default=False, init=False, repr=False)
@@ -126,6 +144,10 @@ class BrokleConfig:
         if not 0.0 <= self.sample_rate <= 1.0:
             raise ValueError("sample_rate must be between 0.0 and 1.0")
 
+        # Validate metrics_export_interval
+        if not 1.0 <= self.metrics_export_interval <= 300.0:
+            raise ValueError("metrics_export_interval must be between 1.0 and 300.0 seconds")
+
         # Validate flush_at
         if not 1 <= self.flush_at <= 1000:
             raise ValueError("flush_at must be between 1 and 1000")
@@ -141,6 +163,10 @@ class BrokleConfig:
         # Validate compression
         if self.compression not in (None, "gzip", "deflate"):
             raise ValueError("compression must be 'gzip', 'deflate', or None")
+
+        # Validate transport
+        if self.transport not in ("http", "grpc"):
+            raise ValueError("transport must be 'http' or 'grpc'")
 
         # Validate max_queue_size
         if self.max_queue_size < 1:
@@ -162,6 +188,9 @@ class BrokleConfig:
             BROKLE_RELEASE - Release identifier for deployment tracking
             BROKLE_VERSION - Trace-level version for A/B testing experiments
             BROKLE_TRACING_ENABLED - Enable tracing (default: true)
+            BROKLE_METRICS_ENABLED - Enable metrics collection (default: true)
+            BROKLE_METRICS_EXPORT_INTERVAL - Metrics export interval in seconds (default: 60.0)
+            BROKLE_LOGS_ENABLED - Enable OTLP log export (opt-in, default: false)
             BROKLE_SAMPLE_RATE - Sampling rate (default: 1.0)
             BROKLE_DEBUG - Enable debug logging (default: false)
             BROKLE_FLUSH_AT - Batch size (default: 100)
@@ -169,6 +198,8 @@ class BrokleConfig:
             BROKLE_TIMEOUT - HTTP timeout in seconds (default: 30)
             BROKLE_USE_PROTOBUF - Use Protobuf format (default: true)
             BROKLE_COMPRESSION - Compression algorithm (default: "gzip")
+            BROKLE_TRANSPORT - Transport protocol: "http" or "grpc" (default: "http")
+            BROKLE_GRPC_ENDPOINT - Explicit gRPC endpoint (default: derived from base_url)
 
         Args:
             **overrides: Override specific configuration values
@@ -213,6 +244,22 @@ class BrokleConfig:
             os.getenv("BROKLE_DEBUG", "false")
         )
 
+        # Metrics configuration
+        metrics_enabled = cls._parse_bool(
+            overrides.get("metrics_enabled"),
+            os.getenv("BROKLE_METRICS_ENABLED", "true")
+        )
+        metrics_export_interval = float(
+            overrides.get("metrics_export_interval")
+            or os.getenv("BROKLE_METRICS_EXPORT_INTERVAL", "60.0")
+        )
+
+        # Logs configuration (opt-in, default: false)
+        logs_enabled = cls._parse_bool(
+            overrides.get("logs_enabled"),
+            os.getenv("BROKLE_LOGS_ENABLED", "false")
+        )
+
         # Batch configuration
         flush_at = int(overrides.get("flush_at") or os.getenv("BROKLE_FLUSH_AT", "100"))
         flush_interval = float(
@@ -236,6 +283,14 @@ class BrokleConfig:
         if compression == "none":
             compression = None
 
+        # Transport configuration
+        transport = overrides.get("transport") or os.getenv(
+            "BROKLE_TRANSPORT", "http"
+        )
+        grpc_endpoint = overrides.get("grpc_endpoint") or os.getenv(
+            "BROKLE_GRPC_ENDPOINT"
+        )
+
         # Privacy (only from overrides, not environment)
         mask = overrides.get("mask")
 
@@ -247,6 +302,9 @@ class BrokleConfig:
             release=release,
             version=version,
             tracing_enabled=tracing_enabled,
+            metrics_enabled=metrics_enabled,
+            metrics_export_interval=metrics_export_interval,
+            logs_enabled=logs_enabled,
             sample_rate=sample_rate,
             debug=debug,
             mask=mask,
@@ -256,6 +314,8 @@ class BrokleConfig:
             export_timeout=export_timeout,
             use_protobuf=use_protobuf,
             compression=compression,
+            transport=transport,
+            grpc_endpoint=grpc_endpoint,
         )
 
     @staticmethod
@@ -303,5 +363,7 @@ class BrokleConfig:
             f"base_url='{self.base_url}', "
             f"environment='{self.environment}', "
             f"tracing_enabled={self.tracing_enabled}, "
+            f"metrics_enabled={self.metrics_enabled}, "
+            f"logs_enabled={self.logs_enabled}, "
             f"sample_rate={self.sample_rate})"
         )

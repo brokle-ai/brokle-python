@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from brokle.config import Config
+from brokle.config import BrokleConfig
 
 
 @pytest.fixture
@@ -19,8 +19,8 @@ def event_loop():
 @pytest.fixture
 def test_config():
     """Create a test configuration."""
-    return Config(
-        api_key="bk_test_secret", host="https://test.brokle.com", environment="test"
+    return BrokleConfig(
+        api_key="bk_test_secret", base_url="https://test.brokle.com", environment="test"
     )
 
 
@@ -193,18 +193,12 @@ def reset_client_state():
     # Clear singleton instance
     import brokle.client
 
-    brokle.client._client_singleton = None
-
-    # Clear observability context
-    from brokle.observability.context import clear_context
-
-    clear_context()
+    brokle.client._global_client = None
 
     yield
 
     # Cleanup after test
-    brokle.client._client_singleton = None
-    clear_context()
+    brokle.client._global_client = None
 
 
 @pytest.fixture(autouse=True)
