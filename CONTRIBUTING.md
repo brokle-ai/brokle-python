@@ -265,6 +265,40 @@ def create_completion(
     """
 ```
 
+## Release Process
+
+### For Maintainers
+
+To release a new version of the Python SDK:
+
+1. **Run the release script**:
+   ```bash
+   make release-patch  # or release-minor, release-major
+   ```
+
+2. **The script will**:
+   - Validate git state (clean working directory, on main branch, up-to-date)
+   - Run full test suite (blocks if tests fail)
+   - Bump version in `brokle/version.py`
+   - Create commit: `chore: bump version to X.Y.Z`
+   - Create git tag: `vX.Y.Z`
+   - Push commit and tag to GitHub
+
+3. **Create GitHub Release manually**:
+   - Go to: https://github.com/brokle-ai/brokle-python/releases/new
+   - Select the tag that was just created
+   - Click "Generate release notes"
+   - Review and edit release notes as needed
+   - Mark as pre-release if needed (for alpha/beta/rc versions)
+   - Click "Publish release"
+
+4. **GitHub Actions automatically**:
+   - Builds the Python package
+   - Publishes to PyPI using OIDC Trusted Publishing
+   - Uploads build artifacts to the release
+
+**Note**: Publishing to PyPI happens automatically when you publish the GitHub Release. No manual `twine upload` needed!
+
 ## Getting Help
 
 ### Resources

@@ -1,6 +1,6 @@
 # Brokle Platform Python SDK Makefile
 
-.PHONY: help install install-dev test test-verbose test-coverage lint format type-check clean build publish-test publish docs serve-docs
+.PHONY: help install install-dev test test-verbose test-coverage lint format type-check clean build docs serve-docs
 
 # Default target
 help:
@@ -17,8 +17,6 @@ help:
 	@echo "  type-check    Run type checking with mypy"
 	@echo "  clean         Clean build artifacts"
 	@echo "  build         Build distribution packages"
-	@echo "  publish-test  Publish to test PyPI"
-	@echo "  publish       Publish to PyPI"
 	@echo "  docs          Generate documentation"
 	@echo "  serve-docs    Serve documentation locally"
 
@@ -66,12 +64,6 @@ clean:
 
 build: clean
 	python -m build
-
-publish-test: build
-	python -m twine upload --repository-url https://test.pypi.org/legacy/ dist/*
-
-publish: build
-	python -m twine upload dist/*
 
 # Documentation
 docs:

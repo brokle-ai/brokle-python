@@ -63,6 +63,15 @@ def get_latest_tag():
 
 def increment_version(current_version, increment_type):
     """Increment version based on type (major, minor, patch)."""
+    # Check if current version is a pre-release
+    if "-" in current_version:
+        # Pre-release detected - promote to stable (strip suffix, don't increment)
+        base_version = current_version.split("-")[0]
+        logging.info(f"Pre-release detected: {current_version}")
+        logging.info(f"Promoting to stable: {base_version}")
+        return base_version
+
+    # Stable version - increment normally
     major, minor, patch = map(int, current_version.split("."))
     if increment_type == "patch":
         patch += 1
@@ -196,25 +205,24 @@ def main():
         # Step 8: Success Message
         logging.info("Step 8: Release Completed")
         print("━" * 80)
-        print("✅ Release v{} created successfully!".format(new_version))
+        print("✅ Version v{} prepared and pushed!".format(new_version))
         print("━" * 80)
         print("")
-        print("📦 What happens next:")
+        print("📋 NEXT STEPS:")
         print("")
-        print("1. GitHub Actions is now running:")
-        print("   • Building Python package")
-        print("   • Publishing to PyPI (OIDC Trusted Publishing)")
-        print("   • Creating GitHub Release automatically")
+        print("1. Go to: https://github.com/brokle-ai/brokle-python/releases/new")
+        print(f"2. Select tag: v{new_version}")
+        print("3. Click 'Generate release notes'")
+        print("4. Review and edit release notes")
+        print("5. Mark as pre-release if needed (for alpha/beta/rc)")
+        print("6. Click 'Publish release'")
         print("")
-        print("2. Monitor the workflow:")
-        print(f"   🔗 https://github.com/brokle-ai/brokle-python/actions")
+        print("🤖 After you publish the release:")
+        print("   - GitHub Actions will build the Python package")
+        print("   - GitHub Actions will publish to PyPI (OIDC Trusted Publishing)")
+        print("   - Artifacts will be uploaded to the release")
         print("")
-        print("3. After ~5 minutes, verify:")
-        print(f"   📦 PyPI: https://pypi.org/project/brokle/{new_version}/")
-        print(f"   📋 Release: https://github.com/brokle-ai/brokle-python/releases/tag/v{new_version}")
-        print("")
-        print("⚠️  Note: GitHub Release is created automatically by GitHub Actions.")
-        print("   No manual steps required!")
+        print("⏳ The release workflow will start automatically when you publish!")
         print("")
         logging.info("🚀 Brokle SDK release process completed successfully!")
 

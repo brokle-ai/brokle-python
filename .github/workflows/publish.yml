@@ -1,31 +1,18 @@
 name: Publish to PyPI
 
 on:
-  push:
-    tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
-      - "v[0-9]+.[0-9]+.[0-9]+-*"
-  workflow_dispatch:
-    inputs:
-      target:
-        description: 'Publish target'
-        required: true
-        default: 'pypi'
-        type: choice
-        options:
-        - pypi
-        - testpypi
+  release:
+    types: [published]
 
 jobs:
   publish:
-    name: Publish to ${{ github.event.inputs.target || 'PyPI' }}
+    name: Publish to PyPI
     runs-on: ubuntu-latest
     environment:
-      name: ${{ (github.event_name == 'release' || github.event.inputs.target == 'pypi') && 'pypi' || 'testpypi' }}
+      name: ${{ contains(github.event.release.tag_name, '-') && 'testpypi' || 'pypi' }}
     permissions:
-      contents: read
-      actions: read
-      id-token: write  # IMPORTANT: Required for Trusted Publishing (OIDC)
+      contents: write  # Required for uploading artifacts to GitHub Release
+      id-token: write  # Required for PyPI Trusted Publishing (OIDC)
 
     steps:
     - name: Checkout code
@@ -39,19 +26,14 @@ jobs:
     - name: Extract version information
       id: version
       run: |
-        if [ "${{ github.event_name }}" = "push" ]; then
-          # Extract from tag (v0.2.11 → 0.2.11)
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"  # Remove 'v' prefix if present
-        else
-          # Manual workflow_dispatch - read from file
-          VERSION=$(grep -oP '__version__ = "\K[^"]+' brokle/version.py)
-        fi
+        # Extract from release tag (v0.2.14 → 0.2.14)
+        VERSION="${{ github.event.release.tag_name }}"
+        VERSION="${VERSION#v}"  # Remove 'v' prefix if present
         echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
         echo "Publishing version: ${VERSION}"
 
     - name: Validate version consistency
-      if: github.event_name == 'push'
+      if: github.event_name == 'release'
       run: |
         TAG_VERSION="${{ steps.version.outputs.VERSION }}"
         # Read version directly from file without importing (avoids dependency issues)
@@ -99,8 +81,24 @@ jobs:
       run: |
         python -m twine check dist/*
 
+    - name: Validate pre-release version
+      if: github.event_name == 'release' && github.event.release.prerelease
+      run: |
+        VERSION="${{ github.event.release.tag_name }}"
+        if [[ ! "$VERSION" =~ (alpha|beta|rc) ]]; then
+          echo "❌ ERROR: GitHub Release marked as pre-release but version has no suffix!"
+          echo "   Version: $VERSION"
+          echo "   This would publish stable version with beta tag, blocking future stable release."
+          echo ""
+          echo "   To fix: Either"
+          echo "   1. Uncheck 'pre-release' checkbox and re-publish, OR"
+          echo "   2. Delete this release and create tag with suffix (e.g., v0.2.14-rc.1)"
+          exit 1
+        fi
+        echo "✅ Pre-release version valid: $VERSION"
+
     - name: Publish to Test PyPI
-      if: github.event.inputs.target == 'testpypi' || steps.prerelease.outputs.IS_PRERELEASE == 'true'
+      if: steps.prerelease.outputs.IS_PRERELEASE == 'true'
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
@@ -108,7 +106,7 @@ jobs:
         python -m twine upload --repository testpypi dist/* --verbose
 
     - name: Publish to PyPI (Trusted Publishing)
-      if: (github.event_name == 'push' || github.event.inputs.target == 'pypi') && steps.prerelease.outputs.IS_PRERELEASE != 'true'
+      if: steps.prerelease.outputs.IS_PRERELEASE != 'true'
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         verbose: true
@@ -116,38 +114,8 @@ jobs:
       # Note: No API token needed! Uses OIDC Trusted Publishing
       # Configure at: https://pypi.org/manage/account/publishing/
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: python-package-distributions
-        path: dist/
-
-    - name: Create GitHub Release
-      if: github.event_name == 'push' && success()
+    - name: Upload build artifacts to release
+      if: github.event_name == 'release'
       uses: softprops/action-gh-release@v1
       with:
-        name: v${{ steps.version.outputs.VERSION }}
-        body: |
-          ## Brokle Python SDK v${{ steps.version.outputs.VERSION }}
-
-          ### Installation
-
-          ```bash
-          pip install brokle==${{ steps.version.outputs.VERSION }}
-          ```
-
-          ### PyPI Package
-
-          📦 https://pypi.org/project/brokle/${{ steps.version.outputs.VERSION }}/
-
-          ### Changelog
-
-          See [CHANGELOG.md](./CHANGELOG.md) for detailed changes.
-
-          ---
-
-          **Full Changelog**: https://github.com/brokle-ai/brokle-python/compare/v${{ steps.version.outputs.VERSION }}...HEAD
         files: dist/*
-        draft: false
-        prerelease: ${{ steps.prerelease.outputs.IS_PRERELEASE == 'true' }}
-        generate_release_notes: true
