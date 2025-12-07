@@ -2,6 +2,7 @@
 OpenAI SDK wrapper for automatic observability.
 
 Wraps OpenAI client to automatically create OTEL spans with GenAI 1.28+ attributes.
+Streaming responses are transparently instrumented with TTFT and ITL tracking.
 """
 
 import json
@@ -18,6 +19,8 @@ from ..utils.attributes import (
     calculate_total_tokens,
     extract_model_parameters,
 )
+from ..streaming import StreamingAccumulator
+from ..streaming.wrappers import BrokleStreamWrapper, BrokleAsyncStreamWrapper
 
 if TYPE_CHECKING:
     import openai
@@ -124,14 +127,54 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
         # Create span name following OTEL pattern: "{operation} {model}"
         span_name = f"{OperationType.CHAT} {model}"
 
-        # Create span and make API call
+        # Handle streaming vs non-streaming differently
+        if stream:
+            return _handle_streaming_response(
+                brokle_client, original_chat_create, args, kwargs,
+                span_name, attrs
+            )
+        else:
+            return _handle_sync_response(
+                brokle_client, original_chat_create, args, kwargs,
+                span_name, attrs
+            )
+
+    def _handle_streaming_response(brokle_client, original_method, args, kwargs, span_name, attrs):
+        """Handle streaming response with transparent wrapper instrumentation."""
+        # Start span manually using underlying tracer (will be ended by stream wrapper)
+        # Access the private _tracer attribute to get non-context-manager span
+        tracer = brokle_client._tracer
+        span = tracer.start_span(span_name, attributes=attrs)
+
+        try:
+            # Record start time BEFORE API call
+            start_time = time.perf_counter()
+
+            # Make API call
+            response = original_method(*args, **kwargs)
+
+            # Create accumulator with start time
+            accumulator = StreamingAccumulator(start_time)
+            wrapped_stream = BrokleStreamWrapper(response, span, accumulator)
+
+            return wrapped_stream
+
+        except BaseException as e:
+            # Record error and end span (catches all exceptions including KeyboardInterrupt)
+            span.set_status(Status(StatusCode.ERROR, str(e)))
+            span.record_exception(e)
+            span.end()
+            raise
+
+    def _handle_sync_response(brokle_client, original_method, args, kwargs, span_name, attrs):
+        """Handle non-streaming response with standard span lifecycle."""
         with brokle_client.start_as_current_span(span_name, attributes=attrs) as span:
             try:
                 # Record start time for latency
                 start_time = time.time()
 
                 # Make actual API call
-                response = original_chat_create(*args, **kwargs)
+                response = original_method(*args, **kwargs)
 
                 # Calculate latency
                 latency_ms = (time.time() - start_time) * 1000
@@ -284,18 +327,55 @@ def wrap_openai_async(client: "openai.AsyncOpenAI") -> "openai.AsyncOpenAI":
         # Create span
         span_name = f"{OperationType.CHAT} {model}"
 
+        # Handle streaming vs non-streaming
+        if stream:
+            return await _handle_async_streaming_response(
+                brokle_client, original_chat_create, args, kwargs,
+                span_name, attrs
+            )
+        else:
+            return await _handle_async_response(
+                brokle_client, original_chat_create, args, kwargs,
+                span_name, attrs
+            )
+
+    async def _handle_async_streaming_response(brokle_client, original_method, args, kwargs, span_name, attrs):
+        """Handle async streaming response with transparent wrapper instrumentation."""
+        # Start span manually using underlying tracer (will be ended by stream wrapper)
+        tracer = brokle_client._tracer
+        span = tracer.start_span(span_name, attributes=attrs)
+
+        try:
+            # Record start time BEFORE API call
+            start_time = time.perf_counter()
+
+            # Make async API call
+            response = await original_method(*args, **kwargs)
+
+            # Create accumulator with start time
+            accumulator = StreamingAccumulator(start_time)
+            wrapped_stream = BrokleAsyncStreamWrapper(response, span, accumulator)
+
+            return wrapped_stream
+
+        except BaseException as e:
+            # Record error and end span (catches all exceptions including CancelledError)
+            span.set_status(Status(StatusCode.ERROR, str(e)))
+            span.record_exception(e)
+            span.end()
+            raise
+
+    async def _handle_async_response(brokle_client, original_method, args, kwargs, span_name, attrs):
+        """Handle async non-streaming response with standard span lifecycle."""
         with brokle_client.start_as_current_span(span_name, attributes=attrs) as span:
             try:
                 start_time = time.time()
 
                 # Make async API call
-                response = await original_chat_create(*args, **kwargs)
+                response = await original_method(*args, **kwargs)
 
                 # Calculate latency
                 latency_ms = (time.time() - start_time) * 1000
-
-                # Extract response metadata (same as sync version)
-                # ... (response processing code same as sync)
 
                 # Set latency
                 span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, latency_ms)

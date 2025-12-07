@@ -2,6 +2,7 @@
 Anthropic SDK wrapper for automatic observability.
 
 Wraps Anthropic client to automatically create OTEL spans with GenAI 1.28+ attributes.
+Streaming responses are transparently instrumented with TTFT and ITL tracking.
 """
 
 import json
@@ -13,6 +14,8 @@ from opentelemetry.trace import Status, StatusCode
 from ..client import get_client
 from ..types import Attrs, SpanType, LLMProvider, OperationType
 from ..utils.attributes import serialize_messages, calculate_total_tokens
+from ..streaming import StreamingAccumulator
+from ..streaming.wrappers import BrokleStreamWrapper, BrokleAsyncStreamWrapper
 
 if TYPE_CHECKING:
     import anthropic
@@ -56,10 +59,9 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
         # Get Brokle client
         brokle_client = get_client()
 
-        # Extract request parameters
         model = kwargs.get("model", "unknown")
         messages = kwargs.get("messages", [])
-        system = kwargs.get("system")  # Anthropic uses separate system param
+        system = kwargs.get("system")
         temperature = kwargs.get("temperature")
         max_tokens = kwargs.get("max_tokens")
         top_p = kwargs.get("top_p")
@@ -68,7 +70,6 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
         stream = kwargs.get("stream", False)
         metadata = kwargs.get("metadata")
 
-        # Build OTEL GenAI attributes
         attrs = {
             Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
             Attrs.GEN_AI_PROVIDER_NAME: LLMProvider.ANTHROPIC,
@@ -77,19 +78,14 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
             Attrs.BROKLE_STREAMING: stream,
         }
 
-        # Add messages (Anthropic doesn't use system role in messages)
         if messages:
             attrs[Attrs.GEN_AI_INPUT_MESSAGES] = serialize_messages(messages)
 
-        # Add system instructions if present
         if system:
-            # Anthropic system is a string, convert to OTEL format
             system_msgs = [{"role": "system", "content": system}]
             attrs[Attrs.GEN_AI_SYSTEM_INSTRUCTIONS] = json.dumps(system_msgs)
-            # Store raw for Anthropic-specific tracking
             attrs[Attrs.ANTHROPIC_REQUEST_SYSTEM] = system
 
-        # Add model parameters
         if temperature is not None:
             attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = temperature
         if max_tokens is not None:
@@ -97,7 +93,6 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
         if top_p is not None:
             attrs[Attrs.GEN_AI_REQUEST_TOP_P] = top_p
 
-        # Anthropic-specific attributes
         if top_k is not None:
             attrs[Attrs.ANTHROPIC_REQUEST_TOP_K] = top_k
         if stop_sequences is not None:
@@ -107,49 +102,67 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
         if metadata:
             attrs[Attrs.ANTHROPIC_REQUEST_METADATA] = json.dumps(metadata)
 
-        # Create span name following OTEL pattern: "{operation} {model}"
         span_name = f"{OperationType.CHAT} {model}"
 
-        # Create span and make API call
+        # Handle streaming vs non-streaming differently
+        if stream:
+            return _handle_anthropic_streaming_response(
+                brokle_client, original_messages_create, args, kwargs,
+                span_name, attrs
+            )
+        else:
+            return _handle_anthropic_sync_response(
+                brokle_client, original_messages_create, args, kwargs,
+                span_name, attrs
+            )
+
+    def _handle_anthropic_streaming_response(brokle_client, original_method, args, kwargs, span_name, attrs):
+        """Handle streaming response with transparent wrapper instrumentation."""
+        tracer = brokle_client._tracer
+        span = tracer.start_span(span_name, attributes=attrs)
+
+        try:
+            start_time = time.perf_counter()
+            response = original_method(*args, **kwargs)
+            accumulator = StreamingAccumulator(start_time)
+            wrapped_stream = BrokleStreamWrapper(response, span, accumulator)
+            return wrapped_stream
+        except BaseException as e:
+            span.set_status(Status(StatusCode.ERROR, str(e)))
+            span.record_exception(e)
+            span.end()
+            raise
+
+    def _handle_anthropic_sync_response(brokle_client, original_method, args, kwargs, span_name, attrs):
+        """Handle non-streaming response with standard span lifecycle."""
         with brokle_client.start_as_current_span(span_name, attributes=attrs) as span:
             try:
-                # Record start time for latency
                 start_time = time.time()
-
-                # Make actual API call
-                response = original_messages_create(*args, **kwargs)
-
-                # Calculate latency
+                response = original_method(*args, **kwargs)
                 latency_ms = (time.time() - start_time) * 1000
 
-                # Extract response metadata
                 if hasattr(response, "id"):
                     span.set_attribute(Attrs.GEN_AI_RESPONSE_ID, response.id)
                 if hasattr(response, "model"):
                     span.set_attribute(Attrs.GEN_AI_RESPONSE_MODEL, response.model)
 
-                # Extract stop reason
                 if hasattr(response, "stop_reason") and response.stop_reason:
                     span.set_attribute(Attrs.GEN_AI_RESPONSE_FINISH_REASONS, [response.stop_reason])
                     span.set_attribute(Attrs.ANTHROPIC_RESPONSE_STOP_REASON, response.stop_reason)
                 if hasattr(response, "stop_sequence") and response.stop_sequence:
                     span.set_attribute(Attrs.ANTHROPIC_RESPONSE_STOP_SEQUENCE, response.stop_sequence)
 
-                # Extract output messages
                 if hasattr(response, "content") and response.content:
                     output_messages = []
 
-                    # Anthropic returns list of content blocks
                     for content_block in response.content:
                         if hasattr(content_block, "type"):
                             if content_block.type == "text":
-                                # Text content
                                 output_messages.append({
                                     "role": "assistant",
                                     "content": content_block.text,
                                 })
                             elif content_block.type == "tool_use":
-                                # Tool use
                                 output_messages.append({
                                     "role": "assistant",
                                     "tool_calls": [{
@@ -165,7 +178,6 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
                     if output_messages:
                         span.set_attribute(Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages))
 
-                # Extract usage statistics
                 if hasattr(response, "usage") and response.usage:
                     usage = response.usage
                     if hasattr(usage, "input_tokens") and usage.input_tokens:
@@ -173,7 +185,6 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
                     if hasattr(usage, "output_tokens") and usage.output_tokens:
                         span.set_attribute(Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, usage.output_tokens)
 
-                    # Calculate total tokens
                     total_tokens = calculate_total_tokens(
                         usage.input_tokens if hasattr(usage, "input_tokens") else None,
                         usage.output_tokens if hasattr(usage, "output_tokens") else None,
@@ -181,16 +192,12 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
                     if total_tokens:
                         span.set_attribute(Attrs.BROKLE_USAGE_TOTAL_TOKENS, total_tokens)
 
-                # Set latency
                 span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, latency_ms)
-
-                # Mark span as successful
                 span.set_status(Status(StatusCode.OK))
 
                 return response
 
             except Exception as e:
-                # Record error
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 span.record_exception(e)
                 raise
@@ -256,18 +263,108 @@ def wrap_anthropic_async(client: "anthropic.AsyncAnthropic") -> "anthropic.Async
         # Create span
         span_name = f"{OperationType.CHAT} {model}"
 
+        # Handle streaming vs non-streaming differently
+        if stream:
+            return await _handle_anthropic_async_streaming_response(
+                brokle_client, original_messages_create, args, kwargs,
+                span_name, attrs
+            )
+        else:
+            return await _handle_anthropic_async_response(
+                brokle_client, original_messages_create, args, kwargs,
+                span_name, attrs
+            )
+
+    async def _handle_anthropic_async_streaming_response(brokle_client, original_method, args, kwargs, span_name, attrs):
+        """Handle async streaming response with transparent wrapper instrumentation."""
+        # Start span manually using underlying tracer (will be ended by stream wrapper)
+        tracer = brokle_client._tracer
+        span = tracer.start_span(span_name, attributes=attrs)
+
+        try:
+            # Record start time BEFORE API call
+            start_time = time.perf_counter()
+
+            # Make async API call
+            response = await original_method(*args, **kwargs)
+
+            # Create accumulator with start time
+            accumulator = StreamingAccumulator(start_time)
+            wrapped_stream = BrokleAsyncStreamWrapper(response, span, accumulator)
+
+            return wrapped_stream
+
+        except BaseException as e:
+            # Record error and end span (catches all exceptions including CancelledError)
+            span.set_status(Status(StatusCode.ERROR, str(e)))
+            span.record_exception(e)
+            span.end()
+            raise
+
+    async def _handle_anthropic_async_response(brokle_client, original_method, args, kwargs, span_name, attrs):
+        """Handle async non-streaming response with standard span lifecycle."""
         with brokle_client.start_as_current_span(span_name, attributes=attrs) as span:
             try:
                 start_time = time.time()
 
                 # Make async API call
-                response = await original_messages_create(*args, **kwargs)
+                response = await original_method(*args, **kwargs)
 
                 # Calculate latency
                 latency_ms = (time.time() - start_time) * 1000
 
-                # Extract response metadata (same processing as sync)
-                # ... (response processing code)
+                # Extract response metadata
+                if hasattr(response, "id"):
+                    span.set_attribute(Attrs.GEN_AI_RESPONSE_ID, response.id)
+                if hasattr(response, "model"):
+                    span.set_attribute(Attrs.GEN_AI_RESPONSE_MODEL, response.model)
+
+                # Extract stop reason
+                if hasattr(response, "stop_reason") and response.stop_reason:
+                    span.set_attribute(Attrs.GEN_AI_RESPONSE_FINISH_REASONS, [response.stop_reason])
+                    span.set_attribute(Attrs.ANTHROPIC_RESPONSE_STOP_REASON, response.stop_reason)
+
+                # Extract output messages
+                if hasattr(response, "content") and response.content:
+                    output_messages = []
+                    for content_block in response.content:
+                        if hasattr(content_block, "type"):
+                            if content_block.type == "text":
+                                output_messages.append({
+                                    "role": "assistant",
+                                    "content": content_block.text,
+                                })
+                            elif content_block.type == "tool_use":
+                                output_messages.append({
+                                    "role": "assistant",
+                                    "tool_calls": [{
+                                        "id": content_block.id,
+                                        "type": "function",
+                                        "function": {
+                                            "name": content_block.name,
+                                            "arguments": json.dumps(content_block.input),
+                                        }
+                                    }]
+                                })
+
+                    if output_messages:
+                        span.set_attribute(Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages))
+
+                # Extract usage statistics
+                if hasattr(response, "usage") and response.usage:
+                    usage = response.usage
+                    if hasattr(usage, "input_tokens") and usage.input_tokens:
+                        span.set_attribute(Attrs.GEN_AI_USAGE_INPUT_TOKENS, usage.input_tokens)
+                    if hasattr(usage, "output_tokens") and usage.output_tokens:
+                        span.set_attribute(Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, usage.output_tokens)
+
+                    # Calculate total tokens
+                    total_tokens = calculate_total_tokens(
+                        usage.input_tokens if hasattr(usage, "input_tokens") else None,
+                        usage.output_tokens if hasattr(usage, "output_tokens") else None,
+                    )
+                    if total_tokens:
+                        span.set_attribute(Attrs.BROKLE_USAGE_TOTAL_TOKENS, total_tokens)
 
                 # Set latency
                 span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, latency_ms)

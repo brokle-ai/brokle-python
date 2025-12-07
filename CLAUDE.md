@@ -337,6 +337,34 @@ response = openai_client.chat.completions.create(
 )
 ```
 
+**Streaming with Token Usage:**
+
+To capture token usage in streaming responses, you **must** pass `stream_options={"include_usage": True}`. This is an OpenAI API requirement, not a Brokle limitation.
+
+```python
+# Streaming WITHOUT usage tracking (usage will be empty)
+stream = openai_client.chat.completions.create(
+    model="gpt-4",
+    messages=[{"role": "user", "content": "Hello"}],
+    stream=True,
+)
+
+# Streaming WITH usage tracking (recommended)
+stream = openai_client.chat.completions.create(
+    model="gpt-4",
+    messages=[{"role": "user", "content": "Hello"}],
+    stream=True,
+    stream_options={"include_usage": True},  # Required for usage in streaming!
+)
+
+# Note: The final chunk will have empty choices - handle appropriately
+for chunk in stream:
+    if chunk.choices and chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")
+```
+
+See [OpenAI docs](https://platform.openai.com/docs/api-reference/chat/create#chat-create-stream_options) for more details.
+
 **Integration with Decorators:**
 ```python
 from brokle import observe, get_client
