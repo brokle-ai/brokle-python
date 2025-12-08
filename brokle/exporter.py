@@ -11,7 +11,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
     Compression,
     OTLPSpanExporter,
 )
-from opentelemetry.sdk.trace.export import SpanExporter
+from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 
 from .config import BrokleConfig
 
@@ -105,10 +105,8 @@ class NoOpExporter(SpanExporter):
     This is more efficient than filtering spans before export.
     """
 
-    def export(self, spans) -> "SpanExportResult":
+    def export(self, spans) -> SpanExportResult:
         """Discard spans and return success."""
-        from opentelemetry.sdk.trace.export import SpanExportResult
-
         return SpanExportResult.SUCCESS
 
     def shutdown(self) -> None:
