@@ -19,6 +19,7 @@ os.environ["BROKLE_HOST"] = "http://localhost:8080"
 
 os.environ["OPENAI_API_KEY"] = "sk-proj-testkeyforlocaldebuggingonly"
 
+
 def sync_chat_example():
     """Example of synchronous chat completion with wrapper function."""
     print("💬 Sync Chat Completion with Wrapper")

@@ -8,22 +8,21 @@ using OpenTelemetry as the underlying telemetry framework.
 import atexit
 import json
 from contextlib import contextmanager
-from typing import Optional, Dict, Any, List, Iterator
+from typing import Any, Dict, Iterator, List, Optional
 from uuid import UUID
 
 from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider, Span
-from opentelemetry.sdk.trace.sampling import TraceIdRatioBased, ALWAYS_ON
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.trace import Tracer, SpanKind, Status, StatusCode
+from opentelemetry.sdk.trace import Span, TracerProvider
+from opentelemetry.sdk.trace.sampling import ALWAYS_ON, TraceIdRatioBased
+from opentelemetry.trace import SpanKind, Status, StatusCode, Tracer
 
 from .config import BrokleConfig
 from .exporter import create_exporter_for_config
-from .processor import BrokleSpanProcessor
-from .types import Attrs, SpanType, LLMProvider, OperationType, SchemaURLs
-from .metrics import BrokleMeterProvider, GenAIMetrics, create_genai_metrics
 from .logs import BrokleLoggerProvider
-
+from .metrics import BrokleMeterProvider, GenAIMetrics, create_genai_metrics
+from .processor import BrokleSpanProcessor
+from .types import Attrs, LLMProvider, OperationType, SchemaURLs, SpanType
 
 # Global singleton instance
 _global_client: Optional["Brokle"] = None
@@ -158,6 +157,7 @@ class Brokle:
                 self._metrics = create_genai_metrics(meter)
             except ImportError as e:
                 import logging
+
                 logging.getLogger(__name__).warning(
                     f"Metrics disabled: {e}. Install opentelemetry-exporter-otlp-proto-http."
                 )
@@ -170,6 +170,7 @@ class Brokle:
                 )
             except ImportError as e:
                 import logging
+
                 logging.getLogger(__name__).warning(
                     f"Logs disabled: {e}. Install opentelemetry-exporter-otlp-proto-http."
                 )
@@ -202,6 +203,7 @@ class Brokle:
         """Get SDK version."""
         try:
             from . import __version__
+
             return __version__
         except (ImportError, AttributeError):
             return "0.1.0-dev"
@@ -559,7 +561,7 @@ def _serialize_with_mime(value: Any) -> tuple[str, str]:
 
         if isinstance(value, bytes):
             # Decode with error replacement for malformed UTF-8
-            return value.decode('utf-8', errors='replace'), "text/plain"
+            return value.decode("utf-8", errors="replace"), "text/plain"
 
         # Fallback for custom objects (Pydantic models, dataclasses, etc.)
         if hasattr(value, "model_dump"):
@@ -569,6 +571,7 @@ def _serialize_with_mime(value: Any) -> tuple[str, str]:
         if hasattr(value, "__dataclass_fields__"):
             # Dataclass
             import dataclasses
+
             return json.dumps(dataclasses.asdict(value)), "application/json"
 
         # Last resort: string representation
@@ -592,9 +595,9 @@ def _is_llm_messages_format(data: Any) -> bool:
         True if ChatML format, False otherwise
     """
     return (
-        isinstance(data, list) and
-        len(data) > 0 and
-        all(isinstance(m, dict) and "role" in m for m in data)
+        isinstance(data, list)
+        and len(data) > 0
+        and all(isinstance(m, dict) and "role" in m for m in data)
     )
 
 

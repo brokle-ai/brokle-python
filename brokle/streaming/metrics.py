@@ -5,8 +5,8 @@ Provides metrics recording for TTFT, inter-token latency, and other
 streaming-related metrics using the GenAIMetrics infrastructure.
 """
 
-from typing import Optional, TYPE_CHECKING
 import logging
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from ..metrics import GenAIMetrics

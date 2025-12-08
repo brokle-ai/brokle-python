@@ -1,13 +1,17 @@
 """
 Test that event types match backend expectations.
 """
-import os
+
 import logging
+import os
 import time
+
 from brokle import Brokle
 
 # Enable logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 # Set environment
 os.environ["BROKLE_API_KEY"] = "bk_test"
@@ -49,7 +53,7 @@ print(f"   Events processed: {metrics.get('items_processed', 0)}")
 print(f"   Events failed: {metrics.get('items_failed', 0)}")
 print(f"   Batches sent: {metrics.get('batches_processed', 0)}")
 
-if metrics.get('last_error'):
+if metrics.get("last_error"):
     print(f"   ⚠️  Last error: {metrics['last_error']}")
 else:
     print(f"   ✅ No errors!")

@@ -26,7 +26,7 @@ Manual Accumulator (For custom integrations):
 
 from .accumulator import StreamingAccumulator, StreamingResult
 from .metrics import StreamingMetrics
-from .wrappers import BrokleStreamWrapper, BrokleAsyncStreamWrapper
+from .wrappers import BrokleAsyncStreamWrapper, BrokleStreamWrapper
 
 __all__ = [
     "StreamingAccumulator",

@@ -22,6 +22,7 @@ Usage:
 # LangChain integration (requires langchain package)
 try:
     from .langchain import BrokleLangChainCallback
+
     LANGCHAIN_AVAILABLE = True
 except ImportError as e:
     LANGCHAIN_AVAILABLE = False
@@ -32,6 +33,7 @@ except ImportError as e:
 # LlamaIndex integration (requires llama-index package)
 try:
     from .llamaindex import BrokleLlamaIndexHandler, set_global_handler
+
     LLAMAINDEX_AVAILABLE = True
 except ImportError as e:
     LLAMAINDEX_AVAILABLE = False
@@ -83,7 +85,6 @@ __all__ = [
     "BrokleLangChainCallback",
     "LANGCHAIN_AVAILABLE",
     "check_langchain_available",
-
     # LlamaIndex
     "BrokleLlamaIndexHandler",
     "set_global_handler",

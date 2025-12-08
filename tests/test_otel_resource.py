@@ -291,6 +291,7 @@ class TestGetClientConfigForwarding:
         Regression test for: get_client drops new transport and metrics settings
         """
         from unittest.mock import patch
+
         import brokle.client
 
         # Reset singleton
@@ -326,6 +327,7 @@ class TestGetClientConfigForwarding:
         Verify get_client() forwards metrics_export_interval setting.
         """
         from unittest.mock import patch
+
         import brokle.client
 
         # Reset singleton
@@ -355,6 +357,7 @@ class TestGetClientConfigForwarding:
         Verify get_client() forwards version setting for A/B testing.
         """
         from unittest.mock import patch
+
         import brokle.client
 
         # Reset singleton
@@ -384,6 +387,7 @@ class TestGetClientConfigForwarding:
         Verify get_client() forwards grpc_endpoint setting.
         """
         from unittest.mock import patch
+
         import brokle.client
 
         # Reset singleton
@@ -399,9 +403,7 @@ class TestGetClientConfigForwarding:
 
                 from brokle.client import get_client
 
-                client = get_client(
-                    transport="grpc", grpc_endpoint="localhost:4317"
-                )
+                client = get_client(transport="grpc", grpc_endpoint="localhost:4317")
 
                 mock_brokle.assert_called_once()
                 config = mock_brokle.call_args.kwargs["config"]
@@ -416,6 +418,7 @@ class TestGetClientConfigForwarding:
         Verify get_client() forwards max_queue_size setting.
         """
         from unittest.mock import patch
+
         import brokle.client
 
         # Reset singleton
@@ -445,6 +448,7 @@ class TestGetClientConfigForwarding:
         Verify get_client() forwards export_timeout setting.
         """
         from unittest.mock import patch
+
         import brokle.client
 
         # Reset singleton
@@ -474,6 +478,7 @@ class TestGetClientConfigForwarding:
         Verify get_client() reads BROKLE_TRANSPORT from environment.
         """
         from unittest.mock import patch
+
         import brokle.client
 
         # Reset singleton
@@ -506,6 +511,7 @@ class TestGetClientConfigForwarding:
         Verify get_client() reads BROKLE_METRICS_EXPORT_INTERVAL from environment.
         """
         from unittest.mock import patch
+
         import brokle.client
 
         # Reset singleton

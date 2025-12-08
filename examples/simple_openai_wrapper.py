@@ -1,5 +1,7 @@
 import os
+
 from openai import OpenAI
+
 from brokle import wrap_openai
 
 os.environ["BROKLE_API_KEY"] = "bk_test"

@@ -2,15 +2,15 @@
 Brokle OpenTelemetry type definitions and attribute constants.
 """
 
+from .attributes import Attrs  # Convenience alias
 from .attributes import (
     BrokleOtelSpanAttributes,
-    Attrs,  # Convenience alias
-    SpanType,
-    SpanLevel,
     LLMProvider,
     OperationType,
-    ScoreDataType,
     SchemaURLs,
+    ScoreDataType,
+    SpanLevel,
+    SpanType,
 )
 
 __all__ = [

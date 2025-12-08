@@ -6,6 +6,7 @@ is actually used by the background processor's worker loop.
 """
 
 import time
+
 from brokle import Brokle
 from brokle.config import Config
 
@@ -24,10 +25,7 @@ def verify_batch_max_size_custom():
     print("\n=== Verify Custom batch_max_size ===")
 
     # Create client with custom batch size
-    client = Brokle(
-        api_key="bk_test",
-        batch_max_size=250  # Custom batch size
-    )
+    client = Brokle(api_key="bk_test", batch_max_size=250)  # Custom batch size
 
     print(f"✅ Custom batch_max_size: {client.config.batch_max_size}")
     assert client.config.batch_max_size == 250, "Custom value should be 250"
@@ -86,7 +84,7 @@ def verify_batch_size_actually_used():
 
     # With batch_max_size=300, 350 events should be processed in 2 batches
     # (300 in first batch, 50 in second batch)
-    assert metrics['batches_processed'] >= 1, "At least 1 batch should be processed"
+    assert metrics["batches_processed"] >= 1, "At least 1 batch should be processed"
 
     processor.shutdown()
     print("✅ Worker correctly used batch_max_size=300")

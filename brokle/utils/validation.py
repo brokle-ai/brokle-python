@@ -85,7 +85,7 @@ def validate_environment(environment: str) -> bool:
         raise ValueError("Environment must be 40 characters or less")
 
     # Check valid characters
-    if not re.match(r'^[a-zA-Z0-9][a-zA-Z0-9_-]*[a-zA-Z0-9]$', environment):
+    if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*[a-zA-Z0-9]$", environment):
         # Handle single character case
         if len(environment) == 1 and environment.isalnum():
             return True
@@ -191,7 +191,7 @@ def validate_base_url(base_url: str) -> bool:
         raise ValueError("Base URL must start with http:// or https://")
 
     # Basic URL format validation
-    if not re.match(r'^https?://[a-zA-Z0-9][a-zA-Z0-9.-]+(:[0-9]+)?(/.*)?$', base_url):
+    if not re.match(r"^https?://[a-zA-Z0-9][a-zA-Z0-9.-]+(:[0-9]+)?(/.*)?$", base_url):
         raise ValueError("Base URL format is invalid")
 
     return True

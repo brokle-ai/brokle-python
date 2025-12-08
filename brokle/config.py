@@ -7,7 +7,7 @@ following the 12-factor app pattern.
 
 import os
 from dataclasses import dataclass, field
-from typing import Optional, Callable, Any
+from typing import Any, Callable, Optional
 
 
 @dataclass
@@ -138,7 +138,9 @@ class BrokleConfig:
         if len(self.environment) > 40:
             raise ValueError("environment must be 40 characters or less")
         if not self.environment.replace("_", "").replace("-", "").isalnum():
-            raise ValueError("environment must contain only alphanumeric characters, hyphens, and underscores")
+            raise ValueError(
+                "environment must contain only alphanumeric characters, hyphens, and underscores"
+            )
 
         # Validate sample_rate
         if not 0.0 <= self.sample_rate <= 1.0:
@@ -146,7 +148,9 @@ class BrokleConfig:
 
         # Validate metrics_export_interval
         if not 1.0 <= self.metrics_export_interval <= 300.0:
-            raise ValueError("metrics_export_interval must be between 1.0 and 300.0 seconds")
+            raise ValueError(
+                "metrics_export_interval must be between 1.0 and 300.0 seconds"
+            )
 
         # Validate flush_at
         if not 1 <= self.flush_at <= 1000:
@@ -234,20 +238,19 @@ class BrokleConfig:
         # Tracing control
         tracing_enabled = cls._parse_bool(
             overrides.get("tracing_enabled"),
-            os.getenv("BROKLE_TRACING_ENABLED", "true")
+            os.getenv("BROKLE_TRACING_ENABLED", "true"),
         )
         sample_rate = float(
             overrides.get("sample_rate") or os.getenv("BROKLE_SAMPLE_RATE", "1.0")
         )
         debug = cls._parse_bool(
-            overrides.get("debug"),
-            os.getenv("BROKLE_DEBUG", "false")
+            overrides.get("debug"), os.getenv("BROKLE_DEBUG", "false")
         )
 
         # Metrics configuration
         metrics_enabled = cls._parse_bool(
             overrides.get("metrics_enabled"),
-            os.getenv("BROKLE_METRICS_ENABLED", "true")
+            os.getenv("BROKLE_METRICS_ENABLED", "true"),
         )
         metrics_export_interval = float(
             overrides.get("metrics_export_interval")
@@ -256,8 +259,7 @@ class BrokleConfig:
 
         # Logs configuration (opt-in, default: false)
         logs_enabled = cls._parse_bool(
-            overrides.get("logs_enabled"),
-            os.getenv("BROKLE_LOGS_ENABLED", "false")
+            overrides.get("logs_enabled"), os.getenv("BROKLE_LOGS_ENABLED", "false")
         )
 
         # Batch configuration
@@ -266,16 +268,17 @@ class BrokleConfig:
             overrides.get("flush_interval") or os.getenv("BROKLE_FLUSH_INTERVAL", "5.0")
         )
         max_queue_size = int(
-            overrides.get("max_queue_size") or os.getenv("BROKLE_MAX_QUEUE_SIZE", "2048")
+            overrides.get("max_queue_size")
+            or os.getenv("BROKLE_MAX_QUEUE_SIZE", "2048")
         )
         export_timeout = int(
-            overrides.get("export_timeout") or os.getenv("BROKLE_EXPORT_TIMEOUT", "30000")
+            overrides.get("export_timeout")
+            or os.getenv("BROKLE_EXPORT_TIMEOUT", "30000")
         )
 
         # OTLP configuration
         use_protobuf = cls._parse_bool(
-            overrides.get("use_protobuf"),
-            os.getenv("BROKLE_USE_PROTOBUF", "true")
+            overrides.get("use_protobuf"), os.getenv("BROKLE_USE_PROTOBUF", "true")
         )
         compression = overrides.get("compression") or os.getenv(
             "BROKLE_COMPRESSION", "gzip"
@@ -284,9 +287,7 @@ class BrokleConfig:
             compression = None
 
         # Transport configuration
-        transport = overrides.get("transport") or os.getenv(
-            "BROKLE_TRANSPORT", "http"
-        )
+        transport = overrides.get("transport") or os.getenv("BROKLE_TRANSPORT", "http")
         grpc_endpoint = overrides.get("grpc_endpoint") or os.getenv(
             "BROKLE_GRPC_ENDPOINT"
         )
@@ -356,7 +357,11 @@ class BrokleConfig:
 
     def __repr__(self) -> str:
         """Safe string representation (masks API key)."""
-        masked_key = f"{self.api_key[:7]}...{self.api_key[-4:]}" if len(self.api_key) > 11 else "***"
+        masked_key = (
+            f"{self.api_key[:7]}...{self.api_key[-4:]}"
+            if len(self.api_key) > 11
+            else "***"
+        )
         return (
             f"BrokleConfig("
             f"api_key='{masked_key}', "

@@ -9,13 +9,13 @@ The backend supports both protocols:
 - gRPC: Port 4317 (standard OTLP gRPC port)
 """
 
-from enum import Enum
-from typing import TYPE_CHECKING, Optional, Dict, Any
 import logging
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from opentelemetry.sdk.trace.export import SpanExporter
-from opentelemetry.sdk.metrics.export import MetricExporter
 from opentelemetry.sdk._logs.export import LogExporter
+from opentelemetry.sdk.metrics.export import MetricExporter
+from opentelemetry.sdk.trace.export import SpanExporter
 
 if TYPE_CHECKING:
     from ..config import BrokleConfig
@@ -126,7 +126,9 @@ def _create_http_trace_exporter(config: "BrokleConfig") -> SpanExporter:
 
 def _create_http_metric_exporter(config: "BrokleConfig") -> MetricExporter:
     """Create HTTP/Protobuf metric exporter."""
-    from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+    from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
+        OTLPMetricExporter,
+    )
 
     endpoint = _get_http_endpoint(config, "metrics")
     headers = _get_headers(config)
@@ -149,7 +151,9 @@ def _create_grpc_trace_exporter(config: "BrokleConfig") -> SpanExporter:
     gRPC connects to port 4317 by default (standard OTLP gRPC port).
     """
     try:
-        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+            OTLPSpanExporter,
+        )
     except ImportError as e:
         raise ImportError(
             "gRPC transport requires opentelemetry-exporter-otlp-proto-grpc. "
@@ -176,7 +180,9 @@ def _create_grpc_metric_exporter(config: "BrokleConfig") -> MetricExporter:
     Requires: opentelemetry-exporter-otlp-proto-grpc package
     """
     try:
-        from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+        from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
+            OTLPMetricExporter,
+        )
     except ImportError as e:
         raise ImportError(
             "gRPC transport requires opentelemetry-exporter-otlp-proto-grpc. "

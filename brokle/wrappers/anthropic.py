@@ -7,15 +7,15 @@ Streaming responses are transparently instrumented with TTFT and ITL tracking.
 
 import json
 import time
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 from opentelemetry.trace import Status, StatusCode
 
 from ..client import get_client
-from ..types import Attrs, SpanType, LLMProvider, OperationType
-from ..utils.attributes import serialize_messages, calculate_total_tokens
 from ..streaming import StreamingAccumulator
-from ..streaming.wrappers import BrokleStreamWrapper, BrokleAsyncStreamWrapper
+from ..streaming.wrappers import BrokleAsyncStreamWrapper, BrokleStreamWrapper
+from ..types import Attrs, LLMProvider, OperationType, SpanType
+from ..utils.attributes import calculate_total_tokens, serialize_messages
 
 if TYPE_CHECKING:
     import anthropic
@@ -107,16 +107,16 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
         # Handle streaming vs non-streaming differently
         if stream:
             return _handle_anthropic_streaming_response(
-                brokle_client, original_messages_create, args, kwargs,
-                span_name, attrs
+                brokle_client, original_messages_create, args, kwargs, span_name, attrs
             )
         else:
             return _handle_anthropic_sync_response(
-                brokle_client, original_messages_create, args, kwargs,
-                span_name, attrs
+                brokle_client, original_messages_create, args, kwargs, span_name, attrs
             )
 
-    def _handle_anthropic_streaming_response(brokle_client, original_method, args, kwargs, span_name, attrs):
+    def _handle_anthropic_streaming_response(
+        brokle_client, original_method, args, kwargs, span_name, attrs
+    ):
         """Handle streaming response with transparent wrapper instrumentation."""
         tracer = brokle_client._tracer
         span = tracer.start_span(span_name, attributes=attrs)
@@ -133,7 +133,9 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
             span.end()
             raise
 
-    def _handle_anthropic_sync_response(brokle_client, original_method, args, kwargs, span_name, attrs):
+    def _handle_anthropic_sync_response(
+        brokle_client, original_method, args, kwargs, span_name, attrs
+    ):
         """Handle non-streaming response with standard span lifecycle."""
         with brokle_client.start_as_current_span(span_name, attributes=attrs) as span:
             try:
@@ -147,10 +149,16 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
                     span.set_attribute(Attrs.GEN_AI_RESPONSE_MODEL, response.model)
 
                 if hasattr(response, "stop_reason") and response.stop_reason:
-                    span.set_attribute(Attrs.GEN_AI_RESPONSE_FINISH_REASONS, [response.stop_reason])
-                    span.set_attribute(Attrs.ANTHROPIC_RESPONSE_STOP_REASON, response.stop_reason)
+                    span.set_attribute(
+                        Attrs.GEN_AI_RESPONSE_FINISH_REASONS, [response.stop_reason]
+                    )
+                    span.set_attribute(
+                        Attrs.ANTHROPIC_RESPONSE_STOP_REASON, response.stop_reason
+                    )
                 if hasattr(response, "stop_sequence") and response.stop_sequence:
-                    span.set_attribute(Attrs.ANTHROPIC_RESPONSE_STOP_SEQUENCE, response.stop_sequence)
+                    span.set_attribute(
+                        Attrs.ANTHROPIC_RESPONSE_STOP_SEQUENCE, response.stop_sequence
+                    )
 
                 if hasattr(response, "content") and response.content:
                     output_messages = []
@@ -158,39 +166,59 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
                     for content_block in response.content:
                         if hasattr(content_block, "type"):
                             if content_block.type == "text":
-                                output_messages.append({
-                                    "role": "assistant",
-                                    "content": content_block.text,
-                                })
+                                output_messages.append(
+                                    {
+                                        "role": "assistant",
+                                        "content": content_block.text,
+                                    }
+                                )
                             elif content_block.type == "tool_use":
-                                output_messages.append({
-                                    "role": "assistant",
-                                    "tool_calls": [{
-                                        "id": content_block.id,
-                                        "type": "function",
-                                        "function": {
-                                            "name": content_block.name,
-                                            "arguments": json.dumps(content_block.input),
-                                        }
-                                    }]
-                                })
+                                output_messages.append(
+                                    {
+                                        "role": "assistant",
+                                        "tool_calls": [
+                                            {
+                                                "id": content_block.id,
+                                                "type": "function",
+                                                "function": {
+                                                    "name": content_block.name,
+                                                    "arguments": json.dumps(
+                                                        content_block.input
+                                                    ),
+                                                },
+                                            }
+                                        ],
+                                    }
+                                )
 
                     if output_messages:
-                        span.set_attribute(Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages))
+                        span.set_attribute(
+                            Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages)
+                        )
 
                 if hasattr(response, "usage") and response.usage:
                     usage = response.usage
                     if hasattr(usage, "input_tokens") and usage.input_tokens:
-                        span.set_attribute(Attrs.GEN_AI_USAGE_INPUT_TOKENS, usage.input_tokens)
+                        span.set_attribute(
+                            Attrs.GEN_AI_USAGE_INPUT_TOKENS, usage.input_tokens
+                        )
                     if hasattr(usage, "output_tokens") and usage.output_tokens:
-                        span.set_attribute(Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, usage.output_tokens)
+                        span.set_attribute(
+                            Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, usage.output_tokens
+                        )
 
                     total_tokens = calculate_total_tokens(
                         usage.input_tokens if hasattr(usage, "input_tokens") else None,
-                        usage.output_tokens if hasattr(usage, "output_tokens") else None,
+                        (
+                            usage.output_tokens
+                            if hasattr(usage, "output_tokens")
+                            else None
+                        ),
                     )
                     if total_tokens:
-                        span.set_attribute(Attrs.BROKLE_USAGE_TOTAL_TOKENS, total_tokens)
+                        span.set_attribute(
+                            Attrs.BROKLE_USAGE_TOTAL_TOKENS, total_tokens
+                        )
 
                 span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, latency_ms)
                 span.set_status(Status(StatusCode.OK))
@@ -208,7 +236,9 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
     return client
 
 
-def wrap_anthropic_async(client: "anthropic.AsyncAnthropic") -> "anthropic.AsyncAnthropic":
+def wrap_anthropic_async(
+    client: "anthropic.AsyncAnthropic",
+) -> "anthropic.AsyncAnthropic":
     """
     Wrap AsyncAnthropic client for automatic observability.
 
@@ -266,16 +296,16 @@ def wrap_anthropic_async(client: "anthropic.AsyncAnthropic") -> "anthropic.Async
         # Handle streaming vs non-streaming differently
         if stream:
             return await _handle_anthropic_async_streaming_response(
-                brokle_client, original_messages_create, args, kwargs,
-                span_name, attrs
+                brokle_client, original_messages_create, args, kwargs, span_name, attrs
             )
         else:
             return await _handle_anthropic_async_response(
-                brokle_client, original_messages_create, args, kwargs,
-                span_name, attrs
+                brokle_client, original_messages_create, args, kwargs, span_name, attrs
             )
 
-    async def _handle_anthropic_async_streaming_response(brokle_client, original_method, args, kwargs, span_name, attrs):
+    async def _handle_anthropic_async_streaming_response(
+        brokle_client, original_method, args, kwargs, span_name, attrs
+    ):
         """Handle async streaming response with transparent wrapper instrumentation."""
         # Start span manually using underlying tracer (will be ended by stream wrapper)
         tracer = brokle_client._tracer
@@ -301,7 +331,9 @@ def wrap_anthropic_async(client: "anthropic.AsyncAnthropic") -> "anthropic.Async
             span.end()
             raise
 
-    async def _handle_anthropic_async_response(brokle_client, original_method, args, kwargs, span_name, attrs):
+    async def _handle_anthropic_async_response(
+        brokle_client, original_method, args, kwargs, span_name, attrs
+    ):
         """Handle async non-streaming response with standard span lifecycle."""
         with brokle_client.start_as_current_span(span_name, attributes=attrs) as span:
             try:
@@ -321,8 +353,12 @@ def wrap_anthropic_async(client: "anthropic.AsyncAnthropic") -> "anthropic.Async
 
                 # Extract stop reason
                 if hasattr(response, "stop_reason") and response.stop_reason:
-                    span.set_attribute(Attrs.GEN_AI_RESPONSE_FINISH_REASONS, [response.stop_reason])
-                    span.set_attribute(Attrs.ANTHROPIC_RESPONSE_STOP_REASON, response.stop_reason)
+                    span.set_attribute(
+                        Attrs.GEN_AI_RESPONSE_FINISH_REASONS, [response.stop_reason]
+                    )
+                    span.set_attribute(
+                        Attrs.ANTHROPIC_RESPONSE_STOP_REASON, response.stop_reason
+                    )
 
                 # Extract output messages
                 if hasattr(response, "content") and response.content:
@@ -330,41 +366,61 @@ def wrap_anthropic_async(client: "anthropic.AsyncAnthropic") -> "anthropic.Async
                     for content_block in response.content:
                         if hasattr(content_block, "type"):
                             if content_block.type == "text":
-                                output_messages.append({
-                                    "role": "assistant",
-                                    "content": content_block.text,
-                                })
+                                output_messages.append(
+                                    {
+                                        "role": "assistant",
+                                        "content": content_block.text,
+                                    }
+                                )
                             elif content_block.type == "tool_use":
-                                output_messages.append({
-                                    "role": "assistant",
-                                    "tool_calls": [{
-                                        "id": content_block.id,
-                                        "type": "function",
-                                        "function": {
-                                            "name": content_block.name,
-                                            "arguments": json.dumps(content_block.input),
-                                        }
-                                    }]
-                                })
+                                output_messages.append(
+                                    {
+                                        "role": "assistant",
+                                        "tool_calls": [
+                                            {
+                                                "id": content_block.id,
+                                                "type": "function",
+                                                "function": {
+                                                    "name": content_block.name,
+                                                    "arguments": json.dumps(
+                                                        content_block.input
+                                                    ),
+                                                },
+                                            }
+                                        ],
+                                    }
+                                )
 
                     if output_messages:
-                        span.set_attribute(Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages))
+                        span.set_attribute(
+                            Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages)
+                        )
 
                 # Extract usage statistics
                 if hasattr(response, "usage") and response.usage:
                     usage = response.usage
                     if hasattr(usage, "input_tokens") and usage.input_tokens:
-                        span.set_attribute(Attrs.GEN_AI_USAGE_INPUT_TOKENS, usage.input_tokens)
+                        span.set_attribute(
+                            Attrs.GEN_AI_USAGE_INPUT_TOKENS, usage.input_tokens
+                        )
                     if hasattr(usage, "output_tokens") and usage.output_tokens:
-                        span.set_attribute(Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, usage.output_tokens)
+                        span.set_attribute(
+                            Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, usage.output_tokens
+                        )
 
                     # Calculate total tokens
                     total_tokens = calculate_total_tokens(
                         usage.input_tokens if hasattr(usage, "input_tokens") else None,
-                        usage.output_tokens if hasattr(usage, "output_tokens") else None,
+                        (
+                            usage.output_tokens
+                            if hasattr(usage, "output_tokens")
+                            else None
+                        ),
                     )
                     if total_tokens:
-                        span.set_attribute(Attrs.BROKLE_USAGE_TOTAL_TOKENS, total_tokens)
+                        span.set_attribute(
+                            Attrs.BROKLE_USAGE_TOTAL_TOKENS, total_tokens
+                        )
 
                 # Set latency
                 span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, latency_ms)

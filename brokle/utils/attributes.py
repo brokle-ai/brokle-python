@@ -6,7 +6,7 @@ handling structured content.
 """
 
 import json
-from typing import Dict, Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from opentelemetry.sdk.trace import Span
 
@@ -95,7 +95,7 @@ def serialize_messages(
 
 
 def extract_system_messages(
-    messages: List[Dict[str, Any]]
+    messages: List[Dict[str, Any]],
 ) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
     Extract system messages from message list.

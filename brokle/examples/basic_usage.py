@@ -9,6 +9,7 @@ This example demonstrates the core patterns for using the SDK:
 """
 
 import os
+
 from brokle import Brokle, get_client
 from brokle.decorators import observe
 from brokle.types import Attrs
@@ -73,21 +74,18 @@ def example_llm_generation():
         name="chat",
         model="gpt-4",
         provider="openai",
-        input_messages=[
-            {"role": "user", "content": "What is the meaning of life?"}
-        ],
+        input_messages=[{"role": "user", "content": "What is the meaning of life?"}],
         model_parameters={
             "temperature": 0.7,
             "max_tokens": 100,
-        }
+        },
     ) as generation:
         # Simulate LLM call
         print("Simulating LLM API call...")
 
         # Update with response
         generation.set_attribute(
-            Attrs.GEN_AI_OUTPUT_MESSAGES,
-            '[{"role": "assistant", "content": "42"}]'
+            Attrs.GEN_AI_OUTPUT_MESSAGES, '[{"role": "assistant", "content": "42"}]'
         )
         generation.set_attribute(Attrs.GEN_AI_USAGE_INPUT_TOKENS, 10)
         generation.set_attribute(Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, 5)
@@ -204,4 +202,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\nError running examples: {e}")
         import traceback
+
         traceback.print_exc()

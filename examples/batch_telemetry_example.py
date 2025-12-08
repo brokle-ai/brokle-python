@@ -11,13 +11,13 @@ Demonstrates the batch telemetry capabilities including:
 import asyncio
 import os
 
-from brokle import Brokle, AsyncBrokle
+from brokle import AsyncBrokle, Brokle
+from brokle._utils.ulid import generate_event_id
 from brokle.types.telemetry import (
+    TelemetryBatchRequest,
     TelemetryEvent,
     TelemetryEventType,
-    TelemetryBatchRequest,
 )
-from brokle._utils.ulid import generate_event_id
 
 
 def example_1_legacy_telemetry():
@@ -27,12 +27,14 @@ def example_1_legacy_telemetry():
     client = Brokle(api_key=os.getenv("BROKLE_API_KEY", "bk_test"))
 
     # Old way still works - automatically converted to batch format
-    client.submit_telemetry({
-        "method": "GET",
-        "endpoint": "/api/users",
-        "status_code": 200,
-        "latency_ms": 45
-    })
+    client.submit_telemetry(
+        {
+            "method": "GET",
+            "endpoint": "/api/users",
+            "status_code": 200,
+            "latency_ms": 45,
+        }
+    )
 
     print("✅ Legacy telemetry submitted (auto-converted to batch format)")
     print("   - Event type: event (default)")
@@ -55,11 +57,8 @@ def example_2_structured_events():
             "name": "user-authentication-flow",
             "user_id": "user_123",
             "session_id": "session_456",
-            "metadata": {
-                "ip": "192.168.1.1",
-                "user_agent": "Mozilla/5.0..."
-            }
-        }
+            "metadata": {"ip": "192.168.1.1", "user_agent": "Mozilla/5.0..."},
+        },
     )
 
     print(f"✅ Trace created with ID: {trace_event_id}")
@@ -75,8 +74,8 @@ def example_2_structured_events():
             "name": "OpenAI GPT-4 Call",
             "model": "gpt-4",
             "input": {"messages": [{"role": "user", "content": "Hello"}]},
-            "metadata": {"temperature": 0.7}
-        }
+            "metadata": {"temperature": 0.7},
+        },
     )
 
     print(f"✅ Span created with ID: {span_event_id}")
@@ -89,8 +88,8 @@ def example_2_structured_events():
             "span_id": span_event_id,
             "name": "response_quality",
             "value": 0.95,
-            "data_type": "numeric"
-        }
+            "data_type": "numeric",
+        },
     )
 
     print(f"✅ Quality score created with ID: {score_event_id}")
@@ -105,8 +104,8 @@ def example_3_custom_batch_config():
     client = Brokle(
         api_key=os.getenv("BROKLE_API_KEY", "bk_test"),
         # Custom batch settings
-        batch_max_size=200,              # Larger batches (max 1000)
-        batch_flush_interval=2.0,        # Flush every 2 seconds
+        batch_max_size=200,  # Larger batches (max 1000)
+        batch_flush_interval=2.0,  # Flush every 2 seconds
         # Note: Deduplication is always enabled server-side (24h TTL)
     )
 
@@ -118,8 +117,7 @@ def example_3_custom_batch_config():
     # Submit multiple events
     for i in range(5):
         client.submit_batch_event(
-            event_type="event",
-            payload={"index": i, "data": f"event_{i}"}
+            event_type="event", payload={"index": i, "data": f"event_{i}"}
         )
 
     print(f"✅ Submitted 5 events - will be batched together")
@@ -152,7 +150,7 @@ def example_4_deduplication():
     event = TelemetryEvent(
         event_id=event_id,
         event_type=TelemetryEventType.TRACE,
-        payload={"name": "duplicate-test-trace"}
+        payload={"name": "duplicate-test-trace"},
     )
 
     # First submission
@@ -183,8 +181,7 @@ async def example_5_async_batch():
         tasks = []
         for i in range(10):
             event_id = client.submit_batch_event(
-                event_type="trace",
-                payload={"name": f"async-trace-{i}"}
+                event_type="trace", payload={"name": f"async-trace-{i}"}
             )
             tasks.append(event_id)
 
@@ -204,15 +201,14 @@ def example_6_error_handling():
 
     # Submit mix of valid and potentially invalid events
     valid_event = client.submit_batch_event(
-        event_type="trace",
-        payload={"name": "valid-trace", "user_id": "user_123"}
+        event_type="trace", payload={"name": "valid-trace", "user_id": "user_123"}
     )
     print(f"✅ Valid event: {valid_event}")
 
     # This might fail if validation is strict
     invalid_event = client.submit_batch_event(
         event_type="trace",
-        payload={"invalid_field": "missing_name"}  # Missing required 'name'
+        payload={"invalid_field": "missing_name"},  # Missing required 'name'
     )
     print(f"⚠️  Potentially invalid event: {invalid_event}")
 
@@ -241,10 +237,7 @@ def example_7_monitoring():
 
     # Submit various events
     for i in range(20):
-        client.submit_batch_event(
-            event_type="event",
-            payload={"index": i}
-        )
+        client.submit_batch_event(event_type="event", payload={"index": i})
 
     # Get detailed metrics
     metrics = client.get_processor_metrics()
@@ -290,4 +283,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

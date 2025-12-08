@@ -13,6 +13,7 @@ Features demonstrated:
 """
 
 import os
+
 from brokle import get_client
 from brokle.integrations import set_global_handler
 
@@ -40,7 +41,7 @@ def example_simple_query():
     print("=== Example 2: Simple Query ===\n")
 
     try:
-        from llama_index import VectorStoreIndex, Document
+        from llama_index import Document, VectorStoreIndex
     except ImportError:
         print("LlamaIndex not installed. Install with: pip install llama-index")
         return
@@ -86,7 +87,7 @@ def example_with_retriever():
     print("=== Example 3: Retrieval Tracing ===\n")
 
     try:
-        from llama_index import VectorStoreIndex, Document
+        from llama_index import Document, VectorStoreIndex
     except ImportError:
         print("LlamaIndex not installed. Install with: pip install llama-index")
         return
@@ -99,7 +100,9 @@ def example_with_retriever():
         Document(text="Machine learning is a subset of artificial intelligence."),
         Document(text="Deep learning uses neural networks with multiple layers."),
         Document(text="Natural language processing deals with text and speech."),
-        Document(text="Computer vision enables machines to interpret visual information."),
+        Document(
+            text="Computer vision enables machines to interpret visual information."
+        ),
     ]
 
     try:
@@ -137,7 +140,7 @@ def example_chat_engine():
     print("=== Example 4: Chat Engine ===\n")
 
     try:
-        from llama_index import VectorStoreIndex, Document
+        from llama_index import Document, VectorStoreIndex
     except ImportError:
         print("LlamaIndex not installed. Install with: pip install llama-index")
         return
@@ -191,7 +194,7 @@ def example_custom_llm():
     print("=== Example 5: Custom LLM Configuration ===\n")
 
     try:
-        from llama_index import VectorStoreIndex, Document, ServiceContext
+        from llama_index import Document, ServiceContext, VectorStoreIndex
         from llama_index.llms import OpenAI
     except ImportError:
         print("LlamaIndex not installed. Install with: pip install llama-index")
@@ -205,7 +208,7 @@ def example_custom_llm():
         model="gpt-3.5-turbo",
         temperature=0.7,
         max_tokens=100,
-        api_key=os.getenv("OPENAI_API_KEY", "sk-test-key")
+        api_key=os.getenv("OPENAI_API_KEY", "sk-test-key"),
     )
 
     # Create service context
@@ -221,8 +224,7 @@ def example_custom_llm():
         # Build index with custom LLM
         print("Building index with custom LLM...")
         index = VectorStoreIndex.from_documents(
-            documents,
-            service_context=service_context
+            documents, service_context=service_context
         )
 
         # Query
@@ -250,7 +252,7 @@ def example_from_documents():
     print("=== Example 6: Document Loading ===\n")
 
     try:
-        from llama_index import VectorStoreIndex, Document
+        from llama_index import Document, VectorStoreIndex
     except ImportError:
         print("LlamaIndex not installed. Install with: pip install llama-index")
         return
@@ -263,11 +265,11 @@ def example_from_documents():
     documents = [
         Document(
             text="Document 1 content about AI and machine learning.",
-            metadata={"source": "doc1.txt", "page": 1}
+            metadata={"source": "doc1.txt", "page": 1},
         ),
         Document(
             text="Document 2 content about natural language processing.",
-            metadata={"source": "doc2.txt", "page": 1}
+            metadata={"source": "doc2.txt", "page": 1},
         ),
     ]
 
@@ -327,4 +329,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\nError running examples: {e}")
         import traceback
+
         traceback.print_exc()

@@ -38,7 +38,7 @@ except ImportError:
 from opentelemetry.trace import Status, StatusCode
 
 from ..client import get_client
-from ..types import Attrs, SpanType, LLMProvider, OperationType
+from ..types import Attrs, LLMProvider, OperationType, SpanType
 
 
 class BrokleLangChainCallback(BaseCallbackHandler):
@@ -61,7 +61,7 @@ class BrokleLangChainCallback(BaseCallbackHandler):
         session_id: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         tags: Optional[List[str]] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize LangChain callback handler.
@@ -129,10 +129,12 @@ class BrokleLangChainCallback(BaseCallbackHandler):
 
         # Build span attributes
         attrs = self._get_common_attributes()
-        attrs.update({
-            Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
-            Attrs.GEN_AI_OPERATION_NAME: operation,
-        })
+        attrs.update(
+            {
+                Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
+                Attrs.GEN_AI_OPERATION_NAME: operation,
+            }
+        )
 
         if model:
             attrs[Attrs.GEN_AI_REQUEST_MODEL] = model
@@ -142,17 +144,16 @@ class BrokleLangChainCallback(BaseCallbackHandler):
 
         # Add prompts as input messages
         if prompts:
-            input_messages = [
-                {"role": "user", "content": prompt}
-                for prompt in prompts
-            ]
+            input_messages = [{"role": "user", "content": prompt} for prompt in prompts]
             attrs[Attrs.GEN_AI_INPUT_MESSAGES] = json.dumps(input_messages)
 
         # Extract model parameters from invocation_params
         invocation_params = kwargs.get("invocation_params", {})
         if invocation_params:
             if "temperature" in invocation_params:
-                attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = invocation_params["temperature"]
+                attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = invocation_params[
+                    "temperature"
+                ]
             if "max_tokens" in invocation_params:
                 attrs[Attrs.GEN_AI_REQUEST_MAX_TOKENS] = invocation_params["max_tokens"]
             if "top_p" in invocation_params:
@@ -191,24 +192,35 @@ class BrokleLangChainCallback(BaseCallbackHandler):
 
                 for generation_list in response.generations:
                     for generation in generation_list:
-                        output_messages.append({
-                            "role": "assistant",
-                            "content": generation.text,
-                        })
+                        output_messages.append(
+                            {
+                                "role": "assistant",
+                                "content": generation.text,
+                            }
+                        )
 
                         # Extract finish reason if available
-                        if hasattr(generation, "generation_info") and generation.generation_info:
-                            finish_reason = generation.generation_info.get("finish_reason")
+                        if (
+                            hasattr(generation, "generation_info")
+                            and generation.generation_info
+                        ):
+                            finish_reason = generation.generation_info.get(
+                                "finish_reason"
+                            )
                             if finish_reason:
                                 finish_reasons.append(finish_reason)
 
                 # Set output messages
                 if output_messages:
-                    span.set_attribute(Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages))
+                    span.set_attribute(
+                        Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages)
+                    )
 
                 # Set finish reasons
                 if finish_reasons:
-                    span.set_attribute(Attrs.GEN_AI_RESPONSE_FINISH_REASONS, finish_reasons)
+                    span.set_attribute(
+                        Attrs.GEN_AI_RESPONSE_FINISH_REASONS, finish_reasons
+                    )
 
             # Extract usage information
             if hasattr(response, "llm_output") and response.llm_output:
@@ -218,15 +230,25 @@ class BrokleLangChainCallback(BaseCallbackHandler):
                 if "token_usage" in llm_output:
                     token_usage = llm_output["token_usage"]
                     if "prompt_tokens" in token_usage:
-                        span.set_attribute(Attrs.GEN_AI_USAGE_INPUT_TOKENS, token_usage["prompt_tokens"])
+                        span.set_attribute(
+                            Attrs.GEN_AI_USAGE_INPUT_TOKENS,
+                            token_usage["prompt_tokens"],
+                        )
                     if "completion_tokens" in token_usage:
-                        span.set_attribute(Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, token_usage["completion_tokens"])
+                        span.set_attribute(
+                            Attrs.GEN_AI_USAGE_OUTPUT_TOKENS,
+                            token_usage["completion_tokens"],
+                        )
                     if "total_tokens" in token_usage:
-                        span.set_attribute(Attrs.BROKLE_USAGE_TOTAL_TOKENS, token_usage["total_tokens"])
+                        span.set_attribute(
+                            Attrs.BROKLE_USAGE_TOTAL_TOKENS, token_usage["total_tokens"]
+                        )
 
                 # Model name from response
                 if "model_name" in llm_output:
-                    span.set_attribute(Attrs.GEN_AI_RESPONSE_MODEL, llm_output["model_name"])
+                    span.set_attribute(
+                        Attrs.GEN_AI_RESPONSE_MODEL, llm_output["model_name"]
+                    )
 
             # Calculate latency
             if run_id in self._span_start_times:
@@ -291,17 +313,21 @@ class BrokleLangChainCallback(BaseCallbackHandler):
 
         # Build span attributes
         attrs = self._get_common_attributes()
-        attrs.update({
-            Attrs.BROKLE_SPAN_TYPE: SpanType.SPAN,
-            "langchain.chain_type": chain_name,
-        })
+        attrs.update(
+            {
+                Attrs.BROKLE_SPAN_TYPE: SpanType.SPAN,
+                "langchain.chain_type": chain_name,
+            }
+        )
 
         # Add inputs
         if inputs:
             attrs["langchain.chain_input"] = json.dumps(inputs, default=str)
 
         # Create span
-        span = self._client._tracer.start_span(name=f"chain:{chain_name}", attributes=attrs)
+        span = self._client._tracer.start_span(
+            name=f"chain:{chain_name}", attributes=attrs
+        )
         self._spans[run_id] = span
         self._span_start_times[run_id] = time.time()
 
@@ -325,7 +351,9 @@ class BrokleLangChainCallback(BaseCallbackHandler):
         try:
             # Add outputs
             if outputs:
-                span.set_attribute("langchain.chain_output", json.dumps(outputs, default=str))
+                span.set_attribute(
+                    "langchain.chain_output", json.dumps(outputs, default=str)
+                )
 
             # Calculate latency
             if run_id in self._span_start_times:
@@ -390,14 +418,18 @@ class BrokleLangChainCallback(BaseCallbackHandler):
 
         # Build span attributes
         attrs = self._get_common_attributes()
-        attrs.update({
-            Attrs.BROKLE_SPAN_TYPE: SpanType.TOOL,
-            "langchain.tool_name": tool_name,
-            "langchain.tool_input": input_str,
-        })
+        attrs.update(
+            {
+                Attrs.BROKLE_SPAN_TYPE: SpanType.TOOL,
+                "langchain.tool_name": tool_name,
+                "langchain.tool_input": input_str,
+            }
+        )
 
         # Create span
-        span = self._client._tracer.start_span(name=f"tool:{tool_name}", attributes=attrs)
+        span = self._client._tracer.start_span(
+            name=f"tool:{tool_name}", attributes=attrs
+        )
         self._spans[run_id] = span
         self._span_start_times[run_id] = time.time()
 
@@ -464,7 +496,9 @@ class BrokleLangChainCallback(BaseCallbackHandler):
             self._spans.pop(run_id, None)
             self._span_start_times.pop(run_id, None)
 
-    def _extract_model(self, serialized: Dict[str, Any], kwargs: Dict[str, Any]) -> Optional[str]:
+    def _extract_model(
+        self, serialized: Dict[str, Any], kwargs: Dict[str, Any]
+    ) -> Optional[str]:
         """Extract model name from serialized LLM or kwargs."""
         # Try to get from serialized
         if "model_name" in serialized:
@@ -482,7 +516,9 @@ class BrokleLangChainCallback(BaseCallbackHandler):
 
         return None
 
-    def _extract_provider(self, serialized: Dict[str, Any], kwargs: Dict[str, Any]) -> Optional[str]:
+    def _extract_provider(
+        self, serialized: Dict[str, Any], kwargs: Dict[str, Any]
+    ) -> Optional[str]:
         """Extract provider name from serialized LLM."""
         # Try to infer from class name
         class_name = serialized.get("id", [""])[0] if "id" in serialized else ""

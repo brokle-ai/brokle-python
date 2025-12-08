@@ -10,10 +10,10 @@ Based on Langfuse SDK patterns:
 - retroactive trace updates
 """
 
-import time
 import json
-from typing import Optional, Dict, Any, List, TYPE_CHECKING
+import time
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from opentelemetry.trace import Span, Status, StatusCode
 
@@ -267,6 +267,7 @@ class BrokleObservation:
                 return json.dumps(value.model_dump(exclude_none=True))
             if hasattr(value, "__dataclass_fields__"):
                 import dataclasses
+
                 return json.dumps(dataclasses.asdict(value))
             return json.dumps(value, default=str)
         except Exception:
@@ -367,27 +368,26 @@ class BrokleGeneration(BrokleObservation):
         if "cache_read_tokens" in extended_usage:
             self._span.set_attribute(
                 Attrs.GEN_AI_USAGE_INPUT_TOKENS_CACHE_READ,
-                extended_usage["cache_read_tokens"]
+                extended_usage["cache_read_tokens"],
             )
         if "cache_creation_tokens" in extended_usage:
             self._span.set_attribute(
                 Attrs.GEN_AI_USAGE_INPUT_TOKENS_CACHE_CREATION,
-                extended_usage["cache_creation_tokens"]
+                extended_usage["cache_creation_tokens"],
             )
         if "audio_input_tokens" in extended_usage:
             self._span.set_attribute(
                 Attrs.GEN_AI_USAGE_INPUT_AUDIO_TOKENS,
-                extended_usage["audio_input_tokens"]
+                extended_usage["audio_input_tokens"],
             )
         if "audio_output_tokens" in extended_usage:
             self._span.set_attribute(
                 Attrs.GEN_AI_USAGE_OUTPUT_AUDIO_TOKENS,
-                extended_usage["audio_output_tokens"]
+                extended_usage["audio_output_tokens"],
             )
         if "reasoning_tokens" in extended_usage:
             self._span.set_attribute(
-                Attrs.GEN_AI_USAGE_REASONING_TOKENS,
-                extended_usage["reasoning_tokens"]
+                Attrs.GEN_AI_USAGE_REASONING_TOKENS, extended_usage["reasoning_tokens"]
             )
 
         return self
@@ -425,9 +425,13 @@ class BrokleGeneration(BrokleObservation):
         if top_p is not None:
             self._span.set_attribute(Attrs.GEN_AI_REQUEST_TOP_P, top_p)
         if frequency_penalty is not None:
-            self._span.set_attribute(Attrs.GEN_AI_REQUEST_FREQUENCY_PENALTY, frequency_penalty)
+            self._span.set_attribute(
+                Attrs.GEN_AI_REQUEST_FREQUENCY_PENALTY, frequency_penalty
+            )
         if presence_penalty is not None:
-            self._span.set_attribute(Attrs.GEN_AI_REQUEST_PRESENCE_PENALTY, presence_penalty)
+            self._span.set_attribute(
+                Attrs.GEN_AI_REQUEST_PRESENCE_PENALTY, presence_penalty
+            )
 
         return self
 
@@ -543,7 +547,9 @@ class BrokleRetrieval(BrokleObservation):
             self._span.set_attribute("brokle.retrieval.document_count", doc_count)
             # Store first few documents for debugging (limit to avoid huge spans)
             preview = documents[:5] if len(documents) > 5 else documents
-            self._span.set_attribute("brokle.retrieval.documents", json.dumps(preview, default=str))
+            self._span.set_attribute(
+                "brokle.retrieval.documents", json.dumps(preview, default=str)
+            )
         return self
 
     def set_top_k(self, k: int) -> "BrokleRetrieval":

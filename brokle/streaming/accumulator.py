@@ -8,10 +8,10 @@ Based on patterns from Langfuse SDK's completion_start_time tracking
 and OpenLIT's streaming metrics implementation.
 """
 
+import logging
 import time
 from dataclasses import dataclass, field
-from typing import Optional, List, Any, Dict, Callable
-import logging
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,7 @@ class StreamingResult:
             Dictionary of span attributes following OTEL GenAI conventions
         """
         import json
+
         from ..types import Attrs
 
         attrs = {}
@@ -78,7 +79,9 @@ class StreamingResult:
             if "prompt_tokens" in self.usage:
                 attrs[Attrs.GEN_AI_USAGE_INPUT_TOKENS] = self.usage["prompt_tokens"]
             if "completion_tokens" in self.usage:
-                attrs[Attrs.GEN_AI_USAGE_OUTPUT_TOKENS] = self.usage["completion_tokens"]
+                attrs[Attrs.GEN_AI_USAGE_OUTPUT_TOKENS] = self.usage[
+                    "completion_tokens"
+                ]
             if "total_tokens" in self.usage:
                 attrs[Attrs.BROKLE_USAGE_TOTAL_TOKENS] = self.usage["total_tokens"]
 
@@ -135,7 +138,9 @@ class StreamingAccumulator:
         self._model: Optional[str] = None
         self._usage: Optional[Dict[str, int]] = None
         self._finalized: bool = False
-        self._anthropic_input_tokens: Optional[int] = None  # Track input tokens from message_start
+        self._anthropic_input_tokens: Optional[int] = (
+            None  # Track input tokens from message_start
+        )
 
         # Custom extractors (fallback to auto-detection)
         self._content_extractor = content_extractor
@@ -183,10 +188,16 @@ class StreamingAccumulator:
 
         extracted_usage = self._extract_usage(chunk)
         if extracted_usage:
-            if extracted_usage.get("prompt_tokens", 0) > 0 and self._anthropic_input_tokens is None:
+            if (
+                extracted_usage.get("prompt_tokens", 0) > 0
+                and self._anthropic_input_tokens is None
+            ):
                 self._anthropic_input_tokens = extracted_usage["prompt_tokens"]
 
-            if self._anthropic_input_tokens and extracted_usage.get("prompt_tokens", 0) == 0:
+            if (
+                self._anthropic_input_tokens
+                and extracted_usage.get("prompt_tokens", 0) == 0
+            ):
                 extracted_usage["prompt_tokens"] = self._anthropic_input_tokens
                 extracted_usage["total_tokens"] = (
                     self._anthropic_input_tokens + extracted_usage["completion_tokens"]
@@ -219,7 +230,9 @@ class StreamingAccumulator:
 
         avg_itl = None
         if self._inter_token_latencies:
-            avg_itl = sum(self._inter_token_latencies) / len(self._inter_token_latencies)
+            avg_itl = sum(self._inter_token_latencies) / len(
+                self._inter_token_latencies
+            )
 
         token_count = len(self._chunks)
         if self._usage and "completion_tokens" in self._usage:
@@ -382,7 +395,9 @@ class StreamingAccumulator:
             usage = chunk.get("usage")
             if usage:
                 prompt = usage.get("prompt_tokens", usage.get("input_tokens", 0))
-                completion = usage.get("completion_tokens", usage.get("output_tokens", 0))
+                completion = usage.get(
+                    "completion_tokens", usage.get("output_tokens", 0)
+                )
                 total = usage.get("total_tokens", prompt + completion)
                 return {
                     "prompt_tokens": prompt,

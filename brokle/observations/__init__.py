@@ -24,12 +24,12 @@ Example:
 
 from .types import ObservationType
 from .wrapper import (
-    BrokleObservation,
-    BrokleGeneration,
-    BrokleEvent,
     BrokleAgent,
-    BrokleTool,
+    BrokleEvent,
+    BrokleGeneration,
+    BrokleObservation,
     BrokleRetrieval,
+    BrokleTool,
 )
 
 __all__ = [

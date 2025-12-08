@@ -18,10 +18,10 @@ Based on patterns from:
 """
 
 import asyncio
-from typing import Any, Optional, TYPE_CHECKING
-from wrapt import ObjectProxy
+from typing import TYPE_CHECKING, Any, Optional
 
 from opentelemetry.trace import Status, StatusCode
+from wrapt import ObjectProxy
 
 from .accumulator import StreamingAccumulator, StreamingResult
 
@@ -91,14 +91,14 @@ class BrokleStreamWrapper(ObjectProxy):
 
     def __enter__(self):
         """Context manager entry."""
-        if hasattr(self.__wrapped__, '__enter__'):
+        if hasattr(self.__wrapped__, "__enter__"):
             self.__wrapped__.__enter__()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         self._complete_instrumentation()
-        if hasattr(self.__wrapped__, '__exit__'):
+        if hasattr(self.__wrapped__, "__exit__"):
             return self.__wrapped__.__exit__(exc_type, exc_val, exc_tb)
         return False
 
@@ -226,14 +226,14 @@ class BrokleAsyncStreamWrapper(ObjectProxy):
 
     async def __aenter__(self):
         """Async context manager entry."""
-        if hasattr(self.__wrapped__, '__aenter__'):
+        if hasattr(self.__wrapped__, "__aenter__"):
             await self.__wrapped__.__aenter__()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         self._complete_instrumentation()
-        if hasattr(self.__wrapped__, '__aexit__'):
+        if hasattr(self.__wrapped__, "__aexit__"):
             return await self.__wrapped__.__aexit__(exc_type, exc_val, exc_tb)
         return False
 

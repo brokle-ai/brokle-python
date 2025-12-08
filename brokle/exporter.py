@@ -5,8 +5,12 @@ Configures OpenTelemetry's OTLP exporter with Brokle-specific authentication
 and transport settings.
 """
 
-from typing import Optional, Dict
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter, Compression
+from typing import Dict, Optional
+
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+    Compression,
+    OTLPSpanExporter,
+)
 from opentelemetry.sdk.trace.export import SpanExporter
 
 from .config import BrokleConfig
@@ -104,6 +108,7 @@ class NoOpExporter(SpanExporter):
     def export(self, spans) -> "SpanExportResult":
         """Discard spans and return success."""
         from opentelemetry.sdk.trace.export import SpanExportResult
+
         return SpanExportResult.SUCCESS
 
     def shutdown(self) -> None:
@@ -147,7 +152,8 @@ def create_exporter_for_config(config: BrokleConfig) -> SpanExporter:
     # Check transport type
     if config.transport == "grpc":
         # Use gRPC transport
-        from .transport import create_trace_exporter, TransportType
+        from .transport import TransportType, create_trace_exporter
+
         return create_trace_exporter(config, TransportType.GRPC)
 
     # Default: HTTP transport via existing implementation

@@ -7,13 +7,13 @@ appropriate status and error information.
 """
 
 import time
-import pytest
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from opentelemetry.trace import Status, StatusCode
 
-from brokle.streaming.wrappers import BrokleStreamWrapper, BrokleAsyncStreamWrapper
 from brokle.streaming.accumulator import StreamingAccumulator
+from brokle.streaming.wrappers import BrokleAsyncStreamWrapper, BrokleStreamWrapper
 
 
 class MockChunk:
@@ -526,6 +526,7 @@ class TestBrokleStreamWrapperBaseExceptionHandling:
         class GeneratorExitStream:
             def __iter__(self):
                 return self
+
             def __next__(self):
                 raise GeneratorExit()
 
@@ -550,6 +551,7 @@ class TestBrokleStreamWrapperBaseExceptionHandling:
         class KeyboardInterruptStream:
             def __iter__(self):
                 return self
+
             def __next__(self):
                 raise KeyboardInterrupt()
 
@@ -572,6 +574,7 @@ class TestBrokleStreamWrapperBaseExceptionHandling:
         class SystemExitStream:
             def __iter__(self):
                 return self
+
             def __next__(self):
                 raise SystemExit(1)
 
@@ -593,8 +596,10 @@ class TestBrokleStreamWrapperBaseExceptionHandling:
         class MidStreamGeneratorExitStream:
             def __init__(self):
                 self._count = 0
+
             def __iter__(self):
                 return self
+
             def __next__(self):
                 self._count += 1
                 if self._count > 2:
@@ -602,7 +607,9 @@ class TestBrokleStreamWrapperBaseExceptionHandling:
                 return MockChunk(f"chunk{self._count}")
 
         accumulator = StreamingAccumulator(time.perf_counter())
-        wrapper = BrokleStreamWrapper(MidStreamGeneratorExitStream(), mock_span, accumulator)
+        wrapper = BrokleStreamWrapper(
+            MidStreamGeneratorExitStream(), mock_span, accumulator
+        )
 
         collected = []
         with pytest.raises(GeneratorExit):
@@ -625,11 +632,13 @@ class TestBrokleAsyncStreamWrapperBaseExceptionHandling:
     async def test_cancelled_error_completes_span_normally(self):
         """Test that CancelledError completes span with success status (not error)."""
         import asyncio
+
         mock_span = MagicMock()
 
         class CancelledStream:
             def __aiter__(self):
                 return self
+
             async def __anext__(self):
                 raise asyncio.CancelledError()
 
@@ -655,11 +664,14 @@ class TestBrokleAsyncStreamWrapperBaseExceptionHandling:
         class KeyboardInterruptStream:
             def __aiter__(self):
                 return self
+
             async def __anext__(self):
                 raise KeyboardInterrupt()
 
         accumulator = StreamingAccumulator(time.perf_counter())
-        wrapper = BrokleAsyncStreamWrapper(KeyboardInterruptStream(), mock_span, accumulator)
+        wrapper = BrokleAsyncStreamWrapper(
+            KeyboardInterruptStream(), mock_span, accumulator
+        )
 
         with pytest.raises(KeyboardInterrupt):
             await wrapper.__anext__()
@@ -678,6 +690,7 @@ class TestBrokleAsyncStreamWrapperBaseExceptionHandling:
         class SystemExitStream:
             def __aiter__(self):
                 return self
+
             async def __anext__(self):
                 raise SystemExit(1)
 
@@ -696,13 +709,16 @@ class TestBrokleAsyncStreamWrapperBaseExceptionHandling:
     async def test_cancelled_error_mid_stream_completes_normally(self):
         """Test CancelledError after some chunks still completes without error."""
         import asyncio
+
         mock_span = MagicMock()
 
         class MidStreamCancelledStream:
             def __init__(self):
                 self._count = 0
+
             def __aiter__(self):
                 return self
+
             async def __anext__(self):
                 self._count += 1
                 if self._count > 2:
@@ -710,7 +726,9 @@ class TestBrokleAsyncStreamWrapperBaseExceptionHandling:
                 return MockChunk(f"chunk{self._count}")
 
         accumulator = StreamingAccumulator(time.perf_counter())
-        wrapper = BrokleAsyncStreamWrapper(MidStreamCancelledStream(), mock_span, accumulator)
+        wrapper = BrokleAsyncStreamWrapper(
+            MidStreamCancelledStream(), mock_span, accumulator
+        )
 
         collected = []
         with pytest.raises(asyncio.CancelledError):

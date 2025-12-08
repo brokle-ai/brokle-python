@@ -10,9 +10,10 @@ traces are sampled together (not individual spans).
 """
 
 from typing import Optional
+
+from opentelemetry.context import Context
 from opentelemetry.sdk.trace import ReadableSpan, Span
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
-from opentelemetry.context import Context
 
 from .config import BrokleConfig
 from .types.attributes import BrokleOtelSpanAttributes as Attrs
@@ -136,4 +137,3 @@ class BrokleSpanProcessor(BatchSpanProcessor):
             True if successful, False otherwise
         """
         return super().force_flush(timeout_millis)
-

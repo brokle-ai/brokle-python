@@ -5,10 +5,10 @@ Configures OpenTelemetry LoggerProvider with OTLP HTTP/gRPC exporter
 for structured log emission and event tracking.
 """
 
-from typing import Optional, TYPE_CHECKING
 import logging
+from typing import TYPE_CHECKING, Optional
 
-from opentelemetry.sdk._logs import LoggerProvider, Logger
+from opentelemetry.sdk._logs import Logger, LoggerProvider
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.resources import Resource
 
@@ -33,7 +33,7 @@ def _create_otlp_log_exporter(config: "BrokleConfig"):
     Returns:
         Configured log exporter (HTTP or gRPC based on config.transport)
     """
-    from ..transport import create_log_exporter, TransportType
+    from ..transport import TransportType, create_log_exporter
 
     transport = TransportType.GRPC if config.transport == "grpc" else TransportType.HTTP
     return create_log_exporter(config, transport)
@@ -128,6 +128,7 @@ class BrokleLoggerProvider:
         if version is None:
             try:
                 from .. import __version__
+
                 version = __version__
             except (ImportError, AttributeError):
                 version = "0.1.0-dev"

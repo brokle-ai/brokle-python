@@ -7,7 +7,7 @@ Provides @observe decorator for zero-config instrumentation of Python functions.
 import functools
 import inspect
 import json
-from typing import Optional, Dict, Any, List, Callable
+from typing import Any, Callable, Dict, List, Optional
 
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -101,18 +101,26 @@ def observe(
                     attrs[Attrs.GEN_AI_REQUEST_MODEL] = model
                 if model_parameters:
                     if "temperature" in model_parameters:
-                        attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = model_parameters["temperature"]
+                        attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = model_parameters[
+                            "temperature"
+                        ]
                     if "max_tokens" in model_parameters:
-                        attrs[Attrs.GEN_AI_REQUEST_MAX_TOKENS] = model_parameters["max_tokens"]
+                        attrs[Attrs.GEN_AI_REQUEST_MAX_TOKENS] = model_parameters[
+                            "max_tokens"
+                        ]
 
             # Capture input if enabled
             if capture_input:
                 # Serialize function arguments
                 try:
                     input_data = _serialize_function_input(func, args, kwargs)
-                    input_str = json.dumps(input_data, default=str)  # default=str handles non-serializable
+                    input_str = json.dumps(
+                        input_data, default=str
+                    )  # default=str handles non-serializable
                     attrs[Attrs.INPUT_VALUE] = input_str
-                    attrs[Attrs.INPUT_MIME_TYPE] = "application/json"  # Function args always JSON
+                    attrs[Attrs.INPUT_MIME_TYPE] = (
+                        "application/json"  # Function args always JSON
+                    )
                 except Exception as e:
                     # If serialization fails, store error message
                     error_msg = f"<serialization failed: {str(e)}>"
@@ -131,7 +139,9 @@ def observe(
                             output_data = _serialize_value(result)
                             output_str = json.dumps(output_data, default=str)
                             span.set_attribute(Attrs.OUTPUT_VALUE, output_str)
-                            span.set_attribute(Attrs.OUTPUT_MIME_TYPE, "application/json")
+                            span.set_attribute(
+                                Attrs.OUTPUT_MIME_TYPE, "application/json"
+                            )
                         except Exception as e:
                             error_msg = f"<serialization failed: {str(e)}>"
                             span.set_attribute(Attrs.OUTPUT_VALUE, error_msg)
@@ -200,7 +210,9 @@ def observe(
                             output_data = _serialize_value(result)
                             output_str = json.dumps(output_data, default=str)
                             span.set_attribute(Attrs.OUTPUT_VALUE, output_str)
-                            span.set_attribute(Attrs.OUTPUT_MIME_TYPE, "application/json")
+                            span.set_attribute(
+                                Attrs.OUTPUT_MIME_TYPE, "application/json"
+                            )
                         except Exception as e:
                             error_msg = f"<serialization failed: {str(e)}>"
                             span.set_attribute(Attrs.OUTPUT_VALUE, error_msg)
@@ -226,7 +238,9 @@ def observe(
     return decorator
 
 
-def _serialize_function_input(func: Callable, args: tuple, kwargs: dict) -> Dict[str, Any]:
+def _serialize_function_input(
+    func: Callable, args: tuple, kwargs: dict
+) -> Dict[str, Any]:
     """
     Serialize function input arguments.
 
@@ -286,6 +300,7 @@ def _serialize_value(value: Any) -> Any:
     # Handle dataclasses
     if hasattr(value, "__dataclass_fields__"):
         import dataclasses
+
         return dataclasses.asdict(value)
 
     # Fallback to string representation

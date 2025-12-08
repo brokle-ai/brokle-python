@@ -17,10 +17,10 @@ Example:
 """
 
 from .factory import (
-    create_trace_exporter,
-    create_metric_exporter,
-    create_log_exporter,
     TransportType,
+    create_log_exporter,
+    create_metric_exporter,
+    create_trace_exporter,
 )
 
 __all__ = [

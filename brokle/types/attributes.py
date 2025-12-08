@@ -52,7 +52,9 @@ class BrokleOtelSpanAttributes:
 
     # ========== GenAI Extended Usage (Cache, Audio, Multi-modal) ==========
     GEN_AI_USAGE_INPUT_TOKENS_CACHE_READ = "gen_ai.usage.input_tokens.cache_read"
-    GEN_AI_USAGE_INPUT_TOKENS_CACHE_CREATION = "gen_ai.usage.input_tokens.cache_creation"
+    GEN_AI_USAGE_INPUT_TOKENS_CACHE_CREATION = (
+        "gen_ai.usage.input_tokens.cache_creation"
+    )
     GEN_AI_USAGE_INPUT_AUDIO_TOKENS = "gen_ai.usage.input_audio_tokens"
     GEN_AI_USAGE_OUTPUT_AUDIO_TOKENS = "gen_ai.usage.output_audio_tokens"
     GEN_AI_USAGE_REASONING_TOKENS = "gen_ai.usage.reasoning_tokens"
@@ -180,6 +182,7 @@ class SpanType:
 
 class SpanLevel:
     """Span level constants for brokle.span.level attribute."""
+
     DEBUG = "DEBUG"
     DEFAULT = "DEFAULT"
     WARNING = "WARNING"
@@ -188,6 +191,7 @@ class SpanLevel:
 
 class LLMProvider:
     """LLM provider constants for gen_ai.provider.name attribute."""
+
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
@@ -205,6 +209,7 @@ class LLMProvider:
 
 class OperationType:
     """Operation type constants for gen_ai.operation.name attribute."""
+
     CHAT = "chat"  # Chat completions
     TEXT_COMPLETION = "text_completion"  # Legacy completions
     EMBEDDINGS = "embeddings"  # Text embeddings
@@ -217,6 +222,7 @@ class OperationType:
 
 class ScoreDataType:
     """Score data type constants for brokle.score.data_type attribute."""
+
     NUMERIC = "numeric"
     BOOLEAN = "boolean"
     CATEGORICAL = "categorical"
@@ -224,6 +230,7 @@ class ScoreDataType:
 
 class ComponentType:
     """Standard component types for framework instrumentation."""
+
     AGENT = "agent"
     CHAIN = "chain"
     RETRIEVER = "retriever"
@@ -235,6 +242,7 @@ class ComponentType:
 
 class AgentStrategy:
     """Standard agent strategy types."""
+
     REACT = "react"
     COT = "cot"
     PLAN_AND_EXECUTE = "plan_and_execute"
@@ -246,6 +254,7 @@ class AgentStrategy:
 
 class RetrieverType:
     """Standard retriever types for RAG pipelines."""
+
     VECTOR = "vector"
     BM25 = "bm25"
     HYBRID = "hybrid"
@@ -257,6 +266,7 @@ class RetrieverType:
 
 class MemoryType:
     """Standard memory types for AI frameworks."""
+
     BUFFER = "buffer"
     SUMMARY = "summary"
     CONVERSATION = "conversation"

@@ -16,14 +16,14 @@ Example:
     >>> metrics.record_tokens(input_tokens=100, output_tokens=50, model="gpt-4")
 """
 
-from .provider import create_meter_provider, BrokleMeterProvider
-from .instruments import GenAIMetrics, create_genai_metrics
 from .constants import (
-    MetricNames,
-    TOKEN_BOUNDARIES,
     DURATION_BOUNDARIES,
+    TOKEN_BOUNDARIES,
     TTFT_BOUNDARIES,
+    MetricNames,
 )
+from .instruments import GenAIMetrics, create_genai_metrics
+from .provider import BrokleMeterProvider, create_meter_provider
 
 __all__ = [
     # Provider

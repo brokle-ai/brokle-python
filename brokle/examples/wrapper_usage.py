@@ -8,8 +8,9 @@ This example demonstrates automatic LLM observability using SDK wrappers:
 """
 
 import os
+
 from brokle import get_client
-from brokle.wrappers import wrap_openai, wrap_anthropic
+from brokle.wrappers import wrap_anthropic, wrap_openai
 
 
 def example_openai_wrapper():
@@ -26,9 +27,9 @@ def example_openai_wrapper():
     brokle = get_client()
 
     # Create and wrap OpenAI client
-    client = wrap_openai(openai.OpenAI(
-        api_key=os.getenv("OPENAI_API_KEY", "sk-test-key")
-    ))
+    client = wrap_openai(
+        openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY", "sk-test-key"))
+    )
 
     # Make OpenAI call (automatically traced)
     try:
@@ -36,7 +37,7 @@ def example_openai_wrapper():
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "Say 'Hello, Brokle!'"}
+                {"role": "user", "content": "Say 'Hello, Brokle!'"},
             ],
             temperature=0.7,
             max_tokens=50,
@@ -69,9 +70,9 @@ def example_anthropic_wrapper():
     brokle = get_client()
 
     # Create and wrap Anthropic client
-    client = wrap_anthropic(anthropic.Anthropic(
-        api_key=os.getenv("ANTHROPIC_API_KEY", "sk-ant-test-key")
-    ))
+    client = wrap_anthropic(
+        anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", "sk-ant-test-key"))
+    )
 
     # Make Anthropic call (automatically traced)
     try:
@@ -79,9 +80,7 @@ def example_anthropic_wrapper():
             model="claude-3-opus",
             max_tokens=1024,
             system="You are a helpful assistant.",
-            messages=[
-                {"role": "user", "content": "Say 'Hello, Brokle!'"}
-            ],
+            messages=[{"role": "user", "content": "Say 'Hello, Brokle!'"}],
             temperature=0.7,
         )
 
@@ -102,8 +101,8 @@ def example_mixed_providers():
     print("=== Example 3: Mixed Provider Usage ===\n")
 
     try:
-        import openai
         import anthropic
+        import openai
     except ImportError as e:
         print(f"SDK not installed: {e}")
         print("Install with: pip install openai anthropic")
@@ -118,13 +117,15 @@ def example_mixed_providers():
         print("Starting multi-LLM workflow")
 
         # Wrap both providers
-        openai_client = wrap_openai(openai.OpenAI(
-            api_key=os.getenv("OPENAI_API_KEY", "sk-test-key")
-        ))
+        openai_client = wrap_openai(
+            openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY", "sk-test-key"))
+        )
 
-        anthropic_client = wrap_anthropic(anthropic.Anthropic(
-            api_key=os.getenv("ANTHROPIC_API_KEY", "sk-ant-test-key")
-        ))
+        anthropic_client = wrap_anthropic(
+            anthropic.Anthropic(
+                api_key=os.getenv("ANTHROPIC_API_KEY", "sk-ant-test-key")
+            )
+        )
 
         prompt = "Explain quantum computing in one sentence."
 
@@ -175,9 +176,9 @@ def example_streaming_detection():
     brokle = get_client()
 
     # Wrap OpenAI client
-    client = wrap_openai(openai.OpenAI(
-        api_key=os.getenv("OPENAI_API_KEY", "sk-test-key")
-    ))
+    client = wrap_openai(
+        openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY", "sk-test-key"))
+    )
 
     # Make streaming call (automatically detected)
     try:
@@ -235,4 +236,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\nError running examples: {e}")
         import traceback
+
         traceback.print_exc()

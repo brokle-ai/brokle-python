@@ -12,6 +12,7 @@ Features demonstrated:
 """
 
 import os
+
 from brokle import get_client
 from brokle.integrations import BrokleLangChainCallback
 
@@ -24,7 +25,9 @@ def example_simple_llm():
         from langchain.chat_models import ChatOpenAI
         from langchain.prompts import ChatPromptTemplate
     except ImportError:
-        print("LangChain not installed. Install with: pip install langchain langchain-openai")
+        print(
+            "LangChain not installed. Install with: pip install langchain langchain-openai"
+        )
         return
 
     # Initialize Brokle callback
@@ -38,7 +41,7 @@ def example_simple_llm():
     llm = ChatOpenAI(
         temperature=0.7,
         callbacks=[callback],
-        api_key=os.getenv("OPENAI_API_KEY", "sk-test-key")
+        api_key=os.getenv("OPENAI_API_KEY", "sk-test-key"),
     )
 
     # Make LLM call
@@ -59,11 +62,13 @@ def example_chain_tracing():
     print("=== Example 2: Chain Tracing ===\n")
 
     try:
-        from langchain.chat_models import ChatOpenAI
         from langchain.chains import LLMChain
+        from langchain.chat_models import ChatOpenAI
         from langchain.prompts import ChatPromptTemplate
     except ImportError:
-        print("LangChain not installed. Install with: pip install langchain langchain-openai")
+        print(
+            "LangChain not installed. Install with: pip install langchain langchain-openai"
+        )
         return
 
     # Initialize Brokle callback
@@ -77,19 +82,17 @@ def example_chain_tracing():
     llm = ChatOpenAI(
         temperature=0.7,
         callbacks=[callback],
-        api_key=os.getenv("OPENAI_API_KEY", "sk-test-key")
+        api_key=os.getenv("OPENAI_API_KEY", "sk-test-key"),
     )
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a helpful assistant that answers questions concisely."),
-        ("user", "{question}")
-    ])
-
-    chain = LLMChain(
-        llm=llm,
-        prompt=prompt,
-        callbacks=[callback]
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", "You are a helpful assistant that answers questions concisely."),
+            ("user", "{question}"),
+        ]
     )
+
+    chain = LLMChain(llm=llm, prompt=prompt, callbacks=[callback])
 
     # Run chain
     try:
@@ -111,10 +114,12 @@ def example_multi_step_chain():
     print("=== Example 3: Multi-Step Chain with Tools ===\n")
 
     try:
-        from langchain.agents import initialize_agent, Tool, AgentType
+        from langchain.agents import AgentType, Tool, initialize_agent
         from langchain.chat_models import ChatOpenAI
     except ImportError:
-        print("LangChain not installed. Install with: pip install langchain langchain-openai")
+        print(
+            "LangChain not installed. Install with: pip install langchain langchain-openai"
+        )
         return
 
     # Initialize Brokle callback
@@ -139,14 +144,12 @@ def example_multi_step_chain():
 
     tools = [
         Tool(
-            name="Weather",
-            func=get_weather,
-            description="Get weather for a location"
+            name="Weather", func=get_weather, description="Get weather for a location"
         ),
         Tool(
             name="Calculator",
             func=calculate,
-            description="Calculate mathematical expressions"
+            description="Calculate mathematical expressions",
         ),
     ]
 
@@ -154,7 +157,7 @@ def example_multi_step_chain():
     llm = ChatOpenAI(
         temperature=0.7,
         callbacks=[callback],
-        api_key=os.getenv("OPENAI_API_KEY", "sk-test-key")
+        api_key=os.getenv("OPENAI_API_KEY", "sk-test-key"),
     )
 
     agent = initialize_agent(
@@ -162,7 +165,7 @@ def example_multi_step_chain():
         llm=llm,
         agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
         callbacks=[callback],
-        verbose=True
+        verbose=True,
     )
 
     # Run agent
@@ -185,10 +188,12 @@ def example_streaming():
     print("=== Example 4: Streaming LLM Calls ===\n")
 
     try:
-        from langchain.chat_models import ChatOpenAI
         from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+        from langchain.chat_models import ChatOpenAI
     except ImportError:
-        print("LangChain not installed. Install with: pip install langchain langchain-openai")
+        print(
+            "LangChain not installed. Install with: pip install langchain langchain-openai"
+        )
         return
 
     # Initialize Brokle callback
@@ -205,7 +210,7 @@ def example_streaming():
             StreamingStdOutCallbackHandler(),  # Stream to stdout
             callback,  # Also trace with Brokle
         ],
-        api_key=os.getenv("OPENAI_API_KEY", "sk-test-key")
+        api_key=os.getenv("OPENAI_API_KEY", "sk-test-key"),
     )
 
     # Make streaming call
@@ -227,11 +232,13 @@ def example_error_handling():
     print("=== Example 5: Error Handling ===\n")
 
     try:
-        from langchain.chat_models import ChatOpenAI
         from langchain.chains import LLMChain
+        from langchain.chat_models import ChatOpenAI
         from langchain.prompts import ChatPromptTemplate
     except ImportError:
-        print("LangChain not installed. Install with: pip install langchain langchain-openai")
+        print(
+            "LangChain not installed. Install with: pip install langchain langchain-openai"
+        )
         return
 
     # Initialize Brokle callback
@@ -244,7 +251,7 @@ def example_error_handling():
     llm = ChatOpenAI(
         temperature=0.7,
         callbacks=[callback],
-        api_key="invalid-key"  # Intentionally invalid
+        api_key="invalid-key",  # Intentionally invalid
     )
 
     prompt = ChatPromptTemplate.from_template("Say {text}")
@@ -298,4 +305,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\nError running examples: {e}")
         import traceback
+
         traceback.print_exc()

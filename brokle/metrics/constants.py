@@ -59,11 +59,24 @@ class MetricNames:
 # Based on vLLM metrics implementation
 # Covers: 1 token → 128k+ context windows
 TOKEN_BOUNDARIES = [
-    1, 2, 4, 8, 16, 32, 64,     # Tiny (1-64 tokens)
-    128, 256, 512, 1024,        # Small (128-1k)
-    2048, 4096, 8192,           # Medium (2k-8k)
-    16384, 32768, 65536,        # Large context (16k-64k)
-    131072,                     # Very large (128k+)
+    1,
+    2,
+    4,
+    8,
+    16,
+    32,
+    64,  # Tiny (1-64 tokens)
+    128,
+    256,
+    512,
+    1024,  # Small (128-1k)
+    2048,
+    4096,
+    8192,  # Medium (2k-8k)
+    16384,
+    32768,
+    65536,  # Large context (16k-64k)
+    131072,  # Very large (128k+)
 ]
 
 # ========== Duration Bucket Boundaries (milliseconds) ==========
@@ -71,10 +84,21 @@ TOKEN_BOUNDARIES = [
 # Based on OpenTelemetry defaults + LLM-specific thresholds
 # Covers: 10ms cache hits → 30s slow operations
 DURATION_BOUNDARIES = [
-    10, 25, 50, 75, 100,        # Fast (10-100ms) - cache/simple
-    150, 200, 300, 500,         # Typical (150-500ms) - short responses
-    750, 1000, 2000,            # Normal (750ms-2s) - medium responses
-    5000, 10000, 30000,         # Slow (5-30s) - long generations
+    10,
+    25,
+    50,
+    75,
+    100,  # Fast (10-100ms) - cache/simple
+    150,
+    200,
+    300,
+    500,  # Typical (150-500ms) - short responses
+    750,
+    1000,
+    2000,  # Normal (750ms-2s) - medium responses
+    5000,
+    10000,
+    30000,  # Slow (5-30s) - long generations
 ]
 
 # ========== Time to First Token Boundaries (milliseconds) ==========
@@ -82,17 +106,38 @@ DURATION_BOUNDARIES = [
 # Based on vLLM TTFT buckets
 # Covers: 10ms → 10s (cold starts)
 TTFT_BOUNDARIES = [
-    10, 25, 50, 75, 100,        # Critical UX range (10-100ms)
-    150, 200, 300, 500,         # Acceptable (150-500ms)
-    750, 1000, 2000,            # Slow (750ms-2s)
-    5000, 10000,                # Very slow / cold start (5-10s)
+    10,
+    25,
+    50,
+    75,
+    100,  # Critical UX range (10-100ms)
+    150,
+    200,
+    300,
+    500,  # Acceptable (150-500ms)
+    750,
+    1000,
+    2000,  # Slow (750ms-2s)
+    5000,
+    10000,  # Very slow / cold start (5-10s)
 ]
 
 # ========== Inter-Token Latency Boundaries (milliseconds) ==========
 # Dense low-latency coverage for streaming quality monitoring
 # Covers: 1ms fast streaming → 500ms throttled
 INTER_TOKEN_BOUNDARIES = [
-    1, 2, 5, 10, 15,            # Fast streaming (1-15ms)
-    20, 30, 50, 75, 100,        # Normal streaming (20-100ms)
-    150, 200, 300, 500,         # Slow / throttled (150-500ms)
+    1,
+    2,
+    5,
+    10,
+    15,  # Fast streaming (1-15ms)
+    20,
+    30,
+    50,
+    75,
+    100,  # Normal streaming (20-100ms)
+    150,
+    200,
+    300,
+    500,  # Slow / throttled (150-500ms)
 ]

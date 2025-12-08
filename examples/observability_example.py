@@ -214,9 +214,7 @@ async def batch_operations_example():
         for i in range(10)
     ]
 
-    spans = await client.observability.create_spans_batch(
-        span_data
-    )
+    spans = await client.observability.create_spans_batch(span_data)
     print(f"Created {len(spans)} spans in batch")
 
 

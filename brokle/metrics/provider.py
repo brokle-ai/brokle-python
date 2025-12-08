@@ -5,25 +5,25 @@ Configures OpenTelemetry MeterProvider with OTLP HTTP exporter and
 custom metric views for GenAI-optimized bucket boundaries.
 """
 
-from typing import Optional, TYPE_CHECKING
 import logging
+from typing import TYPE_CHECKING, Optional
 
-from opentelemetry.sdk.metrics import MeterProvider, Meter
+from opentelemetry.sdk.metrics import Meter, MeterProvider
 from opentelemetry.sdk.metrics.export import (
-    PeriodicExportingMetricReader,
     MetricExporter,
+    PeriodicExportingMetricReader,
 )
-from opentelemetry.sdk.metrics.view import View, ExplicitBucketHistogramAggregation
+from opentelemetry.sdk.metrics.view import ExplicitBucketHistogramAggregation, View
 from opentelemetry.sdk.resources import Resource
 
-from .constants import (
-    MetricNames,
-    TOKEN_BOUNDARIES,
-    DURATION_BOUNDARIES,
-    TTFT_BOUNDARIES,
-    INTER_TOKEN_BOUNDARIES,
-)
 from ..types import SchemaURLs
+from .constants import (
+    DURATION_BOUNDARIES,
+    INTER_TOKEN_BOUNDARIES,
+    TOKEN_BOUNDARIES,
+    TTFT_BOUNDARIES,
+    MetricNames,
+)
 
 if TYPE_CHECKING:
     from ..config import BrokleConfig
@@ -74,7 +74,7 @@ def _create_otlp_metric_exporter(config: "BrokleConfig") -> MetricExporter:
     Returns:
         Configured metric exporter (HTTP or gRPC based on config.transport)
     """
-    from ..transport import create_metric_exporter, TransportType
+    from ..transport import TransportType, create_metric_exporter
 
     transport = TransportType.GRPC if config.transport == "grpc" else TransportType.HTTP
     return create_metric_exporter(config, transport)
@@ -183,6 +183,7 @@ class BrokleMeterProvider:
         if version is None:
             try:
                 from .. import __version__
+
                 version = __version__
             except (ImportError, AttributeError):
                 version = "0.1.0-dev"

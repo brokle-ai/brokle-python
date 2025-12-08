@@ -14,11 +14,11 @@ Example:
     >>> metrics.record_duration(duration_ms=1500, model="gpt-4")
 """
 
-from typing import Optional, Dict, Any, TYPE_CHECKING
-import time
 import logging
+import time
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from opentelemetry.metrics import Meter, Histogram, Counter
+from opentelemetry.metrics import Counter, Histogram, Meter
 
 from .constants import MetricNames
 

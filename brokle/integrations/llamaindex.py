@@ -41,7 +41,7 @@ except ImportError:
 from opentelemetry.trace import Status, StatusCode
 
 from ..client import get_client
-from ..types import Attrs, SpanType, LLMProvider, OperationType
+from ..types import Attrs, LLMProvider, OperationType, SpanType
 
 
 class BrokleLlamaIndexHandler(BaseCallbackHandler):
@@ -80,7 +80,7 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
         """
         super().__init__(
             event_starts_to_ignore=event_starts_to_ignore or [],
-            event_ends_to_ignore=event_ends_to_ignore or []
+            event_ends_to_ignore=event_ends_to_ignore or [],
         )
 
         self.user_id = user_id
@@ -226,7 +226,9 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
                     span.set_attribute("llamaindex.retrieved_nodes", len(nodes))
                     # Store node scores if available
                     if nodes and hasattr(nodes[0], "score"):
-                        scores = [node.score for node in nodes if hasattr(node, "score")]
+                        scores = [
+                            node.score for node in nodes if hasattr(node, "score")
+                        ]
                         if scores:
                             span.set_attribute("llamaindex.node_scores", scores)
 
@@ -321,18 +323,26 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
             # Convert response to output messages
             if hasattr(response, "message"):
                 # Chat response
-                output_messages = [{
-                    "role": "assistant",
-                    "content": str(response.message.content),
-                }]
-                span.set_attribute(Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages))
+                output_messages = [
+                    {
+                        "role": "assistant",
+                        "content": str(response.message.content),
+                    }
+                ]
+                span.set_attribute(
+                    Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages)
+                )
             elif hasattr(response, "text"):
                 # Text completion response
-                output_messages = [{
-                    "role": "assistant",
-                    "content": response.text,
-                }]
-                span.set_attribute(Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages))
+                output_messages = [
+                    {
+                        "role": "assistant",
+                        "content": response.text,
+                    }
+                ]
+                span.set_attribute(
+                    Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages)
+                )
 
             # Extract additional metadata
             if hasattr(response, "raw"):
@@ -346,11 +356,17 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
                 if hasattr(raw, "usage"):
                     usage = raw.usage
                     if hasattr(usage, "prompt_tokens"):
-                        span.set_attribute(Attrs.GEN_AI_USAGE_INPUT_TOKENS, usage.prompt_tokens)
+                        span.set_attribute(
+                            Attrs.GEN_AI_USAGE_INPUT_TOKENS, usage.prompt_tokens
+                        )
                     if hasattr(usage, "completion_tokens"):
-                        span.set_attribute(Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, usage.completion_tokens)
+                        span.set_attribute(
+                            Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, usage.completion_tokens
+                        )
                     if hasattr(usage, "total_tokens"):
-                        span.set_attribute(Attrs.BROKLE_USAGE_TOTAL_TOKENS, usage.total_tokens)
+                        span.set_attribute(
+                            Attrs.BROKLE_USAGE_TOTAL_TOKENS, usage.total_tokens
+                        )
 
     def start_trace(self, trace_id: Optional[str] = None) -> None:
         """Start a new trace (no-op for compatibility)."""
@@ -398,8 +414,7 @@ def set_global_handler(
     """
     if handler_name != "brokle":
         raise ValueError(
-            f"Invalid handler name: {handler_name}. "
-            "Use 'brokle' for Brokle handler."
+            f"Invalid handler name: {handler_name}. " "Use 'brokle' for Brokle handler."
         )
 
     # Create handler
@@ -414,11 +429,13 @@ def set_global_handler(
     try:
         # Try new API
         from llama_index.core import Settings
+
         Settings.callback_manager = CallbackManager([handler])
     except (ImportError, AttributeError):
         # Try legacy API
         try:
             import llama_index
+
             llama_index.global_handler = handler
         except (ImportError, AttributeError):
             # Manual registration as fallback

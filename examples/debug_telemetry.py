@@ -1,17 +1,19 @@
 """
 Debug script to test telemetry end-to-end.
 """
-import os
+
 import logging
+import os
 import time
+
 from openai import OpenAI
+
 from brokle import wrap_openai
 from brokle.observability import get_client
 
 # Enable debug logging
 logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 # Set environment variables
@@ -35,10 +37,12 @@ print(f"   Environment: {brokle_client.config.environment}")
 
 # Check background processor
 print("\n2. Checking background processor...")
-if hasattr(brokle_client, '_background_processor'):
+if hasattr(brokle_client, "_background_processor"):
     processor = brokle_client._background_processor
     print(f"   Processor exists: {processor}")
-    print(f"   Worker alive: {processor._worker_thread and processor._worker_thread.is_alive()}")
+    print(
+        f"   Worker alive: {processor._worker_thread and processor._worker_thread.is_alive()}"
+    )
     metrics = processor.get_metrics()
     print(f"   Metrics: {metrics}")
 else:

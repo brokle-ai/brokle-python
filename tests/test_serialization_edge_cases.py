@@ -6,9 +6,11 @@ circular references, Pydantic models, dataclasses.
 """
 
 import json
-import pytest
 from dataclasses import dataclass
-from brokle.client import _serialize_with_mime, _is_llm_messages_format
+
+import pytest
+
+from brokle.client import _is_llm_messages_format, _serialize_with_mime
 
 
 def test_serialize_none_value():
@@ -129,10 +131,7 @@ def test_serialize_complex_nested_structure():
             "level2": {
                 "level3": {
                     "values": [1, 2, 3],
-                    "nested_list": [
-                        {"item": 1},
-                        {"item": 2}
-                    ]
+                    "nested_list": [{"item": 1}, {"item": 2}],
                 }
             }
         }
@@ -146,13 +145,12 @@ def test_is_llm_messages_format_valid():
     """Test ChatML format detection - valid cases."""
     # Valid ChatML
     assert _is_llm_messages_format([{"role": "user", "content": "Hello"}])
-    assert _is_llm_messages_format([
-        {"role": "system", "content": "System"},
-        {"role": "user", "content": "Hello"}
-    ])
-    assert _is_llm_messages_format([
-        {"role": "assistant", "content": "Hi", "tool_calls": []}
-    ])
+    assert _is_llm_messages_format(
+        [{"role": "system", "content": "System"}, {"role": "user", "content": "Hello"}]
+    )
+    assert _is_llm_messages_format(
+        [{"role": "assistant", "content": "Hi", "tool_calls": []}]
+    )
 
 
 def test_is_llm_messages_format_invalid():
@@ -178,7 +176,7 @@ def test_is_llm_messages_format_invalid():
 
 def test_serialize_with_special_characters():
     """Test serialization of strings with special characters."""
-    special_str = "Hello\nWorld\t\"Quoted\"\r\n"
+    special_str = 'Hello\nWorld\t"Quoted"\r\n'
     result, mime_type = _serialize_with_mime(special_str)
     assert result == special_str
     assert mime_type == "text/plain"
