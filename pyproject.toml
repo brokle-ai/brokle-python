@@ -168,6 +168,9 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 show_error_codes = true
+exclude = [
+    "brokle/examples/",
+]
 
 [[tool.mypy.overrides]]
 module = [

@@ -106,12 +106,12 @@ class BrokleConfig:
     _validated: bool = field(default=False, init=False, repr=False)
     """Internal flag to track validation status"""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration after initialization."""
         self.validate()
         self._validated = True
 
-    def validate(self):
+    def validate(self) -> None:
         """
         Validate configuration parameters.
 
