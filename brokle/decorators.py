@@ -14,6 +14,7 @@ from opentelemetry.trace import Status, StatusCode
 
 from .client import get_client
 from .types import Attrs, SpanType
+from .utils.serializer import EventSerializer, serialize_value, serialize_function_args
 
 
 def observe(
@@ -68,34 +69,28 @@ def observe(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
-            # Get or create client
             client = get_client()
-
-            # Determine span name
             span_name = name or func.__name__
 
-            # Build initial attributes
             attrs = {
                 Attrs.BROKLE_SPAN_TYPE: as_type,
                 Attrs.BROKLE_SPAN_LEVEL: level,
             }
 
-            # Add trace-level attributes
             if user_id:
                 attrs[Attrs.GEN_AI_REQUEST_USER] = user_id
-                attrs[Attrs.USER_ID] = user_id  # Filterable
+                attrs[Attrs.USER_ID] = user_id
             if session_id:
                 attrs[Attrs.SESSION_ID] = session_id
             if tags:
                 attrs[Attrs.BROKLE_TRACE_TAGS] = json.dumps(tags)
-                attrs[Attrs.TAGS] = json.dumps(tags)  # Filterable
+                attrs[Attrs.TAGS] = json.dumps(tags)
             if metadata:
                 attrs[Attrs.BROKLE_TRACE_METADATA] = json.dumps(metadata)
-                attrs[Attrs.METADATA] = json.dumps(metadata)  # Filterable
+                attrs[Attrs.METADATA] = json.dumps(metadata)
             if version:
                 attrs[Attrs.BROKLE_VERSION] = version
 
-            # Add generation-specific attributes
             if as_type == SpanType.GENERATION:
                 if model:
                     attrs[Attrs.GEN_AI_REQUEST_MODEL] = model
@@ -109,35 +104,27 @@ def observe(
                             "max_tokens"
                         ]
 
-            # Capture input if enabled
             if capture_input:
-                # Serialize function arguments
                 try:
                     input_data = _serialize_function_input(func, args, kwargs)
-                    input_str = json.dumps(
-                        input_data, default=str
-                    )  # default=str handles non-serializable
+                    input_str = json.dumps(input_data, cls=EventSerializer)
                     attrs[Attrs.INPUT_VALUE] = input_str
-                    attrs[Attrs.INPUT_MIME_TYPE] = (
-                        "application/json"  # Function args always JSON
-                    )
+                    attrs[Attrs.INPUT_MIME_TYPE] = "application/json"
+                    if as_type in (SpanType.TOOL, SpanType.AGENT, SpanType.CHAIN):
+                        attrs[Attrs.GEN_AI_TOOL_NAME] = func.__name__
                 except Exception as e:
-                    # If serialization fails, store error message
                     error_msg = f"<serialization failed: {str(e)}>"
                     attrs[Attrs.INPUT_VALUE] = error_msg
                     attrs[Attrs.INPUT_MIME_TYPE] = "text/plain"
 
-            # Create span using client
             with client.start_as_current_span(span_name, attributes=attrs) as span:
                 try:
-                    # Execute function
                     result = func(*args, **kwargs)
 
-                    # Capture output if enabled
                     if capture_output:
                         try:
-                            output_data = _serialize_value(result)
-                            output_str = json.dumps(output_data, default=str)
+                            output_data = serialize_value(result)
+                            output_str = json.dumps(output_data, cls=EventSerializer)
                             span.set_attribute(Attrs.OUTPUT_VALUE, output_str)
                             span.set_attribute(
                                 Attrs.OUTPUT_MIME_TYPE, "application/json"
@@ -147,32 +134,24 @@ def observe(
                             span.set_attribute(Attrs.OUTPUT_VALUE, error_msg)
                             span.set_attribute(Attrs.OUTPUT_MIME_TYPE, "text/plain")
 
-                    # Mark span as successful
                     span.set_status(Status(StatusCode.OK))
-
                     return result
 
                 except Exception as e:
-                    # Record exception
                     span.set_status(Status(StatusCode.ERROR, str(e)))
                     span.record_exception(e)
                     raise
 
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
-            # Get or create client
             client = get_client()
-
-            # Determine span name
             span_name = name or func.__name__
 
-            # Build initial attributes (same as sync)
             attrs = {
                 Attrs.BROKLE_SPAN_TYPE: as_type,
                 Attrs.BROKLE_SPAN_LEVEL: level,
             }
 
-            # Add trace-level attributes
             if user_id:
                 attrs[Attrs.GEN_AI_REQUEST_USER] = user_id
                 attrs[Attrs.USER_ID] = user_id
@@ -185,30 +164,31 @@ def observe(
             if version:
                 attrs[Attrs.BROKLE_VERSION] = version
 
-            # Add generation-specific attributes
             if as_type == SpanType.GENERATION:
                 if model:
                     attrs[Attrs.GEN_AI_REQUEST_MODEL] = model
 
-            # Capture input if enabled
             if capture_input:
                 try:
                     input_data = _serialize_function_input(func, args, kwargs)
-                    attrs[Attrs.BROKLE_TRACE_INPUT] = json.dumps(input_data)
+                    input_str = json.dumps(input_data, cls=EventSerializer)
+                    attrs[Attrs.INPUT_VALUE] = input_str
+                    attrs[Attrs.INPUT_MIME_TYPE] = "application/json"
+                    if as_type in (SpanType.TOOL, SpanType.AGENT, SpanType.CHAIN):
+                        attrs[Attrs.GEN_AI_TOOL_NAME] = func.__name__
                 except Exception as e:
-                    attrs["brokle.input.error"] = str(e)
+                    error_msg = f"<serialization failed: {str(e)}>"
+                    attrs[Attrs.INPUT_VALUE] = error_msg
+                    attrs[Attrs.INPUT_MIME_TYPE] = "text/plain"
 
-            # Create span using client
             with client.start_as_current_span(span_name, attributes=attrs) as span:
                 try:
-                    # Execute async function
                     result = await func(*args, **kwargs)
 
-                    # Capture output if enabled
                     if capture_output:
                         try:
-                            output_data = _serialize_value(result)
-                            output_str = json.dumps(output_data, default=str)
+                            output_data = serialize_value(result)
+                            output_str = json.dumps(output_data, cls=EventSerializer)
                             span.set_attribute(Attrs.OUTPUT_VALUE, output_str)
                             span.set_attribute(
                                 Attrs.OUTPUT_MIME_TYPE, "application/json"
@@ -218,18 +198,14 @@ def observe(
                             span.set_attribute(Attrs.OUTPUT_VALUE, error_msg)
                             span.set_attribute(Attrs.OUTPUT_MIME_TYPE, "text/plain")
 
-                    # Mark span as successful
                     span.set_status(Status(StatusCode.OK))
-
                     return result
 
                 except Exception as e:
-                    # Record exception
                     span.set_status(Status(StatusCode.ERROR, str(e)))
                     span.record_exception(e)
                     raise
 
-        # Return appropriate wrapper based on function type
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
@@ -244,6 +220,12 @@ def _serialize_function_input(
     """
     Serialize function input arguments.
 
+    Uses the robust EventSerializer for comprehensive type handling including:
+    - Pydantic models, dataclasses, numpy arrays
+    - Datetime, UUID, Path objects
+    - Circular reference detection
+    - Large integer handling (JS safe range)
+
     Args:
         func: Function being decorated
         args: Positional arguments
@@ -252,56 +234,12 @@ def _serialize_function_input(
     Returns:
         Serializable dictionary of arguments
     """
-    # Get function signature
     sig = inspect.signature(func)
     bound_args = sig.bind(*args, **kwargs)
     bound_args.apply_defaults()
 
-    # Serialize each argument
     serialized = {}
     for param_name, value in bound_args.arguments.items():
-        serialized[param_name] = _serialize_value(value)
+        serialized[param_name] = serialize_value(value)
 
     return serialized
-
-
-def _serialize_value(value: Any) -> Any:
-    """
-    Serialize a value for JSON encoding.
-
-    Handles common types and provides fallback for complex objects.
-
-    Args:
-        value: Value to serialize
-
-    Returns:
-        JSON-serializable value
-    """
-    # Handle None
-    if value is None:
-        return None
-
-    # Handle primitives
-    if isinstance(value, (str, int, float, bool)):
-        return value
-
-    # Handle lists
-    if isinstance(value, (list, tuple)):
-        return [_serialize_value(item) for item in value]
-
-    # Handle dicts
-    if isinstance(value, dict):
-        return {str(k): _serialize_value(v) for k, v in value.items()}
-
-    # Handle Pydantic models
-    if hasattr(value, "model_dump"):
-        return value.model_dump(exclude_none=True)
-
-    # Handle dataclasses
-    if hasattr(value, "__dataclass_fields__"):
-        import dataclasses
-
-        return dataclasses.asdict(value)
-
-    # Fallback to string representation
-    return str(value)
