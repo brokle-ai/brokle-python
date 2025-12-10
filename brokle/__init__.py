@@ -29,6 +29,7 @@ LLM Generation Tracking:
 from .client import Brokle, get_client, reset_client
 from .config import BrokleConfig
 from .decorators import observe
+from .utils.masking import MaskingHelper
 from .metrics import (
     DURATION_BOUNDARIES,
     TOKEN_BOUNDARIES,
@@ -83,6 +84,8 @@ __all__ = [
     "reset_client",
     # Decorators
     "observe",
+    # Masking utilities
+    "MaskingHelper",
     # Type constants
     "BrokleOtelSpanAttributes",
     "Attrs",

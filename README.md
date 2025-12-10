@@ -135,6 +135,116 @@ async def main():
 asyncio.run(main())
 ```
 
+## Privacy and Data Masking
+
+Brokle supports client-side data masking to protect sensitive information before transmission. Masking is applied to input/output data and metadata **before** it leaves your application.
+
+### Basic Usage
+
+```python
+import re
+from brokle import Brokle
+
+def mask_emails(data):
+    """Mask email addresses in any data structure."""
+    if isinstance(data, str):
+        return re.sub(r'\b[\w.]+@[\w.]+\b', '[EMAIL]', data)
+    elif isinstance(data, dict):
+        return {k: mask_emails(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [mask_emails(item) for item in data]
+    return data
+
+# Configure masking at client initialization
+client = Brokle(api_key="bk_secret", mask=mask_emails)
+
+# All input/output automatically masked
+with client.start_as_current_span(
+    "process",
+    input="Contact john@example.com"
+) as span:
+    pass
+# Transmitted as: input="Contact [EMAIL]"
+```
+
+### Using Built-in Helpers
+
+The SDK includes pre-built masking utilities for common PII patterns:
+
+```python
+from brokle import Brokle
+from brokle.utils.masking import MaskingHelper
+
+# Option 1: Mask all common PII (recommended)
+client = Brokle(
+    api_key="bk_secret",
+    mask=MaskingHelper.mask_pii  # Masks emails, phones, SSN, credit cards, API keys
+)
+
+# Option 2: Mask specific PII types
+client = Brokle(api_key="bk_secret", mask=MaskingHelper.mask_emails)
+client = Brokle(api_key="bk_secret", mask=MaskingHelper.mask_phones)
+client = Brokle(api_key="bk_secret", mask=MaskingHelper.mask_api_keys)
+
+# Option 3: Field-based masking
+client = Brokle(
+    api_key="bk_secret",
+    mask=MaskingHelper.field_mask(['password', 'ssn', 'api_key'])
+)
+
+# Option 4: Combine multiple strategies
+combined_mask = MaskingHelper.combine_masks(
+    MaskingHelper.mask_emails,
+    MaskingHelper.mask_phones,
+    MaskingHelper.field_mask(['password', 'secret_token'])
+)
+client = Brokle(api_key="bk_secret", mask=combined_mask)
+```
+
+### What Gets Masked
+
+Masking applies to these span attributes:
+- `input.value` - Generic input data
+- `output.value` - Generic output data
+- `gen_ai.input.messages` - LLM chat messages
+- `gen_ai.output.messages` - LLM response messages
+- `metadata` - Custom metadata
+
+**Structural attributes are NOT masked** (model names, token counts, metrics, timestamps, environment tags).
+
+### Error Handling
+
+If your masking function throws an exception, Brokle returns:
+```
+"<fully masked due to failed mask function>"
+```
+
+This ensures sensitive data is **never transmitted** even if masking fails (security-first design).
+
+### Custom Pattern Masking
+
+Create custom masking for your specific needs:
+
+```python
+from brokle.utils.masking import MaskingHelper
+
+# Mask IPv4 addresses
+mask_ip = MaskingHelper.custom_pattern_mask(
+    r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
+    '[IP_ADDRESS]'
+)
+
+client = Brokle(api_key="bk_secret", mask=mask_ip)
+```
+
+### Security Best Practices
+
+1. **Client-side masking**: Data is masked before leaving your application
+2. **Test your masks**: Verify patterns catch your specific PII in development
+3. **Fail-safe defaults**: Exceptions result in full masking (never sends unmasked data)
+4. **Performance**: Masking adds <1ms overhead per span
+
+For more examples, see [`examples/masking_basic.py`](examples/masking_basic.py) and [`examples/masking_helpers.py`](examples/masking_helpers.py).
 
 ## Why Choose Brokle?
 

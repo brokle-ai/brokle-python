@@ -73,7 +73,16 @@ class BrokleConfig:
 
     # ========== Privacy & Masking ==========
     mask: Optional[Callable[[Any], Any]] = None
-    """Optional function to mask sensitive data before sending to backend"""
+    """
+    Optional function to mask sensitive data before transmission.
+
+    Applied to: input.value, output.value, gen_ai.*_messages, metadata
+    Error handling: Returns "<fully masked due to failed mask function>" on exception
+
+    Example:
+        from brokle.utils.masking import MaskingHelper
+        client = Brokle(api_key="bk_secret", mask=MaskingHelper.mask_pii)
+    """
 
     # ========== Batch Configuration ==========
     flush_at: int = 100
