@@ -22,6 +22,7 @@ from .exporter import create_exporter_for_config
 from .logs import BrokleLoggerProvider
 from .metrics import BrokleMeterProvider, GenAIMetrics, create_genai_metrics
 from .processor import BrokleSpanProcessor
+from .prompt import CacheOptions, PromptClient
 from .types import Attrs, LLMProvider, OperationType, SchemaURLs, SpanType
 
 # Global singleton instance
@@ -107,6 +108,7 @@ class Brokle:
         self._meter_provider: Optional[BrokleMeterProvider] = None
         self._metrics: Optional[GenAIMetrics] = None
         self._logger_provider: Optional[BrokleLoggerProvider] = None
+        self._prompt_client: Optional[PromptClient] = None
 
         # Create shared Resource (used by TracerProvider, MeterProvider, LoggerProvider)
         # Schema URL enables semantic convention versioning
@@ -500,6 +502,34 @@ class Brokle:
             ...     metrics.record_duration(duration_ms=1500, model="gpt-4")
         """
         return self._metrics
+
+    @property
+    def prompt(self) -> PromptClient:
+        """
+        Get the prompt client for managing prompts.
+
+        Returns a lazily initialized PromptClient for fetching and managing prompts.
+        Supports both sync and async operations with caching.
+
+        Returns:
+            PromptClient instance
+
+        Example:
+            >>> # Async usage
+            >>> prompt = await client.prompt.get("greeting", label="production")
+            >>> messages = prompt.to_openai_messages({"name": "Alice"})
+            >>>
+            >>> # Sync usage
+            >>> prompt = client.prompt.get_sync("greeting")
+            >>> compiled = prompt.compile({"name": "Alice"})
+        """
+        if self._prompt_client is None:
+            self._prompt_client = PromptClient(
+                api_key=self.config.api_key,
+                base_url=self.config.base_url,
+                debug=self.config.debug,
+            )
+        return self._prompt_client
 
     def close(self):
         """
