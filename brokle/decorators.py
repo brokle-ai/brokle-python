@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
-from .client import get_client
+from ._client import get_client
 from .types import Attrs, SpanType
 from .utils.serializer import EventSerializer, serialize_value, serialize_function_args
 

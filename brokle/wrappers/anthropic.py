@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from opentelemetry.trace import Status, StatusCode
 
-from ..client import get_client
+from .._client import get_client
 from ..streaming import StreamingAccumulator
 from ..streaming.wrappers import BrokleAsyncStreamWrapper, BrokleStreamWrapper
 from ..types import Attrs, LLMProvider, OperationType, SpanType
@@ -51,12 +51,10 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
         ... )
         >>> brokle.flush()
     """
-    # Store original method
     original_messages_create = client.messages.create
 
     def wrapped_messages_create(*args, **kwargs):
         """Wrapped messages.create with automatic tracing."""
-        # Get Brokle client
         brokle_client = get_client()
 
         model = kwargs.get("model", "unknown")
@@ -104,7 +102,6 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
 
         span_name = f"{OperationType.CHAT} {model}"
 
-        # Handle streaming vs non-streaming differently
         if stream:
             return _handle_anthropic_streaming_response(
                 brokle_client, original_messages_create, args, kwargs, span_name, attrs
@@ -230,7 +227,6 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
                 span.record_exception(e)
                 raise
 
-    # Replace method
     client.messages.create = wrapped_messages_create
 
     return client
@@ -260,21 +256,16 @@ def wrap_anthropic_async(
         >>> # Async calls automatically tracked
         >>> response = await client.messages.create(...)
     """
-    # Store original method
     original_messages_create = client.messages.create
 
     async def wrapped_messages_create(*args, **kwargs):
         """Wrapped async messages.create with automatic tracing."""
-        # Get Brokle client
         brokle_client = get_client()
-
-        # Extract request parameters (same as sync version)
         model = kwargs.get("model", "unknown")
         messages = kwargs.get("messages", [])
         system = kwargs.get("system")
         stream = kwargs.get("stream", False)
 
-        # Build OTEL GenAI attributes (same as sync)
         attrs = {
             Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
             Attrs.GEN_AI_PROVIDER_NAME: LLMProvider.ANTHROPIC,
@@ -283,17 +274,14 @@ def wrap_anthropic_async(
             Attrs.BROKLE_STREAMING: stream,
         }
 
-        # Add messages
         if messages:
             attrs[Attrs.GEN_AI_INPUT_MESSAGES] = serialize_messages(messages)
         if system:
             system_msgs = [{"role": "system", "content": system}]
             attrs[Attrs.GEN_AI_SYSTEM_INSTRUCTIONS] = json.dumps(system_msgs)
 
-        # Create span
         span_name = f"{OperationType.CHAT} {model}"
 
-        # Handle streaming vs non-streaming differently
         if stream:
             return await _handle_anthropic_async_streaming_response(
                 brokle_client, original_messages_create, args, kwargs, span_name, attrs
@@ -307,25 +295,19 @@ def wrap_anthropic_async(
         brokle_client, original_method, args, kwargs, span_name, attrs
     ):
         """Handle async streaming response with transparent wrapper instrumentation."""
-        # Start span manually using underlying tracer (will be ended by stream wrapper)
+        # Span will be ended by stream wrapper
         tracer = brokle_client._tracer
         span = tracer.start_span(span_name, attributes=attrs)
 
         try:
-            # Record start time BEFORE API call
             start_time = time.perf_counter()
-
-            # Make async API call
             response = await original_method(*args, **kwargs)
-
-            # Create accumulator with start time
             accumulator = StreamingAccumulator(start_time)
             wrapped_stream = BrokleAsyncStreamWrapper(response, span, accumulator)
 
             return wrapped_stream
 
         except BaseException as e:
-            # Record error and end span (catches all exceptions including CancelledError)
             span.set_status(Status(StatusCode.ERROR, str(e)))
             span.record_exception(e)
             span.end()
@@ -338,20 +320,14 @@ def wrap_anthropic_async(
         with brokle_client.start_as_current_span(span_name, attributes=attrs) as span:
             try:
                 start_time = time.time()
-
-                # Make async API call
                 response = await original_method(*args, **kwargs)
-
-                # Calculate latency
                 latency_ms = (time.time() - start_time) * 1000
 
-                # Extract response metadata
                 if hasattr(response, "id"):
                     span.set_attribute(Attrs.GEN_AI_RESPONSE_ID, response.id)
                 if hasattr(response, "model"):
                     span.set_attribute(Attrs.GEN_AI_RESPONSE_MODEL, response.model)
 
-                # Extract stop reason
                 if hasattr(response, "stop_reason") and response.stop_reason:
                     span.set_attribute(
                         Attrs.GEN_AI_RESPONSE_FINISH_REASONS, [response.stop_reason]
@@ -360,7 +336,6 @@ def wrap_anthropic_async(
                         Attrs.ANTHROPIC_RESPONSE_STOP_REASON, response.stop_reason
                     )
 
-                # Extract output messages
                 if hasattr(response, "content") and response.content:
                     output_messages = []
                     for content_block in response.content:
@@ -396,7 +371,6 @@ def wrap_anthropic_async(
                             Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages)
                         )
 
-                # Extract usage statistics
                 if hasattr(response, "usage") and response.usage:
                     usage = response.usage
                     if hasattr(usage, "input_tokens") and usage.input_tokens:
@@ -408,7 +382,6 @@ def wrap_anthropic_async(
                             Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, usage.output_tokens
                         )
 
-                    # Calculate total tokens
                     total_tokens = calculate_total_tokens(
                         usage.input_tokens if hasattr(usage, "input_tokens") else None,
                         (
@@ -422,10 +395,7 @@ def wrap_anthropic_async(
                             Attrs.BROKLE_USAGE_TOTAL_TOKENS, total_tokens
                         )
 
-                # Set latency
                 span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, latency_ms)
-
-                # Mark successful
                 span.set_status(Status(StatusCode.OK))
 
                 return response
@@ -435,7 +405,6 @@ def wrap_anthropic_async(
                 span.record_exception(e)
                 raise
 
-    # Replace method
     client.messages.create = wrapped_messages_create
 
     return client

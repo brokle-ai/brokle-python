@@ -40,7 +40,7 @@ except ImportError:
 
 from opentelemetry.trace import Status, StatusCode
 
-from ..client import get_client
+from .._client import get_client
 from ..types import Attrs, LLMProvider, OperationType, SpanType
 
 
@@ -88,10 +88,7 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
         self.metadata = metadata or {}
         self.tags = tags or []
 
-        # Get Brokle client
         self._client = get_client()
-
-        # Track active spans by event_id
         self._spans: Dict[str, Any] = {}
         self._span_start_times: Dict[str, float] = {}
 
@@ -139,12 +136,10 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
         """
         payload = payload or {}
 
-        # Build base attributes
         attrs = self._get_common_attributes()
         attrs["llamaindex.event_type"] = str(event_type)
         attrs["llamaindex.event_id"] = event_id
 
-        # Determine span name and attributes based on event type
         if event_type == CBEventType.LLM:
             span_name, span_attrs = self._handle_llm_start(payload)
             attrs.update(span_attrs)
@@ -175,11 +170,9 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
             attrs[Attrs.BROKLE_SPAN_TYPE] = SpanType.SPAN
 
         else:
-            # Generic span for other event types
             span_name = str(event_type).lower()
             attrs[Attrs.BROKLE_SPAN_TYPE] = SpanType.SPAN
 
-        # Create span
         span = self._client._tracer.start_span(name=span_name, attributes=attrs)
         self._spans[event_id] = span
         self._span_start_times[event_id] = time.time()
@@ -211,7 +204,6 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
         payload = payload or {}
 
         try:
-            # Handle event type-specific outputs
             if event_type == CBEventType.LLM:
                 self._handle_llm_end(span, payload)
 
@@ -237,21 +229,17 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
                     chunks = payload[EventPayload.CHUNKS]
                     span.set_attribute("llamaindex.chunk_count", len(chunks))
 
-            # Calculate latency
             if event_id in self._span_start_times:
                 latency_ms = (time.time() - self._span_start_times[event_id]) * 1000
                 span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, latency_ms)
 
-            # Mark as successful
             span.set_status(Status(StatusCode.OK))
 
         except Exception as e:
-            # Record any errors during processing
             span.set_status(Status(StatusCode.ERROR, str(e)))
             span.record_exception(e)
 
         finally:
-            # End span
             span.end()
             self._spans.pop(event_id, None)
             self._span_start_times.pop(event_id, None)
@@ -268,11 +256,9 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
             Attrs.GEN_AI_OPERATION_NAME: OperationType.CHAT,
         }
 
-        # Extract model information
         if EventPayload.SERIALIZED in payload:
             serialized = payload[EventPayload.SERIALIZED]
 
-            # Model name
             if "model" in serialized:
                 model = serialized["model"]
                 attrs[Attrs.GEN_AI_REQUEST_MODEL] = model
@@ -282,7 +268,6 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
             else:
                 model = "unknown"
 
-            # Provider (infer from class name)
             if "class_name" in serialized:
                 class_name = serialized["class_name"].lower()
                 if "openai" in class_name:
@@ -292,13 +277,11 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
                 elif "google" in class_name or "gemini" in class_name:
                     attrs[Attrs.GEN_AI_PROVIDER_NAME] = LLMProvider.GOOGLE
 
-            # Model parameters
             if "temperature" in serialized:
                 attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = serialized["temperature"]
             if "max_tokens" in serialized:
                 attrs[Attrs.GEN_AI_REQUEST_MAX_TOKENS] = serialized["max_tokens"]
 
-        # Extract prompts/messages
         if EventPayload.PROMPT in payload:
             prompt = payload[EventPayload.PROMPT]
             input_messages = [{"role": "user", "content": prompt}]
@@ -307,7 +290,6 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
             messages = payload[EventPayload.MESSAGES]
             attrs[Attrs.GEN_AI_INPUT_MESSAGES] = json.dumps(messages)
 
-        # Span name
         model = attrs.get(Attrs.GEN_AI_REQUEST_MODEL, "llm")
         operation = attrs.get(Attrs.GEN_AI_OPERATION_NAME, "chat")
         span_name = f"{operation} {model}"
@@ -316,13 +298,10 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
 
     def _handle_llm_end(self, span: Any, payload: Dict[str, Any]) -> None:
         """Handle LLM event end."""
-        # Extract response
         if EventPayload.RESPONSE in payload:
             response = payload[EventPayload.RESPONSE]
 
-            # Convert response to output messages
             if hasattr(response, "message"):
-                # Chat response
                 output_messages = [
                     {
                         "role": "assistant",
@@ -333,7 +312,6 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
                     Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages)
                 )
             elif hasattr(response, "text"):
-                # Text completion response
                 output_messages = [
                     {
                         "role": "assistant",
@@ -344,7 +322,6 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
                     Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages)
                 )
 
-            # Extract additional metadata
             if hasattr(response, "raw"):
                 raw = response.raw
                 if hasattr(raw, "model"):
@@ -352,7 +329,6 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
                 if hasattr(raw, "id"):
                     span.set_attribute(Attrs.GEN_AI_RESPONSE_ID, raw.id)
 
-                # Usage information
                 if hasattr(raw, "usage"):
                     usage = raw.usage
                     if hasattr(usage, "prompt_tokens"):
@@ -417,7 +393,6 @@ def set_global_handler(
             f"Invalid handler name: {handler_name}. " "Use 'brokle' for Brokle handler."
         )
 
-    # Create handler
     handler = BrokleLlamaIndexHandler(
         user_id=user_id,
         session_id=session_id,
@@ -425,22 +400,16 @@ def set_global_handler(
         tags=tags,
     )
 
-    # Set as global handler
     try:
-        # Try new API
         from llama_index.core import Settings
 
         Settings.callback_manager = CallbackManager([handler])
     except (ImportError, AttributeError):
-        # Try legacy API
         try:
             import llama_index
-
             llama_index.global_handler = handler
         except (ImportError, AttributeError):
-            # Manual registration as fallback
             callback_manager = CallbackManager([handler])
-            # Store for user to use manually if needed
             handler._callback_manager = callback_manager
 
     return handler

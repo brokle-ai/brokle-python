@@ -37,7 +37,7 @@ except ImportError:
 
 from opentelemetry.trace import Status, StatusCode
 
-from ..client import get_client
+from .._client import get_client
 from ..types import Attrs, LLMProvider, OperationType, SpanType
 
 
@@ -80,10 +80,7 @@ class BrokleLangChainCallback(BaseCallbackHandler):
         self.metadata = metadata or {}
         self.tags = tags or []
 
-        # Get Brokle client
         self._client = get_client()
-
-        # Track active spans by run_id
         self._spans: Dict[UUID, Any] = {}
         self._span_start_times: Dict[UUID, float] = {}
 
@@ -122,12 +119,10 @@ class BrokleLangChainCallback(BaseCallbackHandler):
 
         Creates a generation span with GenAI attributes.
         """
-        # Extract model and provider information
         model = self._extract_model(serialized, kwargs)
         provider = self._extract_provider(serialized, kwargs)
         operation = "chat" if "chat" in str(serialized).lower() else "text_completion"
 
-        # Build span attributes
         attrs = self._get_common_attributes()
         attrs.update(
             {
@@ -142,12 +137,10 @@ class BrokleLangChainCallback(BaseCallbackHandler):
         if provider:
             attrs[Attrs.GEN_AI_PROVIDER_NAME] = provider
 
-        # Add prompts as input messages
         if prompts:
             input_messages = [{"role": "user", "content": prompt} for prompt in prompts]
             attrs[Attrs.GEN_AI_INPUT_MESSAGES] = json.dumps(input_messages)
 
-        # Extract model parameters from invocation_params
         invocation_params = kwargs.get("invocation_params", {})
         if invocation_params:
             if "temperature" in invocation_params:
@@ -159,10 +152,7 @@ class BrokleLangChainCallback(BaseCallbackHandler):
             if "top_p" in invocation_params:
                 attrs[Attrs.GEN_AI_REQUEST_TOP_P] = invocation_params["top_p"]
 
-        # Create span name following OTEL pattern
         span_name = f"{operation} {model}" if model else operation
-
-        # Create span
         span = self._client._tracer.start_span(name=span_name, attributes=attrs)
         self._spans[run_id] = span
         self._span_start_times[run_id] = time.time()
@@ -185,7 +175,6 @@ class BrokleLangChainCallback(BaseCallbackHandler):
             return
 
         try:
-            # Extract outputs
             if response.generations:
                 output_messages = []
                 finish_reasons = []
@@ -210,23 +199,19 @@ class BrokleLangChainCallback(BaseCallbackHandler):
                             if finish_reason:
                                 finish_reasons.append(finish_reason)
 
-                # Set output messages
                 if output_messages:
                     span.set_attribute(
                         Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages)
                     )
 
-                # Set finish reasons
                 if finish_reasons:
                     span.set_attribute(
                         Attrs.GEN_AI_RESPONSE_FINISH_REASONS, finish_reasons
                     )
 
-            # Extract usage information
             if hasattr(response, "llm_output") and response.llm_output:
                 llm_output = response.llm_output
 
-                # Token usage
                 if "token_usage" in llm_output:
                     token_usage = llm_output["token_usage"]
                     if "prompt_tokens" in token_usage:
@@ -244,22 +229,18 @@ class BrokleLangChainCallback(BaseCallbackHandler):
                             Attrs.BROKLE_USAGE_TOTAL_TOKENS, token_usage["total_tokens"]
                         )
 
-                # Model name from response
                 if "model_name" in llm_output:
                     span.set_attribute(
                         Attrs.GEN_AI_RESPONSE_MODEL, llm_output["model_name"]
                     )
 
-            # Calculate latency
             if run_id in self._span_start_times:
                 latency_ms = (time.time() - self._span_start_times[run_id]) * 1000
                 span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, latency_ms)
 
-            # Mark as successful
             span.set_status(Status(StatusCode.OK))
 
         finally:
-            # End span
             span.end()
             self._spans.pop(run_id, None)
             self._span_start_times.pop(run_id, None)
@@ -282,12 +263,9 @@ class BrokleLangChainCallback(BaseCallbackHandler):
             return
 
         try:
-            # Record error
             span.set_status(Status(StatusCode.ERROR, str(error)))
             span.record_exception(error)
-
         finally:
-            # End span
             span.end()
             self._spans.pop(run_id, None)
             self._span_start_times.pop(run_id, None)
@@ -308,10 +286,7 @@ class BrokleLangChainCallback(BaseCallbackHandler):
 
         Creates a parent span for the chain.
         """
-        # Extract chain name
         chain_name = serialized.get("name", "chain")
-
-        # Build span attributes
         attrs = self._get_common_attributes()
         attrs.update(
             {
@@ -320,11 +295,9 @@ class BrokleLangChainCallback(BaseCallbackHandler):
             }
         )
 
-        # Add inputs
         if inputs:
             attrs["langchain.chain_input"] = json.dumps(inputs, default=str)
 
-        # Create span
         span = self._client._tracer.start_span(
             name=f"chain:{chain_name}", attributes=attrs
         )
@@ -349,22 +322,18 @@ class BrokleLangChainCallback(BaseCallbackHandler):
             return
 
         try:
-            # Add outputs
             if outputs:
                 span.set_attribute(
                     "langchain.chain_output", json.dumps(outputs, default=str)
                 )
 
-            # Calculate latency
             if run_id in self._span_start_times:
                 latency_ms = (time.time() - self._span_start_times[run_id]) * 1000
                 span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, latency_ms)
 
-            # Mark as successful
             span.set_status(Status(StatusCode.OK))
 
         finally:
-            # End span
             span.end()
             self._spans.pop(run_id, None)
             self._span_start_times.pop(run_id, None)
@@ -387,12 +356,9 @@ class BrokleLangChainCallback(BaseCallbackHandler):
             return
 
         try:
-            # Record error
             span.set_status(Status(StatusCode.ERROR, str(error)))
             span.record_exception(error)
-
         finally:
-            # End span
             span.end()
             self._spans.pop(run_id, None)
             self._span_start_times.pop(run_id, None)
@@ -413,10 +379,7 @@ class BrokleLangChainCallback(BaseCallbackHandler):
 
         Creates a tool span.
         """
-        # Extract tool name
         tool_name = serialized.get("name", "tool")
-
-        # Build span attributes
         attrs = self._get_common_attributes()
         attrs.update(
             {
@@ -426,7 +389,6 @@ class BrokleLangChainCallback(BaseCallbackHandler):
             }
         )
 
-        # Create span
         span = self._client._tracer.start_span(
             name=f"tool:{tool_name}", attributes=attrs
         )
@@ -451,19 +413,15 @@ class BrokleLangChainCallback(BaseCallbackHandler):
             return
 
         try:
-            # Add output
             span.set_attribute("langchain.tool_output", output)
 
-            # Calculate latency
             if run_id in self._span_start_times:
                 latency_ms = (time.time() - self._span_start_times[run_id]) * 1000
                 span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, latency_ms)
 
-            # Mark as successful
             span.set_status(Status(StatusCode.OK))
 
         finally:
-            # End span
             span.end()
             self._spans.pop(run_id, None)
             self._span_start_times.pop(run_id, None)
@@ -486,12 +444,9 @@ class BrokleLangChainCallback(BaseCallbackHandler):
             return
 
         try:
-            # Record error
             span.set_status(Status(StatusCode.ERROR, str(error)))
             span.record_exception(error)
-
         finally:
-            # End span
             span.end()
             self._spans.pop(run_id, None)
             self._span_start_times.pop(run_id, None)

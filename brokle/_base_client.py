@@ -1,8 +1,8 @@
 """
-Main Brokle OpenTelemetry client.
+Base Brokle Client
 
-Provides high-level API for creating traces, spans, and LLM spans
-using OpenTelemetry as the underlying telemetry framework.
+Provides the base class with shared initialization, configuration,
+and OpenTelemetry setup used by both Brokle and AsyncBrokle.
 """
 
 import atexit
@@ -22,26 +22,22 @@ from .exporter import create_exporter_for_config
 from .logs import BrokleLoggerProvider
 from .metrics import BrokleMeterProvider, GenAIMetrics, create_genai_metrics
 from .processor import BrokleSpanProcessor
-from .prompt import CacheOptions, PromptClient
+from .prompts import CacheOptions, PromptConfig
 from .types import Attrs, LLMProvider, OperationType, SchemaURLs, SpanType
 
 # Global singleton instance
-_global_client: Optional["Brokle"] = None
 
 
-class Brokle:
+class BaseBrokleClient:
     """
-    Main Brokle client for OpenTelemetry-based observability.
+    Base Brokle client with shared initialization and OpenTelemetry setup.
 
-    This client initializes OpenTelemetry with Brokle-specific configuration
-    and provides high-level methods for creating traces and spans.
-
-    Example:
-        >>> from brokle import Brokle
-        >>> client = Brokle(api_key="bk_your_secret")
-        >>> with client.start_as_current_span("my-operation") as span:
-        ...     span.set_attribute("output", "Hello, world!")
-        >>> client.flush()
+    This class contains the core functionality shared by both Brokle
+    (sync) and AsyncBrokle (async). It handles:
+    - Configuration management
+    - OpenTelemetry tracer/meter/logger providers
+    - HTTP client initialization
+    - Span creation methods
     """
 
     def __init__(
@@ -105,10 +101,14 @@ class Brokle:
                 **kwargs,
             )
 
+        self._prompt_config = PromptConfig()
+        self._http_client: Optional[Any] = None  # AsyncHTTPClient (lazy init)
+        self._prompts_manager = None  # Set by subclass
+        self._evaluations_manager = None  # Set by subclass
+
         self._meter_provider: Optional[BrokleMeterProvider] = None
         self._metrics: Optional[GenAIMetrics] = None
         self._logger_provider: Optional[BrokleLoggerProvider] = None
-        self._prompt_client: Optional[PromptClient] = None
 
         # Create shared Resource (used by TracerProvider, MeterProvider, LoggerProvider)
         # Schema URL enables semantic convention versioning
@@ -179,6 +179,14 @@ class Brokle:
 
         # Register cleanup on process exit
         atexit.register(self._cleanup)
+
+    @property
+    def _http(self):
+        """Lazy-init HTTP client."""
+        if self._http_client is None:
+            from ._http import AsyncHTTPClient
+            self._http_client = AsyncHTTPClient(self.config)
+        return self._http_client
 
     @staticmethod
     def _extract_project_id(api_key: Optional[str]) -> str:
@@ -503,62 +511,6 @@ class Brokle:
         """
         return self._metrics
 
-    @property
-    def prompt(self) -> PromptClient:
-        """
-        Get the prompt client for managing prompts.
-
-        Returns a lazily initialized PromptClient for fetching and managing prompts.
-        Supports both sync and async operations with caching.
-
-        Returns:
-            PromptClient instance
-
-        Example:
-            >>> # Async usage
-            >>> prompt = await client.prompt.get("greeting", label="production")
-            >>> messages = prompt.to_openai_messages({"name": "Alice"})
-            >>>
-            >>> # Sync usage
-            >>> prompt = client.prompt.get_sync("greeting")
-            >>> compiled = prompt.compile({"name": "Alice"})
-        """
-        if self._prompt_client is None:
-            self._prompt_client = PromptClient(
-                api_key=self.config.api_key,
-                base_url=self.config.base_url,
-                debug=self.config.debug,
-            )
-        return self._prompt_client
-
-    def close(self):
-        """
-        Close the client (alias for shutdown).
-
-        Example:
-            >>> with Brokle(api_key="...") as client:
-            ...     # Use client
-            ...     pass  # Automatically closed
-        """
-        self.shutdown()
-
-    def __enter__(self):
-        """Context manager entry."""
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
-        self.close()
-
-    def __repr__(self) -> str:
-        """String representation."""
-        return (
-            f"Brokle(environment='{self.config.environment}', "
-            f"tracing_enabled={self.config.tracing_enabled}, "
-            f"metrics_enabled={self.config.metrics_enabled}, "
-            f"logs_enabled={self.config.logs_enabled})"
-        )
-
 
 def _serialize_with_mime(value: Any) -> tuple[str, str]:
     """
@@ -601,7 +553,6 @@ def _serialize_with_mime(value: Any) -> tuple[str, str]:
         if hasattr(value, "__dataclass_fields__"):
             # Dataclass
             import dataclasses
-
             return json.dumps(dataclasses.asdict(value)), "application/json"
 
         # Last resort: string representation
@@ -613,72 +564,9 @@ def _serialize_with_mime(value: Any) -> tuple[str, str]:
 
 
 def _is_llm_messages_format(data: Any) -> bool:
-    """
-    Check if data is in LLM ChatML messages format.
-
-    ChatML format: List of dicts with "role" and "content" keys.
-
-    Args:
-        data: Data to check
-
-    Returns:
-        True if ChatML format, False otherwise
-    """
+    """Check if data is in LLM ChatML messages format."""
     return (
         isinstance(data, list)
         and len(data) > 0
         and all(isinstance(m, dict) and "role" in m for m in data)
     )
-
-
-def get_client(**overrides) -> Brokle:
-    """
-    Get or create global singleton Brokle client.
-
-    Configuration is read from environment variables on first call.
-    Subsequent calls return the same instance.
-
-    Args:
-        **overrides: Override specific configuration values (e.g., transport="grpc")
-
-    Returns:
-        Singleton Brokle instance
-
-    Raises:
-        ValueError: If BROKLE_API_KEY environment variable is missing
-
-    Example:
-        >>> from brokle import get_client
-        >>> client = get_client()  # Reads from BROKLE_* env vars
-        >>> # All calls return same instance
-        >>> client2 = get_client()
-        >>> assert client is client2
-        >>> # Override specific settings
-        >>> client = get_client(transport="grpc", metrics_export_interval=30.0)
-    """
-    global _global_client
-
-    if _global_client is None:
-        # Create config from environment variables with any overrides
-        config = BrokleConfig.from_env(**overrides)
-
-        # Pass config object directly - ensures all config fields are forwarded
-        _global_client = Brokle(config=config)
-
-    return _global_client
-
-
-def reset_client():
-    """
-    Reset global singleton client.
-
-    Useful for testing. Should not be used in production code.
-
-    Example:
-        >>> reset_client()
-        >>> client = get_client()  # Creates new instance
-    """
-    global _global_client
-    if _global_client:
-        _global_client.close()
-    _global_client = None

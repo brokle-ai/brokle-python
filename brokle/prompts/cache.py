@@ -164,7 +164,6 @@ class PromptCache(Generic[T]):
             ttl: TTL in seconds (optional, uses default)
         """
         with self._lock:
-            # Short-circuit if cache is disabled (max_size <= 0)
             if self._max_size <= 0:
                 return
 

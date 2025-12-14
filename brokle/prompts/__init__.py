@@ -1,29 +1,24 @@
 """
-Prompt Management Module
+Brokle Prompts Manager
 
-Centralized prompt storage with versioning, labels, and caching.
+Provides prompt management functionality accessed via client.prompts.
 
-Example:
-    >>> from brokle.prompt import PromptClient, Prompt
-    >>>
-    >>> client = PromptClient(
-    ...     api_key="bk_...",
-    ...     base_url="https://api.brokle.ai"
-    ... )
-    >>>
-    >>> # Fetch a prompt (async)
-    >>> prompt = await client.get("greeting", label="production")
-    >>>
-    >>> # Compile with variables
-    >>> compiled = prompt.compile({"name": "Alice"})
-    >>>
-    >>> # Convert to OpenAI format
-    >>> messages = prompt.to_openai_messages({"name": "Alice"})
+Example (Sync):
+    >>> from brokle import Brokle
+    >>> with Brokle(api_key="bk_...") as client:
+    ...     prompt = client.prompts.get("greeting", label="production")
+    ...     messages = prompt.to_openai_messages({"name": "Alice"})
+
+Example (Async):
+    >>> from brokle import AsyncBrokle
+    >>> async with AsyncBrokle(api_key="bk_...") as client:
+    ...     prompt = await client.prompts.get("greeting", label="production")
+    ...     messages = prompt.to_openai_messages({"name": "Alice"})
 """
 
+from ._managers import AsyncPromptManager, PromptManager
+from .cache import CacheOptions, PromptCache
 from .prompt import Prompt
-from .client import PromptClient
-from .cache import PromptCache, CacheOptions
 
 from .exceptions import (
     PromptError,
@@ -69,8 +64,11 @@ from .types import (
 )
 
 __all__ = [
+    # Manager classes
+    "AsyncPromptManager",
+    "PromptManager",
+    # Core classes
     "Prompt",
-    "PromptClient",
     "PromptCache",
     "CacheOptions",
     "PromptError",

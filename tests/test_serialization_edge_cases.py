@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from brokle.client import _is_llm_messages_format, _serialize_with_mime
+from brokle._base_client import _is_llm_messages_format, _serialize_with_mime
 
 
 def test_serialize_none_value():
