@@ -25,9 +25,6 @@ from .processor import BrokleSpanProcessor
 from .prompts import CacheOptions, PromptConfig
 from .types import Attrs, LLMProvider, OperationType, SchemaURLs, SpanType
 
-# Global singleton instance
-
-
 class BaseBrokleClient:
     """
     Base Brokle client with shared initialization and OpenTelemetry setup.
@@ -102,9 +99,8 @@ class BaseBrokleClient:
             )
 
         self._prompt_config = PromptConfig()
-        self._http_client: Optional[Any] = None  # AsyncHTTPClient (lazy init)
-        self._prompts_manager = None  # Set by subclass
-        self._evaluations_manager = None  # Set by subclass
+        self._prompts_manager = None
+        self._evaluations_manager = None
 
         self._meter_provider: Optional[BrokleMeterProvider] = None
         self._metrics: Optional[GenAIMetrics] = None
@@ -179,14 +175,6 @@ class BaseBrokleClient:
 
         # Register cleanup on process exit
         atexit.register(self._cleanup)
-
-    @property
-    def _http(self):
-        """Lazy-init HTTP client."""
-        if self._http_client is None:
-            from ._http import AsyncHTTPClient
-            self._http_client = AsyncHTTPClient(self.config)
-        return self._http_client
 
     @staticmethod
     def _extract_project_id(api_key: Optional[str]) -> str:

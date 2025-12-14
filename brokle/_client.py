@@ -35,7 +35,7 @@ Singleton Pattern:
 from typing import Optional
 
 from ._base_client import BaseBrokleClient
-from ._utils import run_sync
+from ._http import AsyncHTTPClient, SyncHTTPClient
 from .config import BrokleConfig
 from .evaluations import AsyncEvaluationsManager, EvaluationsManager
 from .prompts import AsyncPromptManager, PromptManager
@@ -49,11 +49,7 @@ class Brokle(BaseBrokleClient):
     Feature APIs: Prompts and evaluations (optional, not core)
 
     This client provides synchronous methods for all operations.
-    Use AsyncBrokle for async contexts.
-
-    Note:
-        This client cannot be used inside an async event loop.
-        Attempting to do so will raise RuntimeError.
+    Uses SyncHTTPClient (httpx.Client) internally - no event loop involvement.
 
     Example:
         >>> from brokle import Brokle
@@ -69,6 +65,18 @@ class Brokle(BaseBrokleClient):
         ...     prompt = client.prompts.get("greeting")
         ...     messages = prompt.to_openai_messages({"name": "Alice"})
     """
+
+    def __init__(self, *args, **kwargs):
+        """Initialize sync Brokle client with SyncHTTPClient."""
+        super().__init__(*args, **kwargs)
+        self._http_client: Optional[SyncHTTPClient] = None
+
+    @property
+    def _http(self) -> SyncHTTPClient:
+        """Lazy-init sync HTTP client."""
+        if self._http_client is None:
+            self._http_client = SyncHTTPClient(self.config)
+        return self._http_client
 
     @property
     def prompts(self) -> PromptManager:
@@ -121,21 +129,36 @@ class Brokle(BaseBrokleClient):
             )
         return self._evaluations_manager
 
+    def auth_check(self) -> bool:
+        """
+        Verify connection to Brokle server.
+
+        Makes a synchronous request to validate API key.
+        Use for development/testing only - adds latency.
+
+        Returns:
+            True if authenticated, False otherwise
+
+        Example:
+            >>> if client.auth_check():
+            ...     print("Connected!")
+        """
+        try:
+            response = self._http.post("/v1/auth/validate-key", json={})
+            return response.get("success", False)
+        except Exception:
+            return False
+
     def shutdown(self, timeout_seconds: int = 30) -> bool:
         """Shutdown with manager cleanup."""
         success = super().shutdown(timeout_seconds)
 
-        # Close HTTP client
         if self._http_client:
-            run_sync(self._http_client.close())
-
-        # Shutdown prompts manager
+            self._http_client.close()
         if self._prompts_manager:
-            run_sync(self._prompts_manager._shutdown())
-
-        # Shutdown evaluations manager
+            self._prompts_manager._shutdown()
         if self._evaluations_manager:
-            run_sync(self._evaluations_manager._shutdown())
+            self._evaluations_manager._shutdown()
 
         return success
 
@@ -160,7 +183,7 @@ class AsyncBrokle(BaseBrokleClient):
     Feature APIs: Prompts and evaluations (optional, not core)
 
     This client provides async methods for all operations.
-    Use Brokle for synchronous contexts.
+    Uses AsyncHTTPClient (httpx.AsyncClient) internally.
 
     Example:
         >>> from brokle import AsyncBrokle
@@ -176,6 +199,18 @@ class AsyncBrokle(BaseBrokleClient):
         ...     prompt = await client.prompts.get("greeting")
         ...     messages = prompt.to_openai_messages({"name": "Alice"})
     """
+
+    def __init__(self, *args, **kwargs):
+        """Initialize async Brokle client with AsyncHTTPClient."""
+        super().__init__(*args, **kwargs)
+        self._http_client: Optional[AsyncHTTPClient] = None
+
+    @property
+    def _http(self) -> AsyncHTTPClient:
+        """Lazy-init async HTTP client."""
+        if self._http_client is None:
+            self._http_client = AsyncHTTPClient(self.config)
+        return self._http_client
 
     @property
     def prompts(self) -> AsyncPromptManager:
@@ -228,19 +263,34 @@ class AsyncBrokle(BaseBrokleClient):
             )
         return self._evaluations_manager
 
+    async def auth_check(self) -> bool:
+        """
+        Verify connection to Brokle server.
+
+        Makes an async request to validate API key.
+        Use for development/testing only - adds latency.
+
+        Returns:
+            True if authenticated, False otherwise
+
+        Example:
+            >>> if await client.auth_check():
+            ...     print("Connected!")
+        """
+        try:
+            response = await self._http.post("/v1/auth/validate-key", json={})
+            return response.get("success", False)
+        except Exception:
+            return False
+
     async def shutdown(self, timeout_seconds: int = 30) -> bool:
         """Shutdown with manager cleanup."""
         success = super().shutdown(timeout_seconds)
 
-        # Close HTTP client
         if self._http_client:
             await self._http_client.close()
-
-        # Shutdown prompts manager
         if self._prompts_manager:
             await self._prompts_manager._shutdown()
-
-        # Shutdown evaluations manager
         if self._evaluations_manager:
             await self._evaluations_manager._shutdown()
 

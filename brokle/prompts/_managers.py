@@ -16,22 +16,17 @@ Async Usage:
 
 from typing import Optional
 
-from .._utils import run_sync
-from ._base import BasePromptsManager
+from ._base import BaseAsyncPromptsManager, BaseSyncPromptsManager
 from .prompt import Prompt
 from .types import FallbackConfig, PaginatedResponse, UpsertPromptRequest
 
 
-class PromptManager(BasePromptsManager):
+class PromptManager(BaseSyncPromptsManager):
     """
     Sync prompts manager for Brokle.
 
-    All methods are synchronous. Internally uses run_sync() to execute
-    the async implementations.
-
-    Note:
-        This client cannot be used inside an async event loop.
-        Use AsyncBrokle instead for async contexts.
+    All methods are synchronous. Uses SyncHTTPClient (httpx.Client) internally -
+    no event loop involvement.
 
     Example:
         >>> with Brokle(api_key="bk_...") as client:
@@ -66,20 +61,17 @@ class PromptManager(BasePromptsManager):
         Raises:
             PromptNotFoundError: If prompt is not found
             PromptFetchError: If request fails
-            RuntimeError: If called inside an async event loop
 
         Example:
             >>> prompt = client.prompts.get("greeting", label="production")
             >>> messages = prompt.to_openai_messages({"name": "Alice"})
         """
-        return run_sync(
-            self._get(
-                name,
-                label=label,
-                version=version,
-                cache_ttl=cache_ttl,
-                force_refresh=force_refresh,
-            )
+        return self._get(
+            name,
+            label=label,
+            version=version,
+            cache_ttl=cache_ttl,
+            force_refresh=force_refresh,
         )
 
     def list(
@@ -98,23 +90,20 @@ class PromptManager(BasePromptsManager):
             page: Page number (1-indexed)
 
         Returns:
-            Paginated response with prompts
+            Paginated response with prompt summaries
 
         Raises:
             PromptFetchError: If request fails
-            RuntimeError: If called inside an async event loop
 
         Example:
             >>> result = client.prompts.list(type="chat", limit=10)
-            >>> for prompt in result.data:
-            ...     print(f"{prompt.name} v{prompt.version}")
+            >>> for summary in result.data:
+            ...     print(f"{summary.name} v{summary.latest_version}")
         """
-        return run_sync(
-            self._list(
-                type=type,
-                limit=limit,
-                page=page,
-            )
+        return self._list(
+            type=type,
+            limit=limit,
+            page=page,
         )
 
     def upsert(self, request: UpsertPromptRequest) -> Prompt:
@@ -129,7 +118,6 @@ class PromptManager(BasePromptsManager):
 
         Raises:
             PromptFetchError: If request fails
-            RuntimeError: If called inside an async event loop
 
         Example:
             >>> from brokle.prompts.types import UpsertPromptRequest, PromptType
@@ -141,14 +129,15 @@ class PromptManager(BasePromptsManager):
             ... )
             >>> prompt = client.prompts.upsert(request)
         """
-        return run_sync(self._upsert(request))
+        return self._upsert(request)
 
 
-class AsyncPromptManager(BasePromptsManager):
+class AsyncPromptManager(BaseAsyncPromptsManager):
     """
     Async prompts manager for AsyncBrokle.
 
     All methods are async and return coroutines that must be awaited.
+    Uses AsyncHTTPClient (httpx.AsyncClient) internally.
 
     Example:
         >>> async with AsyncBrokle(api_key="bk_...") as client:
@@ -212,15 +201,15 @@ class AsyncPromptManager(BasePromptsManager):
             page: Page number (1-indexed)
 
         Returns:
-            Paginated response with prompts
+            Paginated response with prompt summaries
 
         Raises:
             PromptFetchError: If request fails
 
         Example:
             >>> result = await client.prompts.list(type="chat", limit=10)
-            >>> for prompt in result.data:
-            ...     print(f"{prompt.name} v{prompt.version}")
+            >>> for summary in result.data:
+            ...     print(f"{summary.name} v{summary.latest_version}")
         """
         return await self._list(
             type=type,

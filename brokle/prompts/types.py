@@ -114,6 +114,40 @@ class PromptData:
 
 
 @dataclass
+class PromptSummary:
+    """Lightweight prompt summary from list endpoint."""
+
+    id: str
+    name: str
+    type: PromptType
+    description: str
+    tags: List[str]
+    labels: Dict[str, int]  # label_name -> version
+    latest_version: int
+    created_at: str
+    updated_at: str
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "PromptSummary":
+        """Create from API list response."""
+        # Convert labels array [{name, version}] to dict {name: version}
+        labels_list = data.get("labels", [])
+        labels_dict = {label["name"]: label["version"] for label in labels_list}
+
+        return cls(
+            id=data["id"],
+            name=data["name"],
+            type=PromptType(data["type"]),
+            description=data.get("description", ""),
+            tags=data.get("tags", []),
+            labels=labels_dict,
+            latest_version=data["latest_version"],
+            created_at=data["created_at"],
+            updated_at=data["updated_at"],
+        )
+
+
+@dataclass
 class GetPromptOptions:
     """Options for fetching a prompt."""
     label: Optional[str] = None
@@ -144,7 +178,7 @@ class Pagination:
 @dataclass
 class PaginatedResponse:
     """Paginated response for prompt lists."""
-    data: List[Any]
+    data: List["PromptSummary"]
     pagination: Pagination
 
 

@@ -1,9 +1,9 @@
 """
 HTTP Client Module
 
-Async HTTP client for Brokle API communication.
+Provides sync and async HTTP clients for Brokle API communication.
 """
 
-from .client import AsyncHTTPClient
+from .client import AsyncHTTPClient, SyncHTTPClient, unwrap_response
 
-__all__ = ["AsyncHTTPClient"]
+__all__ = ["AsyncHTTPClient", "SyncHTTPClient", "unwrap_response"]

@@ -20,20 +20,15 @@ Note:
 
 from typing import Any, Dict
 
-from .._utils import run_sync
-from ._base import BaseEvaluationsManager
+from ._base import BaseAsyncEvaluationsManager, BaseSyncEvaluationsManager
 
 
-class EvaluationsManager(BaseEvaluationsManager):
+class EvaluationsManager(BaseSyncEvaluationsManager):
     """
     Sync evaluations manager for Brokle.
 
-    All methods are synchronous. Internally uses run_sync() to execute
-    the async implementations.
-
-    Note:
-        This client cannot be used inside an async event loop.
-        Use AsyncBrokle instead for async contexts.
+    All methods are synchronous. Uses SyncHTTPClient (httpx.Client) internally -
+    no event loop involvement.
 
     Example:
         >>> with Brokle(api_key="bk_...") as client:
@@ -60,13 +55,12 @@ class EvaluationsManager(BaseEvaluationsManager):
 
         Raises:
             NotImplementedError: This is a stub for future functionality
-            RuntimeError: If called inside an async event loop
 
         Note:
             This is a stub implementation. Will be implemented when
             evaluation API is ready.
         """
-        return run_sync(self._run(trace_id, evaluator, **kwargs))
+        return self._run(trace_id, evaluator, **kwargs)
 
     def score(
         self,
@@ -89,20 +83,20 @@ class EvaluationsManager(BaseEvaluationsManager):
 
         Raises:
             NotImplementedError: This is a stub for future functionality
-            RuntimeError: If called inside an async event loop
 
         Note:
             This is a stub implementation. Will be implemented when
             scoring API is ready.
         """
-        return run_sync(self._score(span_id, name, value, **kwargs))
+        return self._score(span_id, name, value, **kwargs)
 
 
-class AsyncEvaluationsManager(BaseEvaluationsManager):
+class AsyncEvaluationsManager(BaseAsyncEvaluationsManager):
     """
     Async evaluations manager for AsyncBrokle.
 
     All methods are async and return coroutines that must be awaited.
+    Uses AsyncHTTPClient (httpx.AsyncClient) internally.
 
     Example:
         >>> async with AsyncBrokle(api_key="bk_...") as client:
