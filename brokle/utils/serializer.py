@@ -1,8 +1,7 @@
 """
 Robust JSON serializer for arbitrary Python objects.
 
-Follows the Langfuse EventSerializer pattern for comprehensive type handling,
-including Pydantic models, dataclasses, numpy arrays, circular references, and more.
+Handles Pydantic models, dataclasses, numpy arrays, circular references, and more.
 """
 
 import enum
@@ -46,7 +45,6 @@ class EventSerializer(JSONEncoder):
     Robust JSON serializer for arbitrary Python objects.
 
     Handles common types and provides fallback for complex objects.
-    Based on Langfuse's EventSerializer pattern.
 
     Features:
     - Pydantic models → model_dump()

@@ -1,8 +1,7 @@
 """
 Pre-defined GenAI metrics instruments.
 
-Following the OpenLIT pattern, all metrics are created at initialization
-rather than on-demand. This provides:
+All metrics are created at initialization rather than on-demand. This provides:
 - Predictable memory usage
 - Consistent metric cardinality
 - Better performance (no allocation on hot path)

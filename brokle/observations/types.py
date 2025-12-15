@@ -1,8 +1,7 @@
 """
 Observation type definitions for Brokle SDK.
 
-Provides semantic observation types matching Brokle's brokle.span.type attribute,
-following the Langfuse pattern of 10+ semantic types for AI application tracing.
+Provides semantic observation types matching Brokle's brokle.span.type attribute.
 """
 
 from enum import Enum
@@ -14,9 +13,6 @@ class ObservationType(str, Enum):
 
     These types enable semantic differentiation in the Brokle backend,
     allowing for specialized analysis, visualization, and filtering.
-
-    Types follow the Langfuse observation type hierarchy pattern,
-    which has proven effective for AI application observability.
 
     Usage:
         >>> from brokle import observe

@@ -22,7 +22,7 @@ from .types import (
     AnthropicRequest,
     ChatMessage,
     ChatTemplate,
-    FallbackConfig,
+    Fallback,
     ModelConfig,
     OpenAIMessage,
     PromptData,
@@ -409,23 +409,38 @@ class Prompt:
     def create_fallback(
         cls,
         name: str,
-        template: Template,
-        prompt_type: PromptType,
-        config: Optional[ModelConfig] = None
+        fallback: Fallback,
     ) -> "Prompt":
         """
         Create a fallback Prompt when fetch fails.
 
+        Auto-detects prompt type from fallback content:
+        - String → TEXT template
+        - List[ChatMessage] → CHAT template
+
         Args:
             name: Prompt name
-            template: Template content
-            prompt_type: Prompt type
-            config: Optional model config
+            fallback: Fallback content - string for text, list of messages for chat
 
         Returns:
             Fallback Prompt instance
+
+        Raises:
+            ValueError: If fallback is not a string or list
         """
         from datetime import datetime, timezone
+
+        if isinstance(fallback, str):
+            template: Template = {"content": fallback}
+            prompt_type = PromptType.TEXT
+        elif isinstance(fallback, list):
+            template = {"messages": fallback}
+            prompt_type = PromptType.CHAT
+        else:
+            raise ValueError(
+                f"Invalid fallback type: {type(fallback).__name__}. "
+                "Expected str for text prompts or List[ChatMessage] for chat prompts."
+            )
 
         now = datetime.now(timezone.utc).isoformat()
         data = PromptData(
@@ -436,7 +451,7 @@ class Prompt:
             description="Fallback prompt",
             tags=[],
             template=template,
-            config=config,
+            config=None,
             variables=extract_variables(template),
             labels=[],
             version=0,

@@ -222,12 +222,9 @@ class CacheEntry:
     ttl: int
 
 
-@dataclass
-class FallbackConfig:
-    """Fallback configuration."""
-    template: Template
-    type: PromptType
-    config: Optional[ModelConfig] = None
+TextFallback = str
+ChatFallback = List[ChatMessage]
+Fallback = Union[TextFallback, ChatFallback]
 
 
 @dataclass

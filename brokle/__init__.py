@@ -106,7 +106,9 @@ from .prompts import (
     AnthropicMessage,
     AnthropicRequest,
     Variables,
-    FallbackConfig,
+    Fallback,
+    TextFallback,
+    ChatFallback,
 )
 
 from .types import (
@@ -211,7 +213,9 @@ __all__ = [
     "AnthropicMessage",
     "AnthropicRequest",
     "Variables",
-    "FallbackConfig",
+    "Fallback",
+    "TextFallback",
+    "ChatFallback",
     # Evaluations
     "EvaluationsManager",
     "AsyncEvaluationsManager",

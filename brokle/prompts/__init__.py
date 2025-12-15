@@ -61,7 +61,9 @@ from .types import (
     AnthropicMessage,
     AnthropicRequest,
     Variables,
-    FallbackConfig,
+    Fallback,
+    TextFallback,
+    ChatFallback,
 )
 
 __all__ = [
@@ -106,5 +108,7 @@ __all__ = [
     "AnthropicMessage",
     "AnthropicRequest",
     "Variables",
-    "FallbackConfig",
+    "Fallback",
+    "TextFallback",
+    "ChatFallback",
 ]

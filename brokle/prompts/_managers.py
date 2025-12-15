@@ -14,11 +14,11 @@ Async Usage:
     ...     messages = prompt.to_openai_messages({"name": "Alice"})
 """
 
-from typing import Optional
+from typing import List, Optional, Union
 
 from ._base import BaseAsyncPromptsManager, BaseSyncPromptsManager
 from .prompt import Prompt
-from .types import FallbackConfig, PaginatedResponse, UpsertPromptRequest
+from .types import ChatMessage, Fallback, PaginatedResponse, UpsertPromptRequest
 
 
 class PromptManager(BaseSyncPromptsManager):
@@ -42,10 +42,13 @@ class PromptManager(BaseSyncPromptsManager):
         version: Optional[int] = None,
         cache_ttl: Optional[int] = None,
         force_refresh: bool = False,
-        fallback_config: Optional[FallbackConfig] = None,
+        fallback: Optional[Union[str, List[ChatMessage]]] = None,
     ) -> Prompt:
         """
-        Get a prompt by name.
+        Get a prompt by name with guaranteed availability.
+
+        Fallback ensures prompts are always available even when the API is unreachable.
+        Priority: fresh cache → fetch → stale cache → fallback → raise
 
         Args:
             name: Prompt name
@@ -53,18 +56,34 @@ class PromptManager(BaseSyncPromptsManager):
             version: Optional version filter
             cache_ttl: Optional cache TTL override
             force_refresh: Skip cache and fetch fresh
-            fallback_config: Fallback configuration (not implemented)
+            fallback: Fallback content - string for text prompts, list of messages for chat
 
         Returns:
-            Prompt instance
+            Prompt instance (check prompt.is_fallback to detect if fallback was used)
 
         Raises:
-            PromptNotFoundError: If prompt is not found
-            PromptFetchError: If request fails
+            PromptNotFoundError: If prompt is not found and no fallback provided
+            PromptFetchError: If request fails and no fallback provided
 
         Example:
-            >>> prompt = client.prompts.get("greeting", label="production")
+            >>> # Text prompt with fallback
+            >>> prompt = client.prompts.get(
+            ...     "greeting",
+            ...     label="production",
+            ...     fallback="Hello {{name}}!"
+            ... )
+            >>> if prompt.is_fallback:
+            ...     logger.warning("Using fallback prompt")
             >>> messages = prompt.to_openai_messages({"name": "Alice"})
+
+            >>> # Chat prompt with fallback
+            >>> prompt = client.prompts.get(
+            ...     "assistant",
+            ...     fallback=[
+            ...         {"role": "system", "content": "You are a helpful assistant."},
+            ...         {"role": "user", "content": "{{query}}"}
+            ...     ]
+            ... )
         """
         return self._get(
             name,
@@ -72,6 +91,7 @@ class PromptManager(BaseSyncPromptsManager):
             version=version,
             cache_ttl=cache_ttl,
             force_refresh=force_refresh,
+            fallback=fallback,
         )
 
     def list(
@@ -153,10 +173,13 @@ class AsyncPromptManager(BaseAsyncPromptsManager):
         version: Optional[int] = None,
         cache_ttl: Optional[int] = None,
         force_refresh: bool = False,
-        fallback_config: Optional[FallbackConfig] = None,
+        fallback: Optional[Union[str, List[ChatMessage]]] = None,
     ) -> Prompt:
         """
-        Get a prompt by name.
+        Get a prompt by name with guaranteed availability.
+
+        Fallback ensures prompts are always available even when the API is unreachable.
+        Priority: fresh cache → fetch → stale cache → fallback → raise
 
         Args:
             name: Prompt name
@@ -164,18 +187,34 @@ class AsyncPromptManager(BaseAsyncPromptsManager):
             version: Optional version filter
             cache_ttl: Optional cache TTL override
             force_refresh: Skip cache and fetch fresh
-            fallback_config: Fallback configuration (not implemented)
+            fallback: Fallback content - string for text prompts, list of messages for chat
 
         Returns:
-            Prompt instance
+            Prompt instance (check prompt.is_fallback to detect if fallback was used)
 
         Raises:
-            PromptNotFoundError: If prompt is not found
-            PromptFetchError: If request fails
+            PromptNotFoundError: If prompt is not found and no fallback provided
+            PromptFetchError: If request fails and no fallback provided
 
         Example:
-            >>> prompt = await client.prompts.get("greeting", label="production")
+            >>> # Text prompt with fallback
+            >>> prompt = await client.prompts.get(
+            ...     "greeting",
+            ...     label="production",
+            ...     fallback="Hello {{name}}!"
+            ... )
+            >>> if prompt.is_fallback:
+            ...     logger.warning("Using fallback prompt")
             >>> messages = prompt.to_openai_messages({"name": "Alice"})
+
+            >>> # Chat prompt with fallback
+            >>> prompt = await client.prompts.get(
+            ...     "assistant",
+            ...     fallback=[
+            ...         {"role": "system", "content": "You are a helpful assistant."},
+            ...         {"role": "user", "content": "{{query}}"}
+            ...     ]
+            ... )
         """
         return await self._get(
             name,
@@ -183,6 +222,7 @@ class AsyncPromptManager(BaseAsyncPromptsManager):
             version=version,
             cache_ttl=cache_ttl,
             force_refresh=force_refresh,
+            fallback=fallback,
         )
 
     async def list(

@@ -1,8 +1,7 @@
 """
 Brokle Observations Module.
 
-Provides semantic observation types for AI application tracing,
-following patterns from Langfuse's observation type hierarchy.
+Provides semantic observation types for AI application tracing.
 
 Observation types enable semantic differentiation between:
 - Generations (LLM calls)

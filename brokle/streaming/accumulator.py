@@ -3,9 +3,6 @@ Streaming accumulator for LLM responses.
 
 Tracks time-to-first-token (TTFT), inter-token latency, and accumulates
 streamed content for final span attributes.
-
-Based on patterns from Langfuse SDK's completion_start_time tracking
-and OpenLIT's streaming metrics implementation.
 """
 
 import logging

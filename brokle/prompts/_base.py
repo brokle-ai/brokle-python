@@ -20,7 +20,7 @@ from .cache import CacheOptions, PromptCache
 from .exceptions import PromptFetchError, PromptNotFoundError
 from .prompt import Prompt
 from .types import (
-    FallbackConfig,
+    Fallback,
     GetPromptOptions,
     PaginatedResponse,
     Pagination,
@@ -155,9 +155,17 @@ class BaseSyncPromptsManager(_BasePromptsManagerMixin):
         version: Optional[int] = None,
         cache_ttl: Optional[int] = None,
         force_refresh: bool = False,
+        fallback: Optional[Fallback] = None,
     ) -> Prompt:
         """
-        Get a prompt with caching and SWR support (sync).
+        Get a prompt with caching, SWR support, and fallback (sync).
+
+        Priority order:
+        1. Fresh cache - return immediately
+        2. Fetch from API - cache and return
+        3. Stale cache - return stale, background refresh
+        4. Fallback - if provided, create fallback prompt
+        5. Raise - if nothing available
 
         Args:
             name: Prompt name
@@ -165,6 +173,7 @@ class BaseSyncPromptsManager(_BasePromptsManagerMixin):
             version: Optional version filter
             cache_ttl: Optional TTL override
             force_refresh: Skip cache and fetch fresh
+            fallback: Fallback content - string for text, list of messages for chat
 
         Returns:
             Prompt instance
@@ -173,12 +182,18 @@ class BaseSyncPromptsManager(_BasePromptsManagerMixin):
         cache_key = PromptCache.generate_key(name, label, version)
         ttl = cache_ttl if cache_ttl is not None else self._prompt_config.cache_ttl_seconds
 
-        # Force refresh - skip cache
+        # Force refresh - skip cache, but still use fallback on failure
         if force_refresh:
             self._log(f"Force refresh: {cache_key}")
-            data = self._fetch_prompt(name, options)
-            self._cache.set(cache_key, data, ttl)
-            return Prompt.from_data(data)
+            try:
+                data = self._fetch_prompt(name, options)
+                self._cache.set(cache_key, data, ttl)
+                return Prompt.from_data(data)
+            except Exception as fetch_error:
+                if fallback is not None:
+                    self._log(f"Force refresh failed, using fallback: {name}")
+                    return Prompt.create_fallback(name, fallback)
+                raise fetch_error
 
         # Fresh cache - return immediately
         cached = self._cache.get(cache_key)
@@ -186,21 +201,31 @@ class BaseSyncPromptsManager(_BasePromptsManagerMixin):
             self._log(f"Cache hit (fresh): {cache_key}")
             return Prompt.from_data(cached)
 
-        # Stale cache - return stale and refresh in background
-        if cached and self._cache.is_stale(cache_key):
-            self._log(f"Cache hit (stale): {cache_key}")
+        # Try to fetch from API
+        try:
+            self._log(f"Cache miss: {cache_key}")
+            data = self._fetch_prompt(name, options)
+            self._cache.set(cache_key, data, ttl)
+            return Prompt.from_data(data)
+        except Exception as fetch_error:
+            # Stale cache - return stale and refresh in background
+            if cached:
+                self._log(f"Fetch failed, using stale cache: {cache_key}")
 
-            # Trigger background refresh if not already in progress
-            if not self._cache.is_refreshing(cache_key):
-                self._cache.start_refresh(cache_key)
-                self._start_background_refresh(name, options, cache_key, ttl)
+                # Trigger background refresh if not already in progress
+                if not self._cache.is_refreshing(cache_key):
+                    self._cache.start_refresh(cache_key)
+                    self._start_background_refresh(name, options, cache_key, ttl)
 
-            return Prompt.from_data(cached)
+                return Prompt.from_data(cached)
 
-        self._log(f"Cache miss: {cache_key}")
-        data = self._fetch_prompt(name, options)
-        self._cache.set(cache_key, data, ttl)
-        return Prompt.from_data(data)
+            # Fallback - if provided, create fallback prompt
+            if fallback is not None:
+                self._log(f"Fetch failed, using fallback: {name}")
+                return Prompt.create_fallback(name, fallback)
+
+            # No cache, no fallback - raise
+            raise fetch_error
 
     def _start_background_refresh(
         self,
@@ -410,9 +435,17 @@ class BaseAsyncPromptsManager(_BasePromptsManagerMixin):
         version: Optional[int] = None,
         cache_ttl: Optional[int] = None,
         force_refresh: bool = False,
+        fallback: Optional[Fallback] = None,
     ) -> Prompt:
         """
-        Get a prompt with caching and SWR support (async).
+        Get a prompt with caching, SWR support, and fallback (async).
+
+        Priority order:
+        1. Fresh cache - return immediately
+        2. Fetch from API - cache and return
+        3. Stale cache - return stale, background refresh
+        4. Fallback - if provided, create fallback prompt
+        5. Raise - if nothing available
 
         Args:
             name: Prompt name
@@ -420,6 +453,7 @@ class BaseAsyncPromptsManager(_BasePromptsManagerMixin):
             version: Optional version filter
             cache_ttl: Optional TTL override
             force_refresh: Skip cache and fetch fresh
+            fallback: Fallback content - string for text, list of messages for chat
 
         Returns:
             Prompt instance
@@ -428,12 +462,18 @@ class BaseAsyncPromptsManager(_BasePromptsManagerMixin):
         cache_key = PromptCache.generate_key(name, label, version)
         ttl = cache_ttl if cache_ttl is not None else self._prompt_config.cache_ttl_seconds
 
-        # Force refresh - skip cache
+        # Force refresh - skip cache, but still use fallback on failure
         if force_refresh:
             self._log(f"Force refresh: {cache_key}")
-            data = await self._fetch_prompt(name, options)
-            self._cache.set(cache_key, data, ttl)
-            return Prompt.from_data(data)
+            try:
+                data = await self._fetch_prompt(name, options)
+                self._cache.set(cache_key, data, ttl)
+                return Prompt.from_data(data)
+            except Exception as fetch_error:
+                if fallback is not None:
+                    self._log(f"Force refresh failed, using fallback: {name}")
+                    return Prompt.create_fallback(name, fallback)
+                raise fetch_error
 
         # Fresh cache - return immediately
         cached = self._cache.get(cache_key)
@@ -441,21 +481,31 @@ class BaseAsyncPromptsManager(_BasePromptsManagerMixin):
             self._log(f"Cache hit (fresh): {cache_key}")
             return Prompt.from_data(cached)
 
-        # Stale cache - return stale and refresh in background
-        if cached and self._cache.is_stale(cache_key):
-            self._log(f"Cache hit (stale): {cache_key}")
+        # Try to fetch from API
+        try:
+            self._log(f"Cache miss: {cache_key}")
+            data = await self._fetch_prompt(name, options)
+            self._cache.set(cache_key, data, ttl)
+            return Prompt.from_data(data)
+        except Exception as fetch_error:
+            # Stale cache - return stale and refresh in background
+            if cached:
+                self._log(f"Fetch failed, using stale cache: {cache_key}")
 
-            # Trigger background refresh if not already in progress
-            if not self._cache.is_refreshing(cache_key):
-                self._cache.start_refresh(cache_key)
-                self._start_background_refresh(name, options, cache_key, ttl)
+                # Trigger background refresh if not already in progress
+                if not self._cache.is_refreshing(cache_key):
+                    self._cache.start_refresh(cache_key)
+                    self._start_background_refresh(name, options, cache_key, ttl)
 
-            return Prompt.from_data(cached)
+                return Prompt.from_data(cached)
 
-        self._log(f"Cache miss: {cache_key}")
-        data = await self._fetch_prompt(name, options)
-        self._cache.set(cache_key, data, ttl)
-        return Prompt.from_data(data)
+            # Fallback - if provided, create fallback prompt
+            if fallback is not None:
+                self._log(f"Fetch failed, using fallback: {name}")
+                return Prompt.create_fallback(name, fallback)
+
+            # No cache, no fallback - raise
+            raise fetch_error
 
     def _start_background_refresh(
         self,
