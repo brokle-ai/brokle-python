@@ -64,6 +64,10 @@ def observe(
         ...     return f"Processed: {input_text}"
         ...
         >>> result = process("hello")  # Automatically traced
+
+    Note:
+        For prompt linking, use link_prompt() or update_current_span(prompt=)
+        inside the function body for dynamic prompt linking at runtime.
     """
 
     def decorator(func: Callable) -> Callable:

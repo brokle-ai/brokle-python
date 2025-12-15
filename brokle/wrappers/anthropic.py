@@ -7,7 +7,7 @@ Streaming responses are transparently instrumented with TTFT and ITL tracking.
 
 import json
 import time
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from opentelemetry.trace import Status, StatusCode
 
@@ -16,6 +16,7 @@ from ..streaming import StreamingAccumulator
 from ..streaming.wrappers import BrokleAsyncStreamWrapper, BrokleStreamWrapper
 from ..types import Attrs, LLMProvider, OperationType, SpanType
 from ..utils.attributes import calculate_total_tokens, serialize_messages
+from ._common import add_prompt_attributes, extract_brokle_options
 
 if TYPE_CHECKING:
     import anthropic
@@ -55,6 +56,9 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
 
     def wrapped_messages_create(*args, **kwargs):
         """Wrapped messages.create with automatic tracing."""
+        # Extract brokle_options before processing kwargs
+        kwargs, brokle_opts = extract_brokle_options(kwargs)
+
         brokle_client = get_client()
 
         model = kwargs.get("model", "unknown")
@@ -99,6 +103,8 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
             attrs[Attrs.ANTHROPIC_REQUEST_STREAM] = stream
         if metadata:
             attrs[Attrs.ANTHROPIC_REQUEST_METADATA] = json.dumps(metadata)
+
+        add_prompt_attributes(attrs, brokle_opts)
 
         span_name = f"{OperationType.CHAT} {model}"
 
@@ -260,6 +266,9 @@ def wrap_anthropic_async(
 
     async def wrapped_messages_create(*args, **kwargs):
         """Wrapped async messages.create with automatic tracing."""
+        # Extract brokle_options before processing kwargs
+        kwargs, brokle_opts = extract_brokle_options(kwargs)
+
         brokle_client = get_client()
         model = kwargs.get("model", "unknown")
         messages = kwargs.get("messages", [])
@@ -279,6 +288,8 @@ def wrap_anthropic_async(
         if system:
             system_msgs = [{"role": "system", "content": system}]
             attrs[Attrs.GEN_AI_SYSTEM_INSTRUCTIONS] = json.dumps(system_msgs)
+
+        add_prompt_attributes(attrs, brokle_opts)
 
         span_name = f"{OperationType.CHAT} {model}"
 

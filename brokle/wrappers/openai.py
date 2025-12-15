@@ -7,7 +7,7 @@ Streaming responses are transparently instrumented with TTFT and ITL tracking.
 
 import json
 import time
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from opentelemetry.trace import Status, StatusCode
 
@@ -21,6 +21,7 @@ from ..utils.attributes import (
     extract_system_messages,
     serialize_messages,
 )
+from ._common import add_prompt_attributes, extract_brokle_options
 
 if TYPE_CHECKING:
     import openai
@@ -60,6 +61,9 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
 
     def wrapped_chat_create(*args, **kwargs):
         """Wrapped chat.completions.create with automatic tracing."""
+        # Extract brokle_options before processing kwargs
+        kwargs, brokle_opts = extract_brokle_options(kwargs)
+
         brokle_client = get_client()
         model = kwargs.get("model", "unknown")
         messages = kwargs.get("messages", [])
@@ -115,6 +119,8 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
             attrs[Attrs.OPENAI_REQUEST_LOGPROBS] = kwargs["logprobs"]
         if kwargs.get("top_logprobs"):
             attrs[Attrs.OPENAI_REQUEST_TOP_LOGPROBS] = kwargs["top_logprobs"]
+
+        add_prompt_attributes(attrs, brokle_opts)
 
         span_name = f"{OperationType.CHAT} {model}"
 
@@ -286,6 +292,9 @@ def wrap_openai_async(client: "openai.AsyncOpenAI") -> "openai.AsyncOpenAI":
 
     async def wrapped_chat_create(*args, **kwargs):
         """Wrapped async chat.completions.create with automatic tracing."""
+        # Extract brokle_options before processing kwargs
+        kwargs, brokle_opts = extract_brokle_options(kwargs)
+
         brokle_client = get_client()
         model = kwargs.get("model", "unknown")
         messages = kwargs.get("messages", [])
@@ -307,6 +316,9 @@ def wrap_openai_async(client: "openai.AsyncOpenAI") -> "openai.AsyncOpenAI":
 
         model_params = extract_model_parameters(kwargs)
         attrs.update(model_params)
+
+        add_prompt_attributes(attrs, brokle_opts)
+
         span_name = f"{OperationType.CHAT} {model}"
 
         if stream:
