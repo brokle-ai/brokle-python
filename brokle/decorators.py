@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
-from .client import get_client
+from ._client import get_client
 from .types import Attrs, SpanType
 from .utils.serializer import EventSerializer, serialize_value, serialize_function_args
 
@@ -64,6 +64,10 @@ def observe(
         ...     return f"Processed: {input_text}"
         ...
         >>> result = process("hello")  # Automatically traced
+
+    Note:
+        For prompt linking, use link_prompt() or update_current_span(prompt=)
+        inside the function body for dynamic prompt linking at runtime.
     """
 
     def decorator(func: Callable) -> Callable:

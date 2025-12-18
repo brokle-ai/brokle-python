@@ -147,14 +147,12 @@ def sample_evaluation_response():
     }
 
 
-# Async test utilities
 @pytest.fixture
 async def async_mock_client(mock_http_client):
     """Create an async mock client."""
     yield mock_http_client
 
 
-# Test data generators
 @pytest.fixture
 def generate_chat_messages():
     """Generate chat messages for testing."""
@@ -186,24 +184,16 @@ def generate_test_metadata():
     return _generate
 
 
-# Cleanup fixtures
 @pytest.fixture(autouse=True)
 def reset_client_state():
     """Reset client state before and after each test."""
-    # Clear singleton instance
-    import brokle.client
-
-    brokle.client._global_client = None
-
+    import brokle._client
+    brokle._client._global_client = None
     yield
-
-    # Cleanup after test
-    brokle.client._global_client = None
+    brokle._client._global_client = None
 
 
 @pytest.fixture(autouse=True)
 def reset_telemetry():
     """Reset telemetry state before each test."""
-    # This would reset any global telemetry state if needed
     yield
-    # Cleanup telemetry resources

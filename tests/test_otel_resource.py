@@ -15,10 +15,10 @@ import pytest
 class TestOtelResourceAttributes:
     """Test OpenTelemetry Resource attribute handling in Brokle client."""
 
-    @patch("brokle.client.BrokleMeterProvider")
-    @patch("brokle.client.TracerProvider")
-    @patch("brokle.client.BrokleSpanProcessor")
-    @patch("brokle.client.create_exporter_for_config")
+    @patch("brokle._base_client.BrokleMeterProvider")
+    @patch("brokle._base_client.TracerProvider")
+    @patch("brokle._base_client.BrokleSpanProcessor")
+    @patch("brokle._base_client.create_exporter_for_config")
     def test_metrics_only_deployment_has_release_version(
         self,
         mock_create_exporter,
@@ -32,7 +32,7 @@ class TestOtelResourceAttributes:
         This is the key regression test: previously, when tracing_enabled=False,
         the resource was created without release/version attributes.
         """
-        from brokle.client import Brokle
+        from brokle import Brokle
         from brokle.types import Attrs
 
         # Mock meter provider to capture the resource
@@ -65,10 +65,10 @@ class TestOtelResourceAttributes:
         assert resource.attributes[Attrs.BROKLE_RELEASE] == "v1.2.3"
         assert resource.attributes[Attrs.BROKLE_VERSION] == "experiment-A"
 
-    @patch("brokle.client.BrokleMeterProvider")
-    @patch("brokle.client.TracerProvider")
-    @patch("brokle.client.BrokleSpanProcessor")
-    @patch("brokle.client.create_exporter_for_config")
+    @patch("brokle._base_client.BrokleMeterProvider")
+    @patch("brokle._base_client.TracerProvider")
+    @patch("brokle._base_client.BrokleSpanProcessor")
+    @patch("brokle._base_client.create_exporter_for_config")
     def test_tracing_only_deployment_has_release_version(
         self,
         mock_create_exporter,
@@ -79,7 +79,7 @@ class TestOtelResourceAttributes:
         """
         Ensure release/version in resource when metrics disabled but tracing enabled.
         """
-        from brokle.client import Brokle
+        from brokle import Brokle
         from brokle.types import Attrs
 
         # Mock tracer provider to capture the resource
@@ -112,10 +112,10 @@ class TestOtelResourceAttributes:
         assert resource.attributes[Attrs.BROKLE_RELEASE] == "v2.0.0"
         assert resource.attributes[Attrs.BROKLE_VERSION] == "control"
 
-    @patch("brokle.client.BrokleMeterProvider")
-    @patch("brokle.client.TracerProvider")
-    @patch("brokle.client.BrokleSpanProcessor")
-    @patch("brokle.client.create_exporter_for_config")
+    @patch("brokle._base_client.BrokleMeterProvider")
+    @patch("brokle._base_client.TracerProvider")
+    @patch("brokle._base_client.BrokleSpanProcessor")
+    @patch("brokle._base_client.create_exporter_for_config")
     def test_both_providers_share_same_resource(
         self,
         mock_create_exporter,
@@ -126,7 +126,7 @@ class TestOtelResourceAttributes:
         """
         Verify tracer and meter providers use identical resource with release/version.
         """
-        from brokle.client import Brokle
+        from brokle import Brokle
         from brokle.types import Attrs
 
         # Mock both providers
@@ -162,10 +162,10 @@ class TestOtelResourceAttributes:
         assert tracer_resource.attributes[Attrs.BROKLE_RELEASE] == "v3.0.0"
         assert tracer_resource.attributes[Attrs.BROKLE_VERSION] == "both-enabled"
 
-    @patch("brokle.client.BrokleMeterProvider")
-    @patch("brokle.client.TracerProvider")
-    @patch("brokle.client.BrokleSpanProcessor")
-    @patch("brokle.client.create_exporter_for_config")
+    @patch("brokle._base_client.BrokleMeterProvider")
+    @patch("brokle._base_client.TracerProvider")
+    @patch("brokle._base_client.BrokleSpanProcessor")
+    @patch("brokle._base_client.create_exporter_for_config")
     def test_resource_without_release_version(
         self,
         mock_create_exporter,
@@ -176,7 +176,7 @@ class TestOtelResourceAttributes:
         """
         Verify resource is created correctly when release/version are not provided.
         """
-        from brokle.client import Brokle
+        from brokle import Brokle
         from brokle.types import Attrs
 
         # Mock meter provider
@@ -202,10 +202,10 @@ class TestOtelResourceAttributes:
         assert Attrs.BROKLE_RELEASE not in resource.attributes
         assert Attrs.BROKLE_VERSION not in resource.attributes
 
-    @patch("brokle.client.BrokleMeterProvider")
-    @patch("brokle.client.TracerProvider")
-    @patch("brokle.client.BrokleSpanProcessor")
-    @patch("brokle.client.create_exporter_for_config")
+    @patch("brokle._base_client.BrokleMeterProvider")
+    @patch("brokle._base_client.TracerProvider")
+    @patch("brokle._base_client.BrokleSpanProcessor")
+    @patch("brokle._base_client.create_exporter_for_config")
     def test_resource_with_only_release(
         self,
         mock_create_exporter,
@@ -216,7 +216,7 @@ class TestOtelResourceAttributes:
         """
         Verify resource works correctly when only release is provided.
         """
-        from brokle.client import Brokle
+        from brokle import Brokle
         from brokle.types import Attrs
 
         # Mock meter provider
@@ -241,10 +241,10 @@ class TestOtelResourceAttributes:
         assert resource.attributes[Attrs.BROKLE_RELEASE] == "v1.0.0"
         assert Attrs.BROKLE_VERSION not in resource.attributes
 
-    @patch("brokle.client.BrokleMeterProvider")
-    @patch("brokle.client.TracerProvider")
-    @patch("brokle.client.BrokleSpanProcessor")
-    @patch("brokle.client.create_exporter_for_config")
+    @patch("brokle._base_client.BrokleMeterProvider")
+    @patch("brokle._base_client.TracerProvider")
+    @patch("brokle._base_client.BrokleSpanProcessor")
+    @patch("brokle._base_client.create_exporter_for_config")
     def test_resource_with_only_version(
         self,
         mock_create_exporter,
@@ -255,7 +255,7 @@ class TestOtelResourceAttributes:
         """
         Verify resource works correctly when only version is provided.
         """
-        from brokle.client import Brokle
+        from brokle import Brokle
         from brokle.types import Attrs
 
         # Mock meter provider
@@ -292,21 +292,21 @@ class TestGetClientConfigForwarding:
         """
         from unittest.mock import patch
 
-        import brokle.client
+        import brokle._client
 
         # Reset singleton
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
         with patch.dict(
             "os.environ",
             {"BROKLE_API_KEY": "bk_test_key_1234567890"},
             clear=False,
         ):
-            with patch("brokle.client.Brokle") as mock_brokle:
+            with patch("brokle._client.Brokle") as mock_brokle:
                 mock_brokle.return_value = MagicMock()
 
                 # Call get_client with transport override
-                from brokle.client import get_client
+                from brokle import get_client
 
                 client = get_client(transport="grpc")
 
@@ -320,7 +320,7 @@ class TestGetClientConfigForwarding:
                 assert config.transport == "grpc"
 
         # Cleanup
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
     def test_get_client_forwards_metrics_export_interval(self):
         """
@@ -328,20 +328,20 @@ class TestGetClientConfigForwarding:
         """
         from unittest.mock import patch
 
-        import brokle.client
+        import brokle._client
 
         # Reset singleton
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
         with patch.dict(
             "os.environ",
             {"BROKLE_API_KEY": "bk_test_key_1234567890"},
             clear=False,
         ):
-            with patch("brokle.client.Brokle") as mock_brokle:
+            with patch("brokle._client.Brokle") as mock_brokle:
                 mock_brokle.return_value = MagicMock()
 
-                from brokle.client import get_client
+                from brokle import get_client
 
                 client = get_client(metrics_export_interval=30.0)
 
@@ -350,7 +350,7 @@ class TestGetClientConfigForwarding:
                 assert config.metrics_export_interval == 30.0
 
         # Cleanup
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
     def test_get_client_forwards_version(self):
         """
@@ -358,20 +358,20 @@ class TestGetClientConfigForwarding:
         """
         from unittest.mock import patch
 
-        import brokle.client
+        import brokle._client
 
         # Reset singleton
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
         with patch.dict(
             "os.environ",
             {"BROKLE_API_KEY": "bk_test_key_1234567890"},
             clear=False,
         ):
-            with patch("brokle.client.Brokle") as mock_brokle:
+            with patch("brokle._client.Brokle") as mock_brokle:
                 mock_brokle.return_value = MagicMock()
 
-                from brokle.client import get_client
+                from brokle import get_client
 
                 client = get_client(version="experiment-A")
 
@@ -380,7 +380,7 @@ class TestGetClientConfigForwarding:
                 assert config.version == "experiment-A"
 
         # Cleanup
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
     def test_get_client_forwards_grpc_endpoint(self):
         """
@@ -388,20 +388,20 @@ class TestGetClientConfigForwarding:
         """
         from unittest.mock import patch
 
-        import brokle.client
+        import brokle._client
 
         # Reset singleton
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
         with patch.dict(
             "os.environ",
             {"BROKLE_API_KEY": "bk_test_key_1234567890"},
             clear=False,
         ):
-            with patch("brokle.client.Brokle") as mock_brokle:
+            with patch("brokle._client.Brokle") as mock_brokle:
                 mock_brokle.return_value = MagicMock()
 
-                from brokle.client import get_client
+                from brokle import get_client
 
                 client = get_client(transport="grpc", grpc_endpoint="localhost:4317")
 
@@ -411,7 +411,7 @@ class TestGetClientConfigForwarding:
                 assert config.grpc_endpoint == "localhost:4317"
 
         # Cleanup
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
     def test_get_client_forwards_max_queue_size(self):
         """
@@ -419,20 +419,20 @@ class TestGetClientConfigForwarding:
         """
         from unittest.mock import patch
 
-        import brokle.client
+        import brokle._client
 
         # Reset singleton
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
         with patch.dict(
             "os.environ",
             {"BROKLE_API_KEY": "bk_test_key_1234567890"},
             clear=False,
         ):
-            with patch("brokle.client.Brokle") as mock_brokle:
+            with patch("brokle._client.Brokle") as mock_brokle:
                 mock_brokle.return_value = MagicMock()
 
-                from brokle.client import get_client
+                from brokle import get_client
 
                 client = get_client(max_queue_size=4096)
 
@@ -441,7 +441,7 @@ class TestGetClientConfigForwarding:
                 assert config.max_queue_size == 4096
 
         # Cleanup
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
     def test_get_client_forwards_export_timeout(self):
         """
@@ -449,20 +449,20 @@ class TestGetClientConfigForwarding:
         """
         from unittest.mock import patch
 
-        import brokle.client
+        import brokle._client
 
         # Reset singleton
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
         with patch.dict(
             "os.environ",
             {"BROKLE_API_KEY": "bk_test_key_1234567890"},
             clear=False,
         ):
-            with patch("brokle.client.Brokle") as mock_brokle:
+            with patch("brokle._client.Brokle") as mock_brokle:
                 mock_brokle.return_value = MagicMock()
 
-                from brokle.client import get_client
+                from brokle import get_client
 
                 client = get_client(export_timeout=60000)
 
@@ -471,7 +471,7 @@ class TestGetClientConfigForwarding:
                 assert config.export_timeout == 60000
 
         # Cleanup
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
     def test_get_client_reads_transport_from_env(self):
         """
@@ -479,10 +479,10 @@ class TestGetClientConfigForwarding:
         """
         from unittest.mock import patch
 
-        import brokle.client
+        import brokle._client
 
         # Reset singleton
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
         with patch.dict(
             "os.environ",
@@ -492,10 +492,10 @@ class TestGetClientConfigForwarding:
             },
             clear=False,
         ):
-            with patch("brokle.client.Brokle") as mock_brokle:
+            with patch("brokle._client.Brokle") as mock_brokle:
                 mock_brokle.return_value = MagicMock()
 
-                from brokle.client import get_client
+                from brokle import get_client
 
                 client = get_client()
 
@@ -504,7 +504,7 @@ class TestGetClientConfigForwarding:
                 assert config.transport == "grpc"
 
         # Cleanup
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
     def test_get_client_reads_metrics_export_interval_from_env(self):
         """
@@ -512,10 +512,10 @@ class TestGetClientConfigForwarding:
         """
         from unittest.mock import patch
 
-        import brokle.client
+        import brokle._client
 
         # Reset singleton
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
         with patch.dict(
             "os.environ",
@@ -525,10 +525,10 @@ class TestGetClientConfigForwarding:
             },
             clear=False,
         ):
-            with patch("brokle.client.Brokle") as mock_brokle:
+            with patch("brokle._client.Brokle") as mock_brokle:
                 mock_brokle.return_value = MagicMock()
 
-                from brokle.client import get_client
+                from brokle import get_client
 
                 client = get_client()
 
@@ -537,12 +537,12 @@ class TestGetClientConfigForwarding:
                 assert config.metrics_export_interval == 15.0
 
         # Cleanup
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
-    @patch("brokle.client.BrokleMeterProvider")
-    @patch("brokle.client.TracerProvider")
-    @patch("brokle.client.BrokleSpanProcessor")
-    @patch("brokle.client.create_exporter_for_config")
+    @patch("brokle._base_client.BrokleMeterProvider")
+    @patch("brokle._base_client.TracerProvider")
+    @patch("brokle._base_client.BrokleSpanProcessor")
+    @patch("brokle._base_client.create_exporter_for_config")
     def test_get_client_includes_release_version_in_resource(
         self,
         mock_create_exporter,
@@ -557,12 +557,12 @@ class TestGetClientConfigForwarding:
         When using config= parameter path (used by get_client), the resource attributes
         must be sourced from self.config, not local parameters.
         """
-        import brokle.client
-        from brokle.client import get_client
+        import brokle._client
+        from brokle import get_client
         from brokle.types import Attrs
 
         # Reset singleton
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
         # Mock tracer provider to capture the resource
         mock_tracer_instance = MagicMock()
@@ -596,12 +596,12 @@ class TestGetClientConfigForwarding:
             assert resource.attributes[Attrs.BROKLE_VERSION] == "experiment-B"
 
         # Cleanup
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
-    @patch("brokle.client.BrokleMeterProvider")
-    @patch("brokle.client.TracerProvider")
-    @patch("brokle.client.BrokleSpanProcessor")
-    @patch("brokle.client.create_exporter_for_config")
+    @patch("brokle._base_client.BrokleMeterProvider")
+    @patch("brokle._base_client.TracerProvider")
+    @patch("brokle._base_client.BrokleSpanProcessor")
+    @patch("brokle._base_client.create_exporter_for_config")
     def test_get_client_reads_release_version_from_env(
         self,
         mock_create_exporter,
@@ -612,12 +612,12 @@ class TestGetClientConfigForwarding:
         """
         Verify BROKLE_RELEASE and BROKLE_VERSION env vars appear in resource via get_client().
         """
-        import brokle.client
-        from brokle.client import get_client
+        import brokle._client
+        from brokle import get_client
         from brokle.types import Attrs
 
         # Reset singleton
-        brokle.client._global_client = None
+        brokle._client._global_client = None
 
         # Mock tracer provider to capture the resource
         mock_tracer_instance = MagicMock()
@@ -651,4 +651,4 @@ class TestGetClientConfigForwarding:
             assert resource.attributes[Attrs.BROKLE_VERSION] == "canary"
 
         # Cleanup
-        brokle.client._global_client = None
+        brokle._client._global_client = None

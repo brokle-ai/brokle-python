@@ -7,11 +7,11 @@ Streaming responses are transparently instrumented with TTFT and ITL tracking.
 
 import json
 import time
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from opentelemetry.trace import Status, StatusCode
 
-from ..client import get_client
+from .._client import get_client
 from ..streaming import StreamingAccumulator
 from ..streaming.wrappers import BrokleAsyncStreamWrapper, BrokleStreamWrapper
 from ..types import Attrs, LLMProvider, OperationType, SpanType
@@ -21,6 +21,7 @@ from ..utils.attributes import (
     extract_system_messages,
     serialize_messages,
 )
+from ._common import add_prompt_attributes, extract_brokle_options
 
 if TYPE_CHECKING:
     import openai
@@ -56,15 +57,14 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
         ... )
         >>> brokle.flush()
     """
-    # Store original method
     original_chat_create = client.chat.completions.create
 
     def wrapped_chat_create(*args, **kwargs):
         """Wrapped chat.completions.create with automatic tracing."""
-        # Get Brokle client
-        brokle_client = get_client()
+        # Extract brokle_options before processing kwargs
+        kwargs, brokle_opts = extract_brokle_options(kwargs)
 
-        # Extract request parameters
+        brokle_client = get_client()
         model = kwargs.get("model", "unknown")
         messages = kwargs.get("messages", [])
         temperature = kwargs.get("temperature")
@@ -77,10 +77,7 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
         user = kwargs.get("user")
         stream = kwargs.get("stream", False)
 
-        # Extract system messages
         non_system_msgs, system_msgs = extract_system_messages(messages)
-
-        # Build OTEL GenAI attributes
         attrs = {
             Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
             Attrs.GEN_AI_PROVIDER_NAME: LLMProvider.OPENAI,
@@ -89,13 +86,11 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
             Attrs.BROKLE_STREAMING: stream,
         }
 
-        # Add messages
         if non_system_msgs:
             attrs[Attrs.GEN_AI_INPUT_MESSAGES] = serialize_messages(non_system_msgs)
         if system_msgs:
             attrs[Attrs.GEN_AI_SYSTEM_INSTRUCTIONS] = serialize_messages(system_msgs)
 
-        # Add model parameters
         if temperature is not None:
             attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = temperature
         if max_tokens is not None:
@@ -112,9 +107,8 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
             )
         if user is not None:
             attrs[Attrs.GEN_AI_REQUEST_USER] = user
-            attrs[Attrs.USER_ID] = user  # Filterable
+            attrs[Attrs.USER_ID] = user
 
-        # OpenAI-specific attributes
         if n is not None:
             attrs[Attrs.OPENAI_REQUEST_N] = n
         if kwargs.get("service_tier"):
@@ -126,10 +120,10 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
         if kwargs.get("top_logprobs"):
             attrs[Attrs.OPENAI_REQUEST_TOP_LOGPROBS] = kwargs["top_logprobs"]
 
-        # Create span name following OTEL pattern: "{operation} {model}"
+        add_prompt_attributes(attrs, brokle_opts)
+
         span_name = f"{OperationType.CHAT} {model}"
 
-        # Handle streaming vs non-streaming differently
         if stream:
             return _handle_streaming_response(
                 brokle_client, original_chat_create, args, kwargs, span_name, attrs
@@ -143,26 +137,16 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
         brokle_client, original_method, args, kwargs, span_name, attrs
     ):
         """Handle streaming response with transparent wrapper instrumentation."""
-        # Start span manually using underlying tracer (will be ended by stream wrapper)
-        # Access the private _tracer attribute to get non-context-manager span
+        # Span will be ended by stream wrapper
         tracer = brokle_client._tracer
         span = tracer.start_span(span_name, attributes=attrs)
 
         try:
-            # Record start time BEFORE API call
             start_time = time.perf_counter()
-
-            # Make API call
             response = original_method(*args, **kwargs)
-
-            # Create accumulator with start time
             accumulator = StreamingAccumulator(start_time)
-            wrapped_stream = BrokleStreamWrapper(response, span, accumulator)
-
-            return wrapped_stream
-
+            return BrokleStreamWrapper(response, span, accumulator)
         except BaseException as e:
-            # Record error and end span (catches all exceptions including KeyboardInterrupt)
             span.set_status(Status(StatusCode.ERROR, str(e)))
             span.record_exception(e)
             span.end()
@@ -174,16 +158,10 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
         """Handle non-streaming response with standard span lifecycle."""
         with brokle_client.start_as_current_span(span_name, attributes=attrs) as span:
             try:
-                # Record start time for latency
                 start_time = time.time()
-
-                # Make actual API call
                 response = original_method(*args, **kwargs)
-
-                # Calculate latency
                 latency_ms = (time.time() - start_time) * 1000
 
-                # Extract response metadata
                 if hasattr(response, "id"):
                     span.set_attribute(Attrs.GEN_AI_RESPONSE_ID, response.id)
                 if hasattr(response, "model"):
@@ -197,7 +175,6 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
                         response.system_fingerprint,
                     )
 
-                # Extract output messages
                 if hasattr(response, "choices") and len(response.choices) > 0:
                     output_messages = []
                     finish_reasons = []
@@ -209,7 +186,6 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
                                 "content": choice.message.content,
                             }
 
-                            # Add tool calls if present
                             if (
                                 hasattr(choice.message, "tool_calls")
                                 and choice.message.tool_calls
@@ -228,7 +204,6 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
                                     )
                                 msg_dict["tool_calls"] = tool_calls
 
-                            # Add refusal if present (GPT-4 moderation)
                             if (
                                 hasattr(choice.message, "refusal")
                                 and choice.message.refusal
@@ -237,23 +212,18 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
 
                             output_messages.append(msg_dict)
 
-                        # Track finish reason
                         if hasattr(choice, "finish_reason"):
                             finish_reasons.append(choice.finish_reason)
 
-                    # Set output messages
                     if output_messages:
                         span.set_attribute(
                             Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages)
                         )
-
-                    # Set finish reasons
                     if finish_reasons:
                         span.set_attribute(
                             Attrs.GEN_AI_RESPONSE_FINISH_REASONS, finish_reasons
                         )
 
-                # Extract usage statistics
                 if hasattr(response, "usage") and response.usage:
                     usage = response.usage
                     if hasattr(usage, "prompt_tokens") and usage.prompt_tokens:
@@ -265,7 +235,6 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
                             Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, usage.completion_tokens
                         )
 
-                    # Calculate total tokens (Brokle custom attribute)
                     total_tokens = calculate_total_tokens(
                         (
                             usage.prompt_tokens
@@ -283,21 +252,15 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
                             Attrs.BROKLE_USAGE_TOTAL_TOKENS, total_tokens
                         )
 
-                # Set latency
                 span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, latency_ms)
-
-                # Mark span as successful
                 span.set_status(Status(StatusCode.OK))
-
                 return response
 
             except Exception as e:
-                # Record error
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 span.record_exception(e)
                 raise
 
-    # Replace method
     client.chat.completions.create = wrapped_chat_create
 
     return client
@@ -325,23 +288,19 @@ def wrap_openai_async(client: "openai.AsyncOpenAI") -> "openai.AsyncOpenAI":
         >>> # Async calls automatically tracked
         >>> response = await client.chat.completions.create(...)
     """
-    # Store original method
     original_chat_create = client.chat.completions.create
 
     async def wrapped_chat_create(*args, **kwargs):
         """Wrapped async chat.completions.create with automatic tracing."""
-        # Get Brokle client
-        brokle_client = get_client()
+        # Extract brokle_options before processing kwargs
+        kwargs, brokle_opts = extract_brokle_options(kwargs)
 
-        # Extract request parameters (same as sync version)
+        brokle_client = get_client()
         model = kwargs.get("model", "unknown")
         messages = kwargs.get("messages", [])
         stream = kwargs.get("stream", False)
 
-        # Extract system messages
         non_system_msgs, system_msgs = extract_system_messages(messages)
-
-        # Build OTEL GenAI attributes (same as sync)
         attrs = {
             Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
             Attrs.GEN_AI_PROVIDER_NAME: LLMProvider.OPENAI,
@@ -350,20 +309,18 @@ def wrap_openai_async(client: "openai.AsyncOpenAI") -> "openai.AsyncOpenAI":
             Attrs.BROKLE_STREAMING: stream,
         }
 
-        # Add messages
         if non_system_msgs:
             attrs[Attrs.GEN_AI_INPUT_MESSAGES] = serialize_messages(non_system_msgs)
         if system_msgs:
             attrs[Attrs.GEN_AI_SYSTEM_INSTRUCTIONS] = serialize_messages(system_msgs)
 
-        # Add model parameters
         model_params = extract_model_parameters(kwargs)
         attrs.update(model_params)
 
-        # Create span
+        add_prompt_attributes(attrs, brokle_opts)
+
         span_name = f"{OperationType.CHAT} {model}"
 
-        # Handle streaming vs non-streaming
         if stream:
             return await _handle_async_streaming_response(
                 brokle_client, original_chat_create, args, kwargs, span_name, attrs
@@ -377,25 +334,16 @@ def wrap_openai_async(client: "openai.AsyncOpenAI") -> "openai.AsyncOpenAI":
         brokle_client, original_method, args, kwargs, span_name, attrs
     ):
         """Handle async streaming response with transparent wrapper instrumentation."""
-        # Start span manually using underlying tracer (will be ended by stream wrapper)
+        # Span will be ended by stream wrapper
         tracer = brokle_client._tracer
         span = tracer.start_span(span_name, attributes=attrs)
 
         try:
-            # Record start time BEFORE API call
             start_time = time.perf_counter()
-
-            # Make async API call
             response = await original_method(*args, **kwargs)
-
-            # Create accumulator with start time
             accumulator = StreamingAccumulator(start_time)
-            wrapped_stream = BrokleAsyncStreamWrapper(response, span, accumulator)
-
-            return wrapped_stream
-
+            return BrokleAsyncStreamWrapper(response, span, accumulator)
         except BaseException as e:
-            # Record error and end span (catches all exceptions including CancelledError)
             span.set_status(Status(StatusCode.ERROR, str(e)))
             span.record_exception(e)
             span.end()
@@ -408,27 +356,16 @@ def wrap_openai_async(client: "openai.AsyncOpenAI") -> "openai.AsyncOpenAI":
         with brokle_client.start_as_current_span(span_name, attributes=attrs) as span:
             try:
                 start_time = time.time()
-
-                # Make async API call
                 response = await original_method(*args, **kwargs)
-
-                # Calculate latency
                 latency_ms = (time.time() - start_time) * 1000
-
-                # Set latency
                 span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, latency_ms)
-
-                # Mark successful
                 span.set_status(Status(StatusCode.OK))
-
                 return response
-
             except Exception as e:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 span.record_exception(e)
                 raise
 
-    # Replace method
     client.chat.completions.create = wrapped_chat_create
 
     return client

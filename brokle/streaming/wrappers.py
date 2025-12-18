@@ -10,11 +10,6 @@ Example:
     for chunk in wrapped_stream:
         print(chunk.choices[0].delta.content)
     # Metrics recorded automatically when loop ends
-
-Based on patterns from:
-- OpenLLMetry: ObjectProxy wrapper pattern
-- OpenLIT: Timestamp collection for comprehensive analytics
-- Langfuse: Generator wrapper with auto-finalization
 """
 
 import asyncio

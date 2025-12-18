@@ -1,10 +1,6 @@
 """
 Brokle SDK - OpenTelemetry-native observability for AI applications.
 
-This SDK leverages OpenTelemetry as the underlying telemetry framework,
-providing industry-standard OTLP export with Brokle-specific enhancements
-for LLM observability.
-
 Basic Usage:
     >>> from brokle import Brokle
     >>> client = Brokle(api_key="bk_your_secret")
@@ -18,18 +14,22 @@ Singleton Pattern:
 
 LLM Generation Tracking:
     >>> with client.start_as_current_generation(
-    ...     name="chat",
-    ...     model="gpt-4",
-    ...     provider="openai"
+    ...     name="chat", model="gpt-4", provider="openai"
     ... ) as gen:
-    ...     # Your LLM call
+    ...     response = openai_client.chat.completions.create(...)
     ...     gen.set_attribute("gen_ai.output.messages", [...])
 """
 
-from .client import Brokle, get_client, reset_client
+from ._client import (
+    AsyncBrokle,
+    Brokle,
+    get_async_client,
+    get_client,
+    reset_async_client,
+    reset_client,
+)
 from .config import BrokleConfig
 from .decorators import observe
-from .utils.masking import MaskingHelper
 from .metrics import (
     DURATION_BOUNDARIES,
     TOKEN_BOUNDARIES,
@@ -37,6 +37,11 @@ from .metrics import (
     GenAIMetrics,
     MetricNames,
     create_genai_metrics,
+)
+from .transport import (
+    TransportType,
+    create_metric_exporter,
+    create_trace_exporter,
 )
 from .observations import (
     BrokleAgent,
@@ -52,11 +57,60 @@ from .streaming import (
     StreamingMetrics,
     StreamingResult,
 )
-from .transport import (
-    TransportType,
-    create_metric_exporter,
-    create_trace_exporter,
+from .utils.masking import MaskingHelper
+from .evaluations import (
+    AsyncEvaluationsManager,
+    EvaluationsManager,
 )
+from .prompts import (
+    # Manager classes
+    AsyncPromptManager,
+    PromptManager,
+    # Core classes
+    Prompt,
+    PromptCache,
+    CacheOptions,
+    # Exceptions
+    PromptError,
+    PromptNotFoundError,
+    PromptCompileError,
+    PromptFetchError,
+    # Compiler utilities
+    extract_variables,
+    compile_template,
+    compile_text_template,
+    compile_chat_template,
+    validate_variables,
+    is_text_template,
+    is_chat_template,
+    get_compiled_content,
+    get_compiled_messages,
+    # Types
+    PromptType,
+    MessageRole,
+    ChatMessage,
+    TextTemplate,
+    ChatTemplate,
+    Template,
+    ModelConfig,
+    PromptConfig,
+    PromptVersion,
+    PromptData,
+    GetPromptOptions,
+    ListPromptsOptions,
+    Pagination,
+    PaginatedResponse,
+    UpsertPromptRequest,
+    CacheEntry,
+    OpenAIMessage,
+    AnthropicMessage,
+    AnthropicRequest,
+    Variables,
+    Fallback,
+    TextFallback,
+    ChatFallback,
+)
+
 from .types import (
     Attrs,
     BrokleOtelSpanAttributes,
@@ -76,17 +130,17 @@ __all__ = [
     # Version
     "__version__",
     "__version_info__",
-    # Core classes
+    # Client
     "Brokle",
+    "AsyncBrokle",
     "BrokleConfig",
-    # Client functions
     "get_client",
     "reset_client",
+    "get_async_client",
+    "reset_async_client",
     # Decorators
     "observe",
-    # Masking utilities
-    "MaskingHelper",
-    # Type constants
+    # Types
     "BrokleOtelSpanAttributes",
     "Attrs",
     "SpanType",
@@ -102,6 +156,10 @@ __all__ = [
     "TOKEN_BOUNDARIES",
     "DURATION_BOUNDARIES",
     "TTFT_BOUNDARIES",
+    # Transport
+    "TransportType",
+    "create_trace_exporter",
+    "create_metric_exporter",
     # Streaming
     "StreamingAccumulator",
     "StreamingResult",
@@ -114,8 +172,51 @@ __all__ = [
     "BrokleAgent",
     "BrokleTool",
     "BrokleRetrieval",
-    # Transport
-    "TransportType",
-    "create_trace_exporter",
-    "create_metric_exporter",
+    # Utilities
+    "MaskingHelper",
+    # Prompts
+    "PromptManager",
+    "AsyncPromptManager",
+    "Prompt",
+    "PromptCache",
+    "CacheOptions",
+    "PromptError",
+    "PromptNotFoundError",
+    "PromptCompileError",
+    "PromptFetchError",
+    "extract_variables",
+    "compile_template",
+    "compile_text_template",
+    "compile_chat_template",
+    "validate_variables",
+    "is_text_template",
+    "is_chat_template",
+    "get_compiled_content",
+    "get_compiled_messages",
+    "PromptType",
+    "MessageRole",
+    "ChatMessage",
+    "TextTemplate",
+    "ChatTemplate",
+    "Template",
+    "ModelConfig",
+    "PromptConfig",
+    "PromptVersion",
+    "PromptData",
+    "GetPromptOptions",
+    "ListPromptsOptions",
+    "Pagination",
+    "PaginatedResponse",
+    "UpsertPromptRequest",
+    "CacheEntry",
+    "OpenAIMessage",
+    "AnthropicMessage",
+    "AnthropicRequest",
+    "Variables",
+    "Fallback",
+    "TextFallback",
+    "ChatFallback",
+    # Evaluations
+    "EvaluationsManager",
+    "AsyncEvaluationsManager",
 ]

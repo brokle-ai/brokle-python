@@ -1,17 +1,20 @@
 """
-Main Brokle OpenTelemetry client.
+Base Brokle Client
 
-Provides high-level API for creating traces, spans, and LLM spans
-using OpenTelemetry as the underlying telemetry framework.
+Provides the base class with shared initialization, configuration,
+and OpenTelemetry setup used by both Brokle and AsyncBrokle.
 """
 
 import atexit
 import json
 from contextlib import contextmanager
-from typing import Any, Dict, Iterator, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional
 from uuid import UUID
 
 from opentelemetry import trace
+
+if TYPE_CHECKING:
+    from .prompts import Prompt
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import Span, TracerProvider
 from opentelemetry.sdk.trace.sampling import ALWAYS_ON, TraceIdRatioBased
@@ -22,25 +25,19 @@ from .exporter import create_exporter_for_config
 from .logs import BrokleLoggerProvider
 from .metrics import BrokleMeterProvider, GenAIMetrics, create_genai_metrics
 from .processor import BrokleSpanProcessor
+from .prompts import CacheOptions, PromptConfig
 from .types import Attrs, LLMProvider, OperationType, SchemaURLs, SpanType
 
-# Global singleton instance
-_global_client: Optional["Brokle"] = None
-
-
-class Brokle:
+class BaseBrokleClient:
     """
-    Main Brokle client for OpenTelemetry-based observability.
+    Base Brokle client with shared initialization and OpenTelemetry setup.
 
-    This client initializes OpenTelemetry with Brokle-specific configuration
-    and provides high-level methods for creating traces and spans.
-
-    Example:
-        >>> from brokle import Brokle
-        >>> client = Brokle(api_key="bk_your_secret")
-        >>> with client.start_as_current_span("my-operation") as span:
-        ...     span.set_attribute("output", "Hello, world!")
-        >>> client.flush()
+    This class contains the core functionality shared by both Brokle
+    (sync) and AsyncBrokle (async). It handles:
+    - Configuration management
+    - OpenTelemetry tracer/meter/logger providers
+    - HTTP client initialization
+    - Span creation methods
     """
 
     def __init__(
@@ -103,6 +100,10 @@ class Brokle:
                 timeout=timeout,
                 **kwargs,
             )
+
+        self._prompt_config = PromptConfig()
+        self._prompts_manager = None
+        self._evaluations_manager = None
 
         self._meter_provider: Optional[BrokleMeterProvider] = None
         self._metrics: Optional[GenAIMetrics] = None
@@ -228,6 +229,7 @@ class Brokle:
         version: Optional[str] = None,
         input: Optional[Any] = None,
         output: Optional[Any] = None,
+        prompt: Optional["Prompt"] = None,
         **kwargs,
     ) -> Iterator[Span]:
         """
@@ -246,14 +248,16 @@ class Brokle:
                    - LLM format: [{"role": "user", "content": "..."}]
                    - Generic format: {"query": "...", "count": 5} or any value
             output: Output data (LLM messages or generic data)
+            prompt: Prompt to link to this span (fallback prompts are not linked)
             **kwargs: Additional arguments passed to tracer.start_as_current_span()
 
         Yields:
             Span instance
 
         Example:
-            >>> # Generic input/output
-            >>> with client.start_as_current_span("process", input={"query": "test"}) as span:
+            >>> # With prompt linking
+            >>> prompt = client.prompts.get_sync("greeting")
+            >>> with client.start_as_current_span("process", prompt=prompt) as span:
             ...     result = do_work()
             ...     span.set_attribute(Attrs.OUTPUT_VALUE, json.dumps(result))
             >>>
@@ -294,6 +298,13 @@ class Brokle:
                 attrs[Attrs.OUTPUT_VALUE] = output_str
                 attrs[Attrs.OUTPUT_MIME_TYPE] = mime_type
 
+        # Link prompt if provided and NOT a fallback
+        if prompt and not prompt.is_fallback:
+            attrs[Attrs.BROKLE_PROMPT_NAME] = prompt.name
+            attrs[Attrs.BROKLE_PROMPT_VERSION] = prompt.version
+            if prompt.id and prompt.id != "fallback":
+                attrs[Attrs.BROKLE_PROMPT_ID] = prompt.id
+
         with self._tracer.start_as_current_span(
             name=name,
             kind=kind,
@@ -311,6 +322,7 @@ class Brokle:
         input_messages: Optional[List[Dict[str, Any]]] = None,
         model_parameters: Optional[Dict[str, Any]] = None,
         version: Optional[str] = None,
+        prompt: Optional["Prompt"] = None,
         **kwargs,
     ) -> Iterator[Span]:
         """
@@ -326,18 +338,20 @@ class Brokle:
             input_messages: Input messages in OTEL format
             model_parameters: Model parameters (temperature, max_tokens, etc.)
             version: Version identifier for A/B testing and experiment tracking
+            prompt: Prompt to link to this generation (fallback prompts are not linked)
             **kwargs: Additional span attributes
 
         Yields:
             Span instance
 
         Example:
+            >>> prompt = client.prompts.get_sync("movie-critic")
             >>> with client.start_as_current_generation(
             ...     name="chat",
             ...     model="gpt-4",
             ...     provider="openai",
             ...     input_messages=[{"role": "user", "content": "Hello"}],
-            ...     version="1.0",
+            ...     prompt=prompt,
             ... ) as gen:
             ...     # Make LLM call
             ...     gen.set_attribute(Attrs.GEN_AI_OUTPUT_MESSAGES, [...])
@@ -367,6 +381,13 @@ class Brokle:
 
         if version:
             attrs[Attrs.BROKLE_VERSION] = version
+
+        # Link prompt if provided and NOT a fallback
+        if prompt and not prompt.is_fallback:
+            attrs[Attrs.BROKLE_PROMPT_NAME] = prompt.name
+            attrs[Attrs.BROKLE_PROMPT_VERSION] = prompt.version
+            if prompt.id and prompt.id != "fallback":
+                attrs[Attrs.BROKLE_PROMPT_ID] = prompt.id
 
         attrs.update(kwargs)
         span_name = f"{name} {model}"
@@ -434,15 +455,12 @@ class Brokle:
         success = True
         timeout_millis = timeout_seconds * 1000
 
-        # Flush traces
         if self._processor:
             success = self._processor.force_flush(timeout_millis) and success
 
-        # Flush metrics
         if self._meter_provider:
             success = self._meter_provider.force_flush(timeout_millis) and success
 
-        # Flush logs
         if self._logger_provider:
             success = self._logger_provider.force_flush(timeout_millis) and success
 
@@ -464,22 +482,16 @@ class Brokle:
         success = True
         timeout_millis = timeout_seconds * 1000
 
-        # Shutdown tracer provider
-        # TracerProvider.shutdown() returns None on success, raises on failure
         if self._provider:
             try:
                 self._provider.shutdown()
             except Exception:
                 success = False
 
-        # Shutdown meter provider
-        # BrokleMeterProvider.shutdown() returns True on success, False on failure
         if self._meter_provider:
             if not self._meter_provider.shutdown(timeout_millis):
                 success = False
 
-        # Shutdown logger provider
-        # BrokleLoggerProvider.shutdown() returns True on success, False on failure
         if self._logger_provider:
             if not self._logger_provider.shutdown(timeout_millis):
                 success = False
@@ -501,33 +513,108 @@ class Brokle:
         """
         return self._metrics
 
-    def close(self):
+    def link_prompt(self, prompt: "Prompt") -> bool:
         """
-        Close the client (alias for shutdown).
+        Link a prompt to the current active span.
+
+        This method sets prompt attributes on the currently active span,
+        allowing you to track which prompt version was used in a generation.
+        Fallback prompts are NOT linked (returns False without setting attributes).
+
+        Args:
+            prompt: Prompt instance to link
+
+        Returns:
+            True if prompt was successfully linked, False otherwise
+            (no active span, or prompt is a fallback)
 
         Example:
-            >>> with Brokle(api_key="...") as client:
-            ...     # Use client
-            ...     pass  # Automatically closed
+            >>> prompt = await client.prompts.get("greeting", label="production")
+            >>> with client.start_as_current_span("my-operation") as span:
+            ...     client.link_prompt(prompt)  # Links prompt to current span
+            ...     # ... do work ...
+
+            >>> # With @observe decorator
+            >>> @observe()
+            ... def my_function():
+            ...     prompt = client.prompts.get_sync("assistant")
+            ...     client.link_prompt(prompt)  # Links to decorated function's span
+            ...     return call_llm(prompt)
         """
-        self.shutdown()
+        span = trace.get_current_span()
+        if not span or not span.is_recording():
+            return False
 
-    def __enter__(self):
-        """Context manager entry."""
-        return self
+        if prompt.is_fallback:
+            return False
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
-        self.close()
+        span.set_attribute(Attrs.BROKLE_PROMPT_NAME, prompt.name)
+        span.set_attribute(Attrs.BROKLE_PROMPT_VERSION, prompt.version)
 
-    def __repr__(self) -> str:
-        """String representation."""
-        return (
-            f"Brokle(environment='{self.config.environment}', "
-            f"tracing_enabled={self.config.tracing_enabled}, "
-            f"metrics_enabled={self.config.metrics_enabled}, "
-            f"logs_enabled={self.config.logs_enabled})"
-        )
+        if prompt.id and prompt.id != "fallback":
+            span.set_attribute(Attrs.BROKLE_PROMPT_ID, prompt.id)
+
+        return True
+
+    def update_current_span(
+        self,
+        prompt: Optional["Prompt"] = None,
+        output: Optional[Any] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ) -> bool:
+        """
+        Update the current active span with additional attributes.
+
+        This method allows updating the current span with prompt linking,
+        output data, or custom metadata. Useful for dynamic updates inside
+        decorated functions.
+
+        Args:
+            prompt: Prompt to link (fallback prompts are not linked)
+            output: Output data to record
+            metadata: Additional metadata
+            **kwargs: Additional span attributes
+
+        Returns:
+            True if span was updated, False if no active span
+
+        Example:
+            >>> @observe(as_type="generation")
+            ... def nested_generation():
+            ...     prompt = brokle.prompts.get_sync("movie-critic")
+            ...     brokle.update_current_span(prompt=prompt)
+            ...     # ... do LLM call ...
+            ...     brokle.update_current_span(output="LLM response")
+        """
+        span = trace.get_current_span()
+        if not span or not span.is_recording():
+            return False
+
+        if prompt and not prompt.is_fallback:
+            span.set_attribute(Attrs.BROKLE_PROMPT_NAME, prompt.name)
+            span.set_attribute(Attrs.BROKLE_PROMPT_VERSION, prompt.version)
+            if prompt.id and prompt.id != "fallback":
+                span.set_attribute(Attrs.BROKLE_PROMPT_ID, prompt.id)
+
+        if output is not None:
+            if _is_llm_messages_format(output):
+                span.set_attribute(Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output))
+            else:
+                output_str, mime_type = _serialize_with_mime(output)
+                span.set_attribute(Attrs.OUTPUT_VALUE, output_str)
+                span.set_attribute(Attrs.OUTPUT_MIME_TYPE, mime_type)
+
+        if metadata:
+            span.set_attribute(Attrs.METADATA, json.dumps(metadata))
+
+        for key, value in kwargs.items():
+            span.set_attribute(key, value)
+
+        return True
+
+    # Alias for convenience
+    update_current_generation = update_current_span
 
 
 def _serialize_with_mime(value: Any) -> tuple[str, str]:
@@ -571,7 +658,6 @@ def _serialize_with_mime(value: Any) -> tuple[str, str]:
         if hasattr(value, "__dataclass_fields__"):
             # Dataclass
             import dataclasses
-
             return json.dumps(dataclasses.asdict(value)), "application/json"
 
         # Last resort: string representation
@@ -583,72 +669,9 @@ def _serialize_with_mime(value: Any) -> tuple[str, str]:
 
 
 def _is_llm_messages_format(data: Any) -> bool:
-    """
-    Check if data is in LLM ChatML messages format.
-
-    ChatML format: List of dicts with "role" and "content" keys.
-
-    Args:
-        data: Data to check
-
-    Returns:
-        True if ChatML format, False otherwise
-    """
+    """Check if data is in LLM ChatML messages format."""
     return (
         isinstance(data, list)
         and len(data) > 0
         and all(isinstance(m, dict) and "role" in m for m in data)
     )
-
-
-def get_client(**overrides) -> Brokle:
-    """
-    Get or create global singleton Brokle client.
-
-    Configuration is read from environment variables on first call.
-    Subsequent calls return the same instance.
-
-    Args:
-        **overrides: Override specific configuration values (e.g., transport="grpc")
-
-    Returns:
-        Singleton Brokle instance
-
-    Raises:
-        ValueError: If BROKLE_API_KEY environment variable is missing
-
-    Example:
-        >>> from brokle import get_client
-        >>> client = get_client()  # Reads from BROKLE_* env vars
-        >>> # All calls return same instance
-        >>> client2 = get_client()
-        >>> assert client is client2
-        >>> # Override specific settings
-        >>> client = get_client(transport="grpc", metrics_export_interval=30.0)
-    """
-    global _global_client
-
-    if _global_client is None:
-        # Create config from environment variables with any overrides
-        config = BrokleConfig.from_env(**overrides)
-
-        # Pass config object directly - ensures all config fields are forwarded
-        _global_client = Brokle(config=config)
-
-    return _global_client
-
-
-def reset_client():
-    """
-    Reset global singleton client.
-
-    Useful for testing. Should not be used in production code.
-
-    Example:
-        >>> reset_client()
-        >>> client = get_client()  # Creates new instance
-    """
-    global _global_client
-    if _global_client:
-        _global_client.close()
-    _global_client = None

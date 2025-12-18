@@ -1,13 +1,7 @@
 """
 Observation wrapper classes for enhanced span management.
 
-Provides Langfuse-style observation wrappers that wrap OpenTelemetry spans
-with type-specific methods and attributes.
-
-Based on Langfuse SDK patterns:
-- completion_start_time tracking for TTFT
-- usage_details dict for flexible token tracking
-- retroactive trace updates
+Wraps OpenTelemetry spans with type-specific methods and attributes.
 """
 
 import json
@@ -30,7 +24,6 @@ class UsageDetails:
     Flexible usage details for token tracking.
 
     Supports multiple token types including cache, audio, reasoning, etc.
-    Following Langfuse's cost_details pattern for maximum flexibility.
     """
 
     input_tokens: int = 0
@@ -212,8 +205,6 @@ class BrokleObservation:
     ) -> "BrokleObservation":
         """
         Update trace-level attributes (propagated to all spans in trace).
-
-        Following Langfuse pattern of retroactive trace updates.
 
         Args:
             session_id: Session grouping identifier
