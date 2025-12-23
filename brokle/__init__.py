@@ -83,6 +83,17 @@ from .scores import (
     ScoreError,
     ScorerError,
 )
+from .experiments import (
+    ExperimentsManager,
+    AsyncExperimentsManager,
+    EvaluationResults,
+    EvaluationItem,
+    SummaryStats,
+    Experiment,
+    EvaluationError,
+    TaskError,
+    ScorerExecutionError,
+)
 
 from .scorers import (
     # Built-in scorers
@@ -278,4 +289,14 @@ __all__ = [
     "LengthCheck",
     "scorer",
     "multi_scorer",
+    # Experiments
+    "ExperimentsManager",
+    "AsyncExperimentsManager",
+    "EvaluationResults",
+    "EvaluationItem",
+    "SummaryStats",
+    "Experiment",
+    "EvaluationError",
+    "TaskError",
+    "ScorerExecutionError",
 ]

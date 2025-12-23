@@ -1,0 +1,881 @@
+"""
+Experiments Manager
+
+Provides both synchronous and asynchronous experiment management for Brokle.
+
+Sync Usage:
+    >>> from brokle import Brokle
+    >>>
+    >>> client = Brokle(api_key="bk_...")
+    >>>
+    >>> results = client.experiments.run(
+    ...     name="gpt4-test",
+    ...     dataset=dataset,
+    ...     task=my_task,
+    ...     scorers=[exact, relevance],
+    ... )
+    >>>
+    >>> for name, stats in results.summary.items():
+    ...     print(f"{name}: mean={stats['mean']:.3f}")
+
+Async Usage:
+    >>> async with AsyncBrokle(api_key="bk_...") as client:
+    ...     results = await client.experiments.run(
+    ...         name="test",
+    ...         dataset=dataset,
+    ...         task=my_task,
+    ...         scorers=[exact],
+    ...     )
+"""
+
+import asyncio
+import inspect
+import statistics
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Callable, Dict, List, Optional, Union
+
+from .._http import AsyncHTTPClient, SyncHTTPClient, unwrap_response
+from ..config import BrokleConfig
+from ..datasets.dataset import AsyncDataset, Dataset, DatasetItem
+from ..scores.types import ScoreResult, ScoreType, ScoreValue, ScorerProtocol
+from .exceptions import EvaluationError, ScorerExecutionError, TaskError
+from .types import (
+    AsyncTaskFunction,
+    EvaluationItem,
+    EvaluationResults,
+    Experiment,
+    ProgressCallback,
+    SummaryStats,
+    TaskFunction,
+)
+
+
+def _normalize_score_result(
+    value: ScoreValue,
+    scorer_name: str,
+) -> List[ScoreResult]:
+    """
+    Normalize various scorer return types to List[ScoreResult].
+
+    Args:
+        value: The scorer return value
+        scorer_name: Name to use if value is a primitive
+
+    Returns:
+        List of ScoreResult objects
+    """
+    if value is None:
+        return []
+
+    if isinstance(value, ScoreResult):
+        return [value]
+
+    if isinstance(value, list):
+        results = []
+        for v in value:
+            if isinstance(v, ScoreResult):
+                results.append(v)
+        return results
+
+    if isinstance(value, bool):
+        return [
+            ScoreResult(
+                name=scorer_name,
+                value=1.0 if value else 0.0,
+                type=ScoreType.BOOLEAN,
+            )
+        ]
+
+    if isinstance(value, (int, float)):
+        return [
+            ScoreResult(
+                name=scorer_name,
+                value=float(value),
+                type=ScoreType.NUMERIC,
+            )
+        ]
+
+    return []
+
+
+def _get_scorer_name(scorer: ScorerProtocol) -> str:
+    """Get the name of a scorer."""
+    if hasattr(scorer, "name"):
+        return str(scorer.name)
+    if hasattr(scorer, "__name__"):
+        return str(scorer.__name__)
+    return scorer.__class__.__name__
+
+
+def _run_scorer_safe(
+    scorer: ScorerProtocol,
+    output: Any,
+    expected: Any,
+    input_data: Dict[str, Any],
+) -> List[ScoreResult]:
+    """
+    Run a scorer safely, catching any exceptions.
+
+    Returns list of ScoreResults. On failure, returns a single ScoreResult
+    with scoring_failed=True.
+    """
+    scorer_name = _get_scorer_name(scorer)
+    try:
+        result = scorer(output=output, expected=expected, input=input_data)
+        return _normalize_score_result(result, scorer_name)
+    except Exception as e:
+        return [
+            ScoreResult(
+                name=scorer_name,
+                value=0.0,
+                type=ScoreType.NUMERIC,
+                scoring_failed=True,
+                reason=f"Scorer failed: {str(e)}",
+            )
+        ]
+
+
+async def _run_scorer_safe_async(
+    scorer: ScorerProtocol,
+    output: Any,
+    expected: Any,
+    input_data: Dict[str, Any],
+) -> List[ScoreResult]:
+    """
+    Run a scorer safely (async-aware), catching any exceptions.
+
+    Handles both sync and async scorers.
+    """
+    scorer_name = _get_scorer_name(scorer)
+    try:
+        result = scorer(output=output, expected=expected, input=input_data)
+        if inspect.isawaitable(result):
+            result = await result
+        return _normalize_score_result(result, scorer_name)
+    except Exception as e:
+        return [
+            ScoreResult(
+                name=scorer_name,
+                value=0.0,
+                type=ScoreType.NUMERIC,
+                scoring_failed=True,
+                reason=f"Scorer failed: {str(e)}",
+            )
+        ]
+
+
+def _compute_summary(items: List[EvaluationItem]) -> Dict[str, SummaryStats]:
+    """
+    Compute per-scorer summary statistics.
+
+    Only includes non-failed scores in mean/std_dev/min/max.
+    pass_rate = successful_scores / total_scores.
+    """
+    summary: Dict[str, SummaryStats] = {}
+
+    # Collect scores by name
+    scores_by_name: Dict[str, List[ScoreResult]] = defaultdict(list)
+    for item in items:
+        for score in item.scores:
+            scores_by_name[score.name].append(score)
+
+    for name, scores in scores_by_name.items():
+        # Filter successful scores for statistics
+        successful = [s.value for s in scores if not s.scoring_failed]
+        total = len(scores)
+        passed = len(successful)
+
+        if successful:
+            summary[name] = SummaryStats(
+                mean=statistics.mean(successful),
+                std_dev=statistics.stdev(successful) if len(successful) > 1 else 0.0,
+                min=min(successful),
+                max=max(successful),
+                count=total,
+                pass_rate=passed / total if total > 0 else 0.0,
+            )
+        else:
+            # All scores failed
+            summary[name] = SummaryStats(
+                mean=0.0,
+                std_dev=0.0,
+                min=0.0,
+                max=0.0,
+                count=total,
+                pass_rate=0.0,
+            )
+
+    return summary
+
+
+class _BaseExperimentsManagerMixin:
+    """
+    Shared functionality for both sync and async experiments managers.
+    """
+
+    _config: BrokleConfig
+
+    def _log(self, message: str, *args: Any) -> None:
+        """Log debug messages."""
+        if self._config.debug:
+            print(f"[Brokle Experiments] {message}", *args)
+
+
+class ExperimentsManager(_BaseExperimentsManagerMixin):
+    """
+    Sync experiments manager for Brokle.
+
+    All methods are synchronous. Uses SyncHTTPClient (httpx.Client) internally.
+
+    Example:
+        >>> from brokle import Brokle
+        >>> from brokle.scorers import ExactMatch
+        >>>
+        >>> client = Brokle(api_key="bk_...")
+        >>> dataset = client.datasets.get("dataset_id")
+        >>>
+        >>> def my_task(input):
+        ...     return f"Response to: {input['question']}"
+        >>>
+        >>> results = client.experiments.run(
+        ...     name="test-experiment",
+        ...     dataset=dataset,
+        ...     task=my_task,
+        ...     scorers=[ExactMatch()],
+        ... )
+        >>> print(results.summary)
+    """
+
+    def __init__(
+        self,
+        http_client: SyncHTTPClient,
+        config: BrokleConfig,
+    ):
+        """
+        Initialize sync experiments manager.
+
+        Args:
+            http_client: Sync HTTP client
+            config: Brokle configuration
+        """
+        self._http = http_client
+        self._config = config
+
+    def run(
+        self,
+        name: str,
+        dataset: Union[Dataset, str],
+        task: TaskFunction,
+        scorers: List[ScorerProtocol],
+        max_concurrency: int = 10,
+        trial_count: int = 1,
+        metadata: Optional[Dict[str, Any]] = None,
+        on_progress: Optional[ProgressCallback] = None,
+    ) -> EvaluationResults:
+        """
+        Run an evaluation experiment.
+
+        Processes dataset items through the task function, runs scorers on outputs,
+        and computes summary statistics.
+
+        Args:
+            name: Experiment name
+            dataset: Dataset object or dataset ID
+            task: Function that takes input dict and returns output
+            scorers: List of scorer callables
+            max_concurrency: Maximum parallel executions (default: 10)
+            trial_count: Number of times to run each item (default: 1)
+            metadata: Optional experiment metadata
+            on_progress: Optional callback for progress updates
+
+        Returns:
+            EvaluationResults with summary statistics and all items
+
+        Raises:
+            EvaluationError: If experiment creation or submission fails
+
+        Example:
+            >>> results = client.experiments.run(
+            ...     name="gpt4-accuracy",
+            ...     dataset=dataset,
+            ...     task=lambda x: call_gpt4(x["prompt"]),
+            ...     scorers=[ExactMatch(), Contains()],
+            ...     max_concurrency=5,
+            ... )
+            >>> print(f"Mean accuracy: {results.summary['exact_match']['mean']:.2%}")
+        """
+        self._log(f"Starting experiment: {name}")
+
+        # 1. Resolve dataset
+        if isinstance(dataset, str):
+            self._log(f"Fetching dataset: {dataset}")
+            resolved_dataset = self._fetch_dataset(dataset)
+        else:
+            resolved_dataset = dataset
+
+        # 2. Collect dataset items FIRST (before creating experiment)
+        items_list: List[DatasetItem] = list(resolved_dataset)
+        if not items_list:
+            self._log("Dataset is empty, returning early")
+            return EvaluationResults(
+                experiment_id="",
+                experiment_name=name,
+                dataset_id=resolved_dataset.id,
+                summary={},
+                items=[],
+                url=None,
+            )
+
+        # 3. Create experiment via API (only if we have items)
+        experiment = self._create_experiment(
+            name=name,
+            dataset_id=resolved_dataset.id,
+            metadata=metadata,
+        )
+        self._log(f"Created experiment: {experiment.id}")
+
+        # 4. Flatten items with trials
+        work_items: List[tuple[DatasetItem, int]] = []
+        for item in items_list:
+            for trial in range(1, trial_count + 1):
+                work_items.append((item, trial))
+
+        total = len(work_items)
+        completed = 0
+        results: List[EvaluationItem] = []
+
+        # 5. Process items with ThreadPoolExecutor
+        def process_item(
+            dataset_item: DatasetItem, trial_number: int
+        ) -> EvaluationItem:
+            input_data = dataset_item.input
+            expected = dataset_item.expected
+
+            # Run task
+            try:
+                output = task(input_data)
+            except Exception as e:
+                return EvaluationItem(
+                    dataset_item_id=dataset_item.id,
+                    input=input_data,
+                    output=None,
+                    expected=expected,
+                    scores=[],
+                    trial_number=trial_number,
+                    error=f"Task failed: {str(e)}",
+                )
+
+            # Run scorers
+            all_scores: List[ScoreResult] = []
+            for scorer in scorers:
+                scorer_results = _run_scorer_safe(scorer, output, expected, input_data)
+                all_scores.extend(scorer_results)
+
+            return EvaluationItem(
+                dataset_item_id=dataset_item.id,
+                input=input_data,
+                output=output,
+                expected=expected,
+                scores=all_scores,
+                trial_number=trial_number,
+            )
+
+        with ThreadPoolExecutor(max_workers=max_concurrency) as executor:
+            futures = {
+                executor.submit(process_item, item, trial): (item, trial)
+                for item, trial in work_items
+            }
+
+            for future in as_completed(futures):
+                result = future.result()
+                results.append(result)
+                completed += 1
+                if on_progress:
+                    on_progress(completed, total)
+
+        # 6. Submit items to API
+        self._submit_items(experiment.id, results)
+
+        # 7. Update experiment status
+        self._update_experiment_status(experiment.id, "completed")
+
+        # 8. Compute summary
+        summary = _compute_summary(results)
+
+        # 9. Return results
+        return EvaluationResults(
+            experiment_id=experiment.id,
+            experiment_name=name,
+            dataset_id=resolved_dataset.id,
+            summary=summary,
+            items=results,
+            url=self._get_experiment_url(experiment.id),
+        )
+
+    def get(self, experiment_id: str) -> Experiment:
+        """
+        Get an existing experiment by ID.
+
+        Args:
+            experiment_id: Experiment ID
+
+        Returns:
+            Experiment object
+
+        Raises:
+            EvaluationError: If the API request fails or experiment not found
+
+        Example:
+            >>> experiment = client.experiments.get("exp_123")
+            >>> print(experiment.status)
+        """
+        self._log(f"Getting experiment: {experiment_id}")
+
+        try:
+            raw_response = self._http.get(f"/v1/experiments/{experiment_id}")
+            data = unwrap_response(raw_response, resource_type="Experiment")
+            return Experiment.from_dict(data)
+        except ValueError as e:
+            raise EvaluationError(f"Failed to get experiment: {e}")
+        except Exception as e:
+            raise EvaluationError(f"Failed to get experiment: {e}")
+
+    def list(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[Experiment]:
+        """
+        List all experiments.
+
+        Args:
+            limit: Maximum number of experiments to return (default: 50)
+            offset: Number of experiments to skip (default: 0)
+
+        Returns:
+            List of Experiment objects
+
+        Raises:
+            EvaluationError: If the API request fails
+
+        Example:
+            >>> experiments = client.experiments.list(limit=10)
+            >>> for exp in experiments:
+            ...     print(exp.name, exp.status)
+        """
+        self._log(f"Listing experiments: limit={limit}, offset={offset}")
+
+        try:
+            raw_response = self._http.get(
+                "/v1/experiments",
+                params={"limit": limit, "offset": offset},
+            )
+            data = unwrap_response(raw_response, resource_type="Experiments")
+            experiments_data = data.get("experiments", [])
+            return [Experiment.from_dict(exp) for exp in experiments_data]
+        except ValueError as e:
+            raise EvaluationError(f"Failed to list experiments: {e}")
+        except Exception as e:
+            raise EvaluationError(f"Failed to list experiments: {e}")
+
+    def _fetch_dataset(self, dataset_id: str) -> Dataset:
+        """Fetch dataset by ID."""
+        try:
+            raw_response = self._http.get(f"/v1/datasets/{dataset_id}")
+            data = unwrap_response(raw_response, resource_type="Dataset")
+            return Dataset(
+                id=data["id"],
+                name=data["name"],
+                description=data.get("description"),
+                metadata=data.get("metadata"),
+                created_at=data["created_at"],
+                updated_at=data["updated_at"],
+                _http_client=self._http,
+                _debug=self._config.debug,
+            )
+        except Exception as e:
+            raise EvaluationError(f"Failed to fetch dataset: {e}")
+
+    def _create_experiment(
+        self,
+        name: str,
+        dataset_id: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Experiment:
+        """Create a new experiment via API."""
+        payload: Dict[str, Any] = {
+            "name": name,
+            "dataset_id": dataset_id,
+            "status": "running",
+        }
+        if metadata:
+            payload["metadata"] = metadata
+
+        try:
+            raw_response = self._http.post("/v1/experiments", json=payload)
+            data = unwrap_response(raw_response, resource_type="Experiment")
+            return Experiment.from_dict(data)
+        except Exception as e:
+            raise EvaluationError(f"Failed to create experiment: {e}")
+
+    def _submit_items(
+        self,
+        experiment_id: str,
+        items: List[EvaluationItem],
+    ) -> None:
+        """Submit evaluation items to API."""
+        if not items:
+            return
+
+        payload = {"items": [item.to_dict() for item in items]}
+
+        try:
+            self._http.post(f"/v1/experiments/{experiment_id}/items", json=payload)
+        except Exception as e:
+            raise EvaluationError(f"Failed to submit items: {e}")
+
+    def _update_experiment_status(
+        self,
+        experiment_id: str,
+        status: str,
+    ) -> None:
+        """Update experiment status via API."""
+        try:
+            self._http.patch(
+                f"/v1/experiments/{experiment_id}",
+                json={"status": status},
+            )
+        except Exception as e:
+            self._log(f"Failed to update experiment status: {e}")
+
+    def _get_experiment_url(self, experiment_id: str) -> Optional[str]:
+        """Generate dashboard URL for experiment."""
+        base_url = self._config.base_url or ""
+        if base_url.endswith("/api") or "/api" in base_url:
+            dashboard_url = base_url.replace("/api", "")
+        else:
+            dashboard_url = base_url.replace(":8080", ":3000")
+        return f"{dashboard_url}/experiments/{experiment_id}"
+
+
+class AsyncExperimentsManager(_BaseExperimentsManagerMixin):
+    """
+    Async experiments manager for AsyncBrokle.
+
+    All methods are async and return coroutines that must be awaited.
+    Uses AsyncHTTPClient (httpx.AsyncClient) internally.
+
+    Example:
+        >>> async with AsyncBrokle(api_key="bk_...") as client:
+        ...     results = await client.experiments.run(
+        ...         name="test",
+        ...         dataset=dataset,
+        ...         task=my_task,
+        ...         scorers=[ExactMatch()],
+        ...     )
+        ...     print(results.summary)
+    """
+
+    def __init__(
+        self,
+        http_client: AsyncHTTPClient,
+        config: BrokleConfig,
+    ):
+        """
+        Initialize async experiments manager.
+
+        Args:
+            http_client: Async HTTP client
+            config: Brokle configuration
+        """
+        self._http = http_client
+        self._config = config
+
+    async def run(
+        self,
+        name: str,
+        dataset: Union[AsyncDataset, str],
+        task: Union[TaskFunction, AsyncTaskFunction],
+        scorers: List[ScorerProtocol],
+        max_concurrency: int = 10,
+        trial_count: int = 1,
+        metadata: Optional[Dict[str, Any]] = None,
+        on_progress: Optional[ProgressCallback] = None,
+    ) -> EvaluationResults:
+        """
+        Run an evaluation experiment (async).
+
+        Processes dataset items through the task function, runs scorers on outputs,
+        and computes summary statistics.
+
+        Args:
+            name: Experiment name
+            dataset: AsyncDataset object or dataset ID
+            task: Function (sync or async) that takes input dict and returns output
+            scorers: List of scorer callables
+            max_concurrency: Maximum parallel executions (default: 10)
+            trial_count: Number of times to run each item (default: 1)
+            metadata: Optional experiment metadata
+            on_progress: Optional callback for progress updates
+
+        Returns:
+            EvaluationResults with summary statistics and all items
+
+        Raises:
+            EvaluationError: If experiment creation or submission fails
+        """
+        self._log(f"Starting experiment: {name}")
+
+        # 1. Resolve dataset
+        if isinstance(dataset, str):
+            self._log(f"Fetching dataset: {dataset}")
+            resolved_dataset = await self._fetch_dataset(dataset)
+        else:
+            resolved_dataset = dataset
+
+        # 2. Collect dataset items FIRST (before creating experiment)
+        items_list: List[DatasetItem] = []
+        async for item in resolved_dataset:
+            items_list.append(item)
+
+        if not items_list:
+            self._log("Dataset is empty, returning early")
+            return EvaluationResults(
+                experiment_id="",
+                experiment_name=name,
+                dataset_id=resolved_dataset.id,
+                summary={},
+                items=[],
+                url=None,
+            )
+
+        # 3. Create experiment via API (only if we have items)
+        experiment = await self._create_experiment(
+            name=name,
+            dataset_id=resolved_dataset.id,
+            metadata=metadata,
+        )
+        self._log(f"Created experiment: {experiment.id}")
+
+        # 4. Flatten items with trials
+        work_items: List[tuple[DatasetItem, int]] = []
+        for item in items_list:
+            for trial in range(1, trial_count + 1):
+                work_items.append((item, trial))
+
+        total = len(work_items)
+        completed = 0
+        results: List[EvaluationItem] = []
+        lock = asyncio.Lock()
+
+        # 5. Process items with asyncio.Semaphore
+        semaphore = asyncio.Semaphore(max_concurrency)
+
+        async def process_item(
+            dataset_item: DatasetItem, trial_number: int
+        ) -> EvaluationItem:
+            nonlocal completed
+            async with semaphore:
+                input_data = dataset_item.input
+                expected = dataset_item.expected
+
+                # Run task
+                try:
+                    output = task(input_data)
+                    if inspect.isawaitable(output):
+                        output = await output
+                except Exception as e:
+                    async with lock:
+                        completed += 1
+                        if on_progress:
+                            on_progress(completed, total)
+                    return EvaluationItem(
+                        dataset_item_id=dataset_item.id,
+                        input=input_data,
+                        output=None,
+                        expected=expected,
+                        scores=[],
+                        trial_number=trial_number,
+                        error=f"Task failed: {str(e)}",
+                    )
+
+                # Run scorers
+                all_scores: List[ScoreResult] = []
+                for scorer in scorers:
+                    scorer_results = await _run_scorer_safe_async(
+                        scorer, output, expected, input_data
+                    )
+                    all_scores.extend(scorer_results)
+
+                async with lock:
+                    completed += 1
+                    if on_progress:
+                        on_progress(completed, total)
+
+                return EvaluationItem(
+                    dataset_item_id=dataset_item.id,
+                    input=input_data,
+                    output=output,
+                    expected=expected,
+                    scores=all_scores,
+                    trial_number=trial_number,
+                )
+
+        tasks = [process_item(item, trial) for item, trial in work_items]
+        results = await asyncio.gather(*tasks)
+
+        # 6. Submit items to API
+        await self._submit_items(experiment.id, list(results))
+
+        # 7. Update experiment status
+        await self._update_experiment_status(experiment.id, "completed")
+
+        # 8. Compute summary
+        summary = _compute_summary(list(results))
+
+        # 9. Return results
+        return EvaluationResults(
+            experiment_id=experiment.id,
+            experiment_name=name,
+            dataset_id=resolved_dataset.id,
+            summary=summary,
+            items=list(results),
+            url=self._get_experiment_url(experiment.id),
+        )
+
+    async def get(self, experiment_id: str) -> Experiment:
+        """
+        Get an existing experiment by ID (async).
+
+        Args:
+            experiment_id: Experiment ID
+
+        Returns:
+            Experiment object
+
+        Raises:
+            EvaluationError: If the API request fails or experiment not found
+        """
+        self._log(f"Getting experiment: {experiment_id}")
+
+        try:
+            raw_response = await self._http.get(f"/v1/experiments/{experiment_id}")
+            data = unwrap_response(raw_response, resource_type="Experiment")
+            return Experiment.from_dict(data)
+        except ValueError as e:
+            raise EvaluationError(f"Failed to get experiment: {e}")
+        except Exception as e:
+            raise EvaluationError(f"Failed to get experiment: {e}")
+
+    async def list(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[Experiment]:
+        """
+        List all experiments (async).
+
+        Args:
+            limit: Maximum number of experiments to return (default: 50)
+            offset: Number of experiments to skip (default: 0)
+
+        Returns:
+            List of Experiment objects
+
+        Raises:
+            EvaluationError: If the API request fails
+        """
+        self._log(f"Listing experiments: limit={limit}, offset={offset}")
+
+        try:
+            raw_response = await self._http.get(
+                "/v1/experiments",
+                params={"limit": limit, "offset": offset},
+            )
+            data = unwrap_response(raw_response, resource_type="Experiments")
+            experiments_data = data.get("experiments", [])
+            return [Experiment.from_dict(exp) for exp in experiments_data]
+        except ValueError as e:
+            raise EvaluationError(f"Failed to list experiments: {e}")
+        except Exception as e:
+            raise EvaluationError(f"Failed to list experiments: {e}")
+
+    async def _fetch_dataset(self, dataset_id: str) -> AsyncDataset:
+        """Fetch dataset by ID (async)."""
+        try:
+            raw_response = await self._http.get(f"/v1/datasets/{dataset_id}")
+            data = unwrap_response(raw_response, resource_type="Dataset")
+            return AsyncDataset(
+                id=data["id"],
+                name=data["name"],
+                description=data.get("description"),
+                metadata=data.get("metadata"),
+                created_at=data["created_at"],
+                updated_at=data["updated_at"],
+                _http_client=self._http,
+                _debug=self._config.debug,
+            )
+        except Exception as e:
+            raise EvaluationError(f"Failed to fetch dataset: {e}")
+
+    async def _create_experiment(
+        self,
+        name: str,
+        dataset_id: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Experiment:
+        """Create a new experiment via API (async)."""
+        payload: Dict[str, Any] = {
+            "name": name,
+            "dataset_id": dataset_id,
+            "status": "running",
+        }
+        if metadata:
+            payload["metadata"] = metadata
+
+        try:
+            raw_response = await self._http.post("/v1/experiments", json=payload)
+            data = unwrap_response(raw_response, resource_type="Experiment")
+            return Experiment.from_dict(data)
+        except Exception as e:
+            raise EvaluationError(f"Failed to create experiment: {e}")
+
+    async def _submit_items(
+        self,
+        experiment_id: str,
+        items: List[EvaluationItem],
+    ) -> None:
+        """Submit evaluation items to API (async)."""
+        if not items:
+            return
+
+        payload = {"items": [item.to_dict() for item in items]}
+
+        try:
+            await self._http.post(f"/v1/experiments/{experiment_id}/items", json=payload)
+        except Exception as e:
+            raise EvaluationError(f"Failed to submit items: {e}")
+
+    async def _update_experiment_status(
+        self,
+        experiment_id: str,
+        status: str,
+    ) -> None:
+        """Update experiment status via API (async)."""
+        try:
+            await self._http.patch(
+                f"/v1/experiments/{experiment_id}",
+                json={"status": status},
+            )
+        except Exception as e:
+            self._log(f"Failed to update experiment status: {e}")
+
+    def _get_experiment_url(self, experiment_id: str) -> Optional[str]:
+        """Generate dashboard URL for experiment."""
+        base_url = self._config.base_url or ""
+        if base_url.endswith("/api") or "/api" in base_url:
+            dashboard_url = base_url.replace("/api", "")
+        else:
+            dashboard_url = base_url.replace(":8080", ":3000")
+        return f"{dashboard_url}/experiments/{experiment_id}"

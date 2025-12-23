@@ -38,6 +38,7 @@ from ._base_client import BaseBrokleClient
 from ._http import AsyncHTTPClient, SyncHTTPClient
 from .config import BrokleConfig
 from .datasets import AsyncDatasetsManager, DatasetsManager
+from .experiments import AsyncExperimentsManager, ExperimentsManager
 from .prompts import AsyncPromptManager, PromptManager
 from .scores import AsyncScoresManager, ScoresManager
 
@@ -150,6 +151,34 @@ class Brokle(BaseBrokleClient):
                 config=self.config,
             )
         return self._scores_manager
+
+    @property
+    def experiments(self) -> ExperimentsManager:
+        """
+        Access experiment operations.
+
+        Returns an ExperimentsManager for running evaluation experiments.
+        All methods are synchronous.
+
+        Returns:
+            ExperimentsManager instance
+
+        Example:
+            >>> from brokle.scorers import ExactMatch
+            >>> results = client.experiments.run(
+            ...     name="gpt4-test",
+            ...     dataset=dataset,
+            ...     task=my_task,
+            ...     scorers=[ExactMatch()],
+            ... )
+            >>> print(results.summary)
+        """
+        if self._experiments_manager is None:
+            self._experiments_manager = ExperimentsManager(
+                http_client=self._http,
+                config=self.config,
+            )
+        return self._experiments_manager
 
     def auth_check(self) -> bool:
         """
@@ -303,6 +332,34 @@ class AsyncBrokle(BaseBrokleClient):
                 config=self.config,
             )
         return self._scores_manager
+
+    @property
+    def experiments(self) -> AsyncExperimentsManager:
+        """
+        Access experiment operations.
+
+        Returns an AsyncExperimentsManager for running evaluation experiments.
+        All methods are async and must be awaited.
+
+        Returns:
+            AsyncExperimentsManager instance
+
+        Example:
+            >>> from brokle.scorers import ExactMatch
+            >>> results = await client.experiments.run(
+            ...     name="gpt4-test",
+            ...     dataset=dataset,
+            ...     task=my_task,
+            ...     scorers=[ExactMatch()],
+            ... )
+            >>> print(results.summary)
+        """
+        if self._experiments_manager is None:
+            self._experiments_manager = AsyncExperimentsManager(
+                http_client=self._http,
+                config=self.config,
+            )
+        return self._experiments_manager
 
     async def auth_check(self) -> bool:
         """
