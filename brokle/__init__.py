@@ -58,20 +58,32 @@ from .streaming import (
     StreamingResult,
 )
 from .utils.masking import MaskingHelper
-from .evaluations import (
-    AsyncEvaluationsManager,
-    EvaluationsManager,
-    # Evaluation types
+
+# New namespace modules (recommended)
+from .datasets import (
+    DatasetsManager,
+    AsyncDatasetsManager,
+    Dataset,
+    AsyncDataset,
+    DatasetItem,
+    DatasetItemInput,
+    DatasetData,
+    DatasetError,
+)
+from .scores import (
+    ScoresManager,
+    AsyncScoresManager,
     ScoreType,
     ScoreSource,
     ScoreResult,
     ScoreValue,
     ScorerProtocol,
-    # Evaluation exceptions
-    EvaluationError,
+    Scorer,
+    ScorerArgs,
     ScoreError,
     ScorerError,
 )
+
 from .scorers import (
     # Built-in scorers
     ExactMatch,
@@ -237,15 +249,25 @@ __all__ = [
     "Fallback",
     "TextFallback",
     "ChatFallback",
-    # Evaluations
-    "EvaluationsManager",
-    "AsyncEvaluationsManager",
+    # Datasets
+    "DatasetsManager",
+    "AsyncDatasetsManager",
+    "Dataset",
+    "AsyncDataset",
+    "DatasetItem",
+    "DatasetItemInput",
+    "DatasetData",
+    "DatasetError",
+    # Scores
+    "ScoresManager",
+    "AsyncScoresManager",
     "ScoreType",
     "ScoreSource",
     "ScoreResult",
     "ScoreValue",
     "ScorerProtocol",
-    "EvaluationError",
+    "Scorer",
+    "ScorerArgs",
     "ScoreError",
     "ScorerError",
     # Scorers

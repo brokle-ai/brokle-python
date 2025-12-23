@@ -6,7 +6,7 @@ that integrate seamlessly with the Brokle evaluation system.
 
 Usage:
     >>> from brokle.scorers import scorer
-    >>> from brokle.evaluations import ScoreResult
+    >>> from brokle.scores import ScoreResult
     >>>
     >>> # Simple scorer returning float (auto-wrapped)
     >>> @scorer
@@ -26,7 +26,7 @@ Usage:
     ...     )
     >>>
     >>> # Use with client
-    >>> client.evaluations.score(
+    >>> client.scores.submit(
     ...     trace_id="abc123",
     ...     scorer=similarity,
     ...     output="result",
@@ -37,7 +37,7 @@ Usage:
 import functools
 from typing import Any, Callable, List, TypeVar, Union, cast
 
-from ..evaluations.types import ScoreResult, ScoreType, ScoreValue, ScorerProtocol
+from ..scores.types import ScoreResult, ScoreType, ScoreValue, ScorerProtocol
 
 F = TypeVar("F", bound=Callable[..., ScoreValue])
 

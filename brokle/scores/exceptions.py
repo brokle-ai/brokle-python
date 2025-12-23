@@ -1,20 +1,11 @@
 """
-Exception classes for the evaluations module.
+Exception classes for the scores module.
 
-This module provides a hierarchy of exceptions for evaluation-related errors:
-- EvaluationError: Base exception for all evaluation errors
-- ScoreError: Error submitting a score to the API
-- ScorerError: Error executing a scorer function
+This module provides exception classes for score-related errors.
 """
 
 
-class EvaluationError(Exception):
-    """Base exception for all evaluation-related errors."""
-
-    pass
-
-
-class ScoreError(EvaluationError):
+class ScoreError(Exception):
     """
     Error submitting a score to the API.
 
@@ -28,7 +19,7 @@ class ScoreError(EvaluationError):
     pass
 
 
-class ScorerError(EvaluationError):
+class ScorerError(Exception):
     """
     Error executing a scorer function.
 

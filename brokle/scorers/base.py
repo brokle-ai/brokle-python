@@ -18,7 +18,7 @@ Usage:
     >>>
     >>> # Exact match
     >>> exact = ExactMatch(name="answer_match", case_sensitive=False)
-    >>> client.evaluations.score(
+    >>> client.scores.submit(
     ...     trace_id="abc123",
     ...     scorer=exact,
     ...     output="Paris",
@@ -27,7 +27,7 @@ Usage:
     >>>
     >>> # Contains check
     >>> contains = Contains(name="keyword_present")
-    >>> client.evaluations.score(
+    >>> client.scores.submit(
     ...     trace_id="abc123",
     ...     scorer=contains,
     ...     output="The capital of France is Paris",
@@ -39,7 +39,7 @@ import json
 import re
 from typing import Any, Optional, Union
 
-from ..evaluations.types import ScoreResult, ScoreType
+from ..scores.types import ScoreResult, ScoreType
 
 
 class ExactMatch:

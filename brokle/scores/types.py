@@ -1,7 +1,7 @@
 """
-Type definitions for the evaluations module.
+Type definitions for the scores module.
 
-This module provides the core types used for scoring and evaluation:
+This module provides the core types used for scoring:
 - ScoreType: Enum for score data types (NUMERIC, CATEGORICAL, BOOLEAN)
 - ScoreSource: Enum for score sources (code, llm, human)
 - ScoreResult: Dataclass representing a score returned by scorers
@@ -54,7 +54,7 @@ class ScoreResult:
     scoring_failed: bool = False
 
 
-ScoreValue = Union[float, int, bool, ScoreResult, List[ScoreResult]]
+ScoreValue = Union[float, int, bool, ScoreResult, List[ScoreResult], None]
 
 
 class ScorerProtocol(Protocol):
@@ -94,3 +94,8 @@ class ScorerProtocol(Protocol):
             ScoreValue: The score result (float, bool, ScoreResult, or list)
         """
         ...
+
+
+# Type aliases for API compatibility
+Scorer = ScorerProtocol
+ScorerArgs = Dict[str, Any]

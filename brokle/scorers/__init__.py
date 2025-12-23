@@ -22,7 +22,7 @@ Usage:
     >>>
     >>> # Built-in scorer
     >>> exact = ExactMatch(name="answer_match")
-    >>> client.evaluations.score(
+    >>> client.scores.submit(
     ...     trace_id="abc123",
     ...     scorer=exact,
     ...     output="Paris",
@@ -34,7 +34,7 @@ Usage:
     ... def similarity(output, expected=None, **kwargs):
     ...     return 0.85  # Auto-wrapped as ScoreResult
     >>>
-    >>> client.evaluations.score(
+    >>> client.scores.submit(
     ...     trace_id="abc123",
     ...     scorer=similarity,
     ...     output="result",
@@ -46,7 +46,7 @@ from .base import Contains, ExactMatch, JSONValid, LengthCheck, RegexMatch
 from .decorator import multi_scorer, scorer
 
 # Re-export ScoreResult for convenience in custom scorers
-from ..evaluations.types import ScoreResult, ScoreType
+from ..scores.types import ScoreResult, ScoreType
 
 __all__ = [
     # Built-in scorers

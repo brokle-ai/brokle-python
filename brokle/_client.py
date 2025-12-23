@@ -5,7 +5,7 @@ Provides both synchronous and asynchronous clients for Brokle's
 OpenTelemetry-native LLM observability platform.
 
 Core: Telemetry (traces, spans, metrics, logs)
-Features: Prompts and evaluations APIs
+Features: Prompts, datasets, and scores APIs
 
 Sync Usage:
     >>> from brokle import Brokle
@@ -37,8 +37,9 @@ from typing import Optional
 from ._base_client import BaseBrokleClient
 from ._http import AsyncHTTPClient, SyncHTTPClient
 from .config import BrokleConfig
-from .evaluations import AsyncEvaluationsManager, EvaluationsManager
+from .datasets import AsyncDatasetsManager, DatasetsManager
 from .prompts import AsyncPromptManager, PromptManager
+from .scores import AsyncScoresManager, ScoresManager
 
 
 class Brokle(BaseBrokleClient):
@@ -46,7 +47,7 @@ class Brokle(BaseBrokleClient):
     Synchronous Brokle client for OpenTelemetry-native LLM observability.
 
     Core responsibility: Telemetry (traces, spans, metrics, logs)
-    Feature APIs: Prompts and evaluations (optional, not core)
+    Feature APIs: Prompts, datasets, and scores
 
     This client provides synchronous methods for all operations.
     Uses SyncHTTPClient (httpx.Client) internally - no event loop involvement.
@@ -102,32 +103,53 @@ class Brokle(BaseBrokleClient):
         return self._prompts_manager
 
     @property
-    def evaluations(self) -> EvaluationsManager:
+    def datasets(self) -> DatasetsManager:
         """
-        Access evaluation and scoring operations.
+        Access dataset management operations.
 
-        Returns an EvaluationsManager for running evaluations and
-        submitting quality scores. All methods are synchronous.
+        Returns a DatasetsManager for creating and managing datasets.
+        All methods are synchronous.
 
         Returns:
-            EvaluationsManager instance
-
-        Note:
-            This is a stub manager. Methods will raise NotImplementedError
-            until the evaluation API is ready.
+            DatasetsManager instance
 
         Example:
-            >>> # Future functionality:
-            >>> # result = client.evaluations.run(trace_id, "accuracy")
-            >>> # score = client.evaluations.score(span_id, "relevance", 0.95)
-            >>> pass
+            >>> dataset = client.datasets.create(name="qa-pairs")
+            >>> dataset.insert([{"input": {"q": "2+2?"}, "expected": {"a": "4"}}])
+            >>> for item in dataset:
+            ...     print(item.input, item.expected)
         """
-        if self._evaluations_manager is None:
-            self._evaluations_manager = EvaluationsManager(
+        if self._datasets_manager is None:
+            self._datasets_manager = DatasetsManager(
                 http_client=self._http,
                 config=self.config,
             )
-        return self._evaluations_manager
+        return self._datasets_manager
+
+    @property
+    def scores(self) -> ScoresManager:
+        """
+        Access score submission operations.
+
+        Returns a ScoresManager for submitting quality scores.
+        All methods are synchronous.
+
+        Returns:
+            ScoresManager instance
+
+        Example:
+            >>> client.scores.submit(
+            ...     trace_id="abc123",
+            ...     name="quality",
+            ...     value=0.9,
+            ... )
+        """
+        if self._scores_manager is None:
+            self._scores_manager = ScoresManager(
+                http_client=self._http,
+                config=self.config,
+            )
+        return self._scores_manager
 
     def auth_check(self) -> bool:
         """
@@ -157,8 +179,6 @@ class Brokle(BaseBrokleClient):
             self._http_client.close()
         if self._prompts_manager:
             self._prompts_manager._shutdown()
-        if self._evaluations_manager:
-            self._evaluations_manager._shutdown()
 
         return success
 
@@ -180,7 +200,7 @@ class AsyncBrokle(BaseBrokleClient):
     Asynchronous Brokle client for OpenTelemetry-native LLM observability.
 
     Core responsibility: Telemetry (traces, spans, metrics, logs)
-    Feature APIs: Prompts and evaluations (optional, not core)
+    Feature APIs: Prompts, datasets, and scores
 
     This client provides async methods for all operations.
     Uses AsyncHTTPClient (httpx.AsyncClient) internally.
@@ -236,32 +256,53 @@ class AsyncBrokle(BaseBrokleClient):
         return self._prompts_manager
 
     @property
-    def evaluations(self) -> AsyncEvaluationsManager:
+    def datasets(self) -> AsyncDatasetsManager:
         """
-        Access evaluation and scoring operations.
+        Access dataset management operations.
 
-        Returns an AsyncEvaluationsManager for running evaluations and
-        submitting quality scores. All methods are async and must be awaited.
+        Returns an AsyncDatasetsManager for creating and managing datasets.
+        All methods are async and must be awaited.
 
         Returns:
-            AsyncEvaluationsManager instance
-
-        Note:
-            This is a stub manager. Methods will raise NotImplementedError
-            until the evaluation API is ready.
+            AsyncDatasetsManager instance
 
         Example:
-            >>> # Future functionality:
-            >>> # result = await client.evaluations.run(trace_id, "accuracy")
-            >>> # score = await client.evaluations.score(span_id, "relevance", 0.95)
-            >>> pass
+            >>> dataset = await client.datasets.create(name="qa-pairs")
+            >>> await dataset.insert([{"input": {"q": "2+2?"}, "expected": {"a": "4"}}])
+            >>> async for item in dataset:
+            ...     print(item.input, item.expected)
         """
-        if self._evaluations_manager is None:
-            self._evaluations_manager = AsyncEvaluationsManager(
+        if self._datasets_manager is None:
+            self._datasets_manager = AsyncDatasetsManager(
                 http_client=self._http,
                 config=self.config,
             )
-        return self._evaluations_manager
+        return self._datasets_manager
+
+    @property
+    def scores(self) -> AsyncScoresManager:
+        """
+        Access score submission operations.
+
+        Returns an AsyncScoresManager for submitting quality scores.
+        All methods are async and must be awaited.
+
+        Returns:
+            AsyncScoresManager instance
+
+        Example:
+            >>> await client.scores.submit(
+            ...     trace_id="abc123",
+            ...     name="quality",
+            ...     value=0.9,
+            ... )
+        """
+        if self._scores_manager is None:
+            self._scores_manager = AsyncScoresManager(
+                http_client=self._http,
+                config=self.config,
+            )
+        return self._scores_manager
 
     async def auth_check(self) -> bool:
         """
@@ -291,8 +332,6 @@ class AsyncBrokle(BaseBrokleClient):
             await self._http_client.close()
         if self._prompts_manager:
             await self._prompts_manager._shutdown()
-        if self._evaluations_manager:
-            await self._evaluations_manager._shutdown()
 
         return success
 
