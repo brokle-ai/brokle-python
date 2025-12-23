@@ -61,6 +61,27 @@ from .utils.masking import MaskingHelper
 from .evaluations import (
     AsyncEvaluationsManager,
     EvaluationsManager,
+    # Evaluation types
+    ScoreType,
+    ScoreSource,
+    ScoreResult,
+    ScoreValue,
+    ScorerProtocol,
+    # Evaluation exceptions
+    EvaluationError,
+    ScoreError,
+    ScorerError,
+)
+from .scorers import (
+    # Built-in scorers
+    ExactMatch,
+    Contains,
+    RegexMatch,
+    JSONValid,
+    LengthCheck,
+    # Decorators
+    scorer,
+    multi_scorer,
 )
 from .prompts import (
     # Manager classes
@@ -219,4 +240,20 @@ __all__ = [
     # Evaluations
     "EvaluationsManager",
     "AsyncEvaluationsManager",
+    "ScoreType",
+    "ScoreSource",
+    "ScoreResult",
+    "ScoreValue",
+    "ScorerProtocol",
+    "EvaluationError",
+    "ScoreError",
+    "ScorerError",
+    # Scorers
+    "ExactMatch",
+    "Contains",
+    "RegexMatch",
+    "JSONValid",
+    "LengthCheck",
+    "scorer",
+    "multi_scorer",
 ]
