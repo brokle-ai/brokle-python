@@ -94,6 +94,23 @@ from .experiments import (
     TaskError,
     ScorerExecutionError,
 )
+from .experiments.types import (
+    SpanExtractInput,
+    SpanExtractOutput,
+    SpanExtractExpected,
+)
+from .query import (
+    QueryManager,
+    AsyncQueryManager,
+    QueriedSpan,
+    QueryResult,
+    ValidationResult,
+    TokenUsage,
+    SpanEvent,
+    QueryError,
+    InvalidFilterError,
+    QueryAPIError,
+)
 
 from .scorers import (
     # Built-in scorers
@@ -299,4 +316,19 @@ __all__ = [
     "EvaluationError",
     "TaskError",
     "ScorerExecutionError",
+    # Query (THE WEDGE)
+    "QueryManager",
+    "AsyncQueryManager",
+    "QueriedSpan",
+    "QueryResult",
+    "ValidationResult",
+    "TokenUsage",
+    "SpanEvent",
+    "QueryError",
+    "InvalidFilterError",
+    "QueryAPIError",
+    # Span Extract Types (for span-based evaluation)
+    "SpanExtractInput",
+    "SpanExtractOutput",
+    "SpanExtractExpected",
 ]

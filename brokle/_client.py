@@ -40,6 +40,7 @@ from .config import BrokleConfig
 from .datasets import AsyncDatasetsManager, DatasetsManager
 from .experiments import AsyncExperimentsManager, ExperimentsManager
 from .prompts import AsyncPromptManager, PromptManager
+from .query import AsyncQueryManager, QueryManager
 from .scores import AsyncScoresManager, ScoresManager
 
 
@@ -179,6 +180,44 @@ class Brokle(BaseBrokleClient):
                 config=self.config,
             )
         return self._experiments_manager
+
+    @property
+    def query(self) -> QueryManager:
+        """
+        Access query operations for production spans (THE WEDGE).
+
+        Returns a QueryManager for querying production spans and
+        running retrospective evaluations without re-instrumenting applications.
+        All methods are synchronous.
+
+        Returns:
+            QueryManager instance
+
+        Example:
+            >>> from datetime import datetime, timedelta
+            >>>
+            >>> # Query production spans
+            >>> result = client.query.query(
+            ...     filter="service.name=chatbot AND gen_ai.system=openai",
+            ...     start_time=datetime.now() - timedelta(days=7),
+            ... )
+            >>>
+            >>> # Evaluate queried spans
+            >>> from brokle.scorers import ExactMatch
+            >>> eval_result = client.experiments.run(
+            ...     name="retrospective-analysis",
+            ...     spans=result.spans,
+            ...     scorers=[ExactMatch()],
+            ...     extract_input=lambda s: {"prompt": s.input},
+            ...     extract_output=lambda s: s.output,
+            ... )
+        """
+        if self._query_manager is None:
+            self._query_manager = QueryManager(
+                http_client=self._http,
+                config=self.config,
+            )
+        return self._query_manager
 
     def auth_check(self) -> bool:
         """
@@ -360,6 +399,44 @@ class AsyncBrokle(BaseBrokleClient):
                 config=self.config,
             )
         return self._experiments_manager
+
+    @property
+    def query(self) -> AsyncQueryManager:
+        """
+        Access query operations for production spans (THE WEDGE).
+
+        Returns an AsyncQueryManager for querying production spans and
+        running retrospective evaluations without re-instrumenting applications.
+        All methods are async and must be awaited.
+
+        Returns:
+            AsyncQueryManager instance
+
+        Example:
+            >>> from datetime import datetime, timedelta
+            >>>
+            >>> # Query production spans
+            >>> result = await client.query.query(
+            ...     filter="service.name=chatbot AND gen_ai.system=openai",
+            ...     start_time=datetime.now() - timedelta(days=7),
+            ... )
+            >>>
+            >>> # Evaluate queried spans
+            >>> from brokle.scorers import ExactMatch
+            >>> eval_result = await client.experiments.run(
+            ...     name="retrospective-analysis",
+            ...     spans=result.spans,
+            ...     scorers=[ExactMatch()],
+            ...     extract_input=lambda s: {"prompt": s.input},
+            ...     extract_output=lambda s: s.output,
+            ... )
+        """
+        if self._query_manager is None:
+            self._query_manager = AsyncQueryManager(
+                http_client=self._http,
+                config=self.config,
+            )
+        return self._query_manager
 
     async def auth_check(self) -> bool:
         """

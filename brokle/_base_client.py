@@ -106,6 +106,7 @@ class BaseBrokleClient:
         self._datasets_manager = None
         self._scores_manager = None
         self._experiments_manager = None
+        self._query_manager = None
 
         self._meter_provider: Optional[BrokleMeterProvider] = None
         self._metrics: Optional[GenAIMetrics] = None

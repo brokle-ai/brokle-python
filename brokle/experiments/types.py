@@ -6,12 +6,20 @@ Provides types for running evaluation experiments:
 - EvaluationItem: Single evaluation item result
 - SummaryStats: Per-scorer summary statistics
 - EvaluationResults: Complete evaluation results from run()
+
+Span-based evaluation (THE WEDGE):
+- SpanExtractInput: Function to extract input from a queried span
+- SpanExtractOutput: Function to extract output from a queried span
+- SpanExtractExpected: Function to extract expected output from a queried span
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Coroutine, Dict, List, Optional, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, List, Optional, TypedDict
 
 from ..scores.types import ScoreResult
+
+if TYPE_CHECKING:
+    from ..query.types import QueriedSpan
 
 
 @dataclass
@@ -56,30 +64,32 @@ class EvaluationItem:
     """
     Single evaluation item result.
 
-    Represents the result of running a task and scorers on one dataset item.
+    Represents the result of running a task and scorers on one item.
+    Can be from a dataset (dataset_item_id set) or from spans (span_id set).
 
     Attributes:
-        dataset_item_id: ID of the source dataset item
         input: Input data passed to the task
         output: Output returned by the task
         expected: Expected output from the dataset (optional)
         scores: List of score results from all scorers
         trial_number: Trial number (1-based, for multi-trial experiments)
         error: Error message if task failed (optional)
+        dataset_item_id: ID of the source dataset item (for dataset-based)
+        span_id: ID of the source span (for span-based - THE WEDGE)
     """
 
-    dataset_item_id: str
     input: Dict[str, Any]
     output: Any
     scores: List[ScoreResult] = field(default_factory=list)
     expected: Optional[Any] = None
     trial_number: int = 1
     error: Optional[str] = None
+    dataset_item_id: Optional[str] = None  # For dataset-based evaluation
+    span_id: Optional[str] = None  # For span-based evaluation (THE WEDGE)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dict for API submission."""
         result: Dict[str, Any] = {
-            "dataset_item_id": self.dataset_item_id,
             "input": self.input,
             "output": self.output,
             "trial_number": self.trial_number,
@@ -96,6 +106,10 @@ class EvaluationItem:
                 for s in self.scores
             ],
         }
+        if self.dataset_item_id is not None:
+            result["dataset_item_id"] = self.dataset_item_id
+        if self.span_id is not None:
+            result["span_id"] = self.span_id
         if self.expected is not None:
             result["expected"] = self.expected
         if self.error is not None:
@@ -133,26 +147,29 @@ class EvaluationResults:
     Complete evaluation results from run().
 
     Contains all evaluation items, summary statistics, and experiment metadata.
+    Can be from a dataset-based or span-based (THE WEDGE) evaluation.
 
     Attributes:
         experiment_id: ID of the created experiment
         experiment_name: Name of the experiment
-        dataset_id: ID of the dataset used
-        url: Dashboard URL to view the experiment (optional)
         summary: Per-scorer summary statistics
         items: List of all evaluation item results
+        url: Dashboard URL to view the experiment (optional)
+        dataset_id: ID of the dataset used (for dataset-based)
+        source: Source type ('dataset' or 'spans')
     """
 
     experiment_id: str
     experiment_name: str
-    dataset_id: str
     summary: Dict[str, SummaryStats]
     items: List[EvaluationItem]
     url: Optional[str] = None
+    dataset_id: Optional[str] = None  # For dataset-based evaluation
+    source: str = "dataset"  # 'dataset' or 'spans'
 
     def __repr__(self) -> str:
         """String representation."""
-        return f"EvaluationResults(experiment='{self.experiment_name}', items={len(self.items)})"
+        return f"EvaluationResults(experiment='{self.experiment_name}', items={len(self.items)}, source='{self.source}')"
 
     def __len__(self) -> int:
         """Return number of evaluation items."""
@@ -168,3 +185,15 @@ AsyncTaskFunction = Callable[[Dict[str, Any]], Coroutine[Any, Any, Any]]
 
 ProgressCallback = Callable[[int, int], None]
 """Progress callback: (completed, total) -> None"""
+
+
+# Type aliases for span extraction functions (THE WEDGE)
+# These are used with span-based evaluation to extract data from queried spans
+SpanExtractInput = Callable[["QueriedSpan"], Dict[str, Any]]
+"""Extract input from a queried span: (span) -> input_dict"""
+
+SpanExtractOutput = Callable[["QueriedSpan"], Any]
+"""Extract output from a queried span: (span) -> output"""
+
+SpanExtractExpected = Callable[["QueriedSpan"], Any]
+"""Extract expected output from a queried span: (span) -> expected"""
