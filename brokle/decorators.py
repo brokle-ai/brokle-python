@@ -74,6 +74,10 @@ def observe(
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
             client = get_client()
+            # Pass-through if SDK disabled
+            if not client.config.enabled:
+                return func(*args, **kwargs)
+
             span_name = name or func.__name__
 
             attrs = {
@@ -149,6 +153,10 @@ def observe(
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
             client = get_client()
+            # Pass-through if SDK disabled
+            if not client.config.enabled:
+                return await func(*args, **kwargs)
+
             span_name = name or func.__name__
 
             attrs = {

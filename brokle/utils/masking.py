@@ -285,7 +285,7 @@ class MaskingHelper:
         replacement: str,
         flags: int = 0,
     ) -> Callable[[Any], Any]:
-        """
+        r"""
         Create a custom regex-based masking function.
 
         Args:

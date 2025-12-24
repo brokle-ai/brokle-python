@@ -57,6 +57,11 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
         ... )
         >>> brokle.flush()
     """
+    # Return unwrapped if SDK disabled
+    brokle_client = get_client()
+    if not brokle_client.config.enabled:
+        return client
+
     original_chat_create = client.chat.completions.create
 
     def wrapped_chat_create(*args, **kwargs):
