@@ -46,6 +46,7 @@ class BaseBrokleClient:
         base_url: str = "http://localhost:8080",
         environment: str = "default",
         debug: bool = False,
+        enabled: bool = True,
         tracing_enabled: bool = True,
         metrics_enabled: bool = True,
         release: Optional[str] = None,
@@ -66,6 +67,7 @@ class BaseBrokleClient:
             base_url: Brokle API base URL
             environment: Environment tag (e.g., 'production', 'staging')
             debug: Enable debug logging
+            enabled: Master switch to completely disable SDK (if False, no resources created)
             tracing_enabled: Enable/disable tracing (if False, all calls are no-ops)
             metrics_enabled: Enable/disable metrics collection (if False, no metrics recorded)
             release: Release identifier for deployment tracking (e.g., 'v2.1.24', 'abc123')
@@ -89,6 +91,7 @@ class BaseBrokleClient:
                 base_url=base_url,
                 environment=environment,
                 debug=debug,
+                enabled=enabled,
                 tracing_enabled=tracing_enabled,
                 metrics_enabled=metrics_enabled,
                 release=release,
@@ -104,6 +107,17 @@ class BaseBrokleClient:
         self._prompt_config = PromptConfig()
         self._prompts_manager = None
         self._evaluations_manager = None
+
+        # Master switch: if disabled, create no-op client (skip all OTEL init)
+        if not self.config.enabled:
+            self._meter_provider = None
+            self._metrics = None
+            self._logger_provider = None
+            self._tracer = trace.get_tracer(__name__)  # Global no-op tracer
+            self._provider = None
+            self._processor = None
+            # No atexit registration - nothing to cleanup
+            return
 
         self._meter_provider: Optional[BrokleMeterProvider] = None
         self._metrics: Optional[GenAIMetrics] = None
