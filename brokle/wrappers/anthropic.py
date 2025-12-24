@@ -52,6 +52,11 @@ def wrap_anthropic(client: "anthropic.Anthropic") -> "anthropic.Anthropic":
         ... )
         >>> brokle.flush()
     """
+    # Return unwrapped if SDK disabled
+    brokle_client = get_client()
+    if not brokle_client.config.enabled:
+        return client
+
     original_messages_create = client.messages.create
 
     def wrapped_messages_create(*args, **kwargs):

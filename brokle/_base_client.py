@@ -105,6 +105,17 @@ class BaseBrokleClient:
         self._prompts_manager = None
         self._evaluations_manager = None
 
+        # Master switch: if disabled, create no-op client (skip all OTEL init)
+        if not self.config.enabled:
+            self._meter_provider = None
+            self._metrics = None
+            self._logger_provider = None
+            self._tracer = trace.get_tracer(__name__)  # Global no-op tracer
+            self._provider = None
+            self._processor = None
+            # No atexit registration - nothing to cleanup
+            return
+
         self._meter_provider: Optional[BrokleMeterProvider] = None
         self._metrics: Optional[GenAIMetrics] = None
         self._logger_provider: Optional[BrokleLoggerProvider] = None

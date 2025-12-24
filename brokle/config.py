@@ -41,6 +41,10 @@ class BrokleConfig:
     version: Optional[str] = None
     """Trace-level version for A/B testing experiments (e.g., 'experiment-A', 'control')"""
 
+    # ========== Master Switch ==========
+    enabled: bool = True
+    """Master switch: if False, SDK is completely disabled (no resources, no-op everything)"""
+
     # ========== Tracing Control ==========
     tracing_enabled: bool = True
     """Enable/disable tracing (if False, all calls become no-ops)"""
@@ -127,6 +131,10 @@ class BrokleConfig:
         Raises:
             ValueError: If configuration is invalid
         """
+        # Skip all validation if disabled
+        if not self.enabled:
+            return
+
         # Validate API key
         if not self.api_key:
             raise ValueError("api_key is required")
@@ -195,7 +203,8 @@ class BrokleConfig:
         Create configuration from environment variables.
 
         Environment variables:
-            BROKLE_API_KEY - API key (required)
+            BROKLE_ENABLED - Master switch (default: true). Set to false to disable SDK completely.
+            BROKLE_API_KEY - API key (required when enabled)
             BROKLE_BASE_URL - Base URL (default: http://localhost:8080)
             BROKLE_ENVIRONMENT - Environment tag (default: "default")
             BROKLE_RELEASE - Release identifier for deployment tracking
@@ -223,13 +232,22 @@ class BrokleConfig:
         Raises:
             ValueError: If required environment variables are missing or invalid
         """
-        # Required
+        # Master switch - check FIRST (before API key)
+        enabled = cls._parse_bool(
+            overrides.get("enabled"),
+            os.getenv("BROKLE_ENABLED", "true"),
+        )
+
         api_key = overrides.get("api_key") or os.getenv("BROKLE_API_KEY")
         if not api_key:
-            raise ValueError(
-                "BROKLE_API_KEY environment variable is required. "
-                "Get your API key from https://app.brokle.ai/settings/api-keys"
-            )
+            if enabled:
+                raise ValueError(
+                    "BROKLE_API_KEY environment variable is required. "
+                    "Get your API key from https://app.brokle.ai/settings/api-keys"
+                )
+            else:
+                # Placeholder when disabled (will pass validation since enabled=False)
+                api_key = "bk_disabled_placeholder"
 
         # Connection
         base_url = overrides.get("base_url") or os.getenv(
@@ -305,6 +323,7 @@ class BrokleConfig:
         mask = overrides.get("mask")
 
         return cls(
+            enabled=enabled,
             api_key=api_key,
             base_url=base_url,
             timeout=timeout,

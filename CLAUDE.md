@@ -176,7 +176,10 @@ python test_integration.py --api-key "bk_your_key_here"
 
 ### Environment Variables
 ```bash
-# Required
+# Master Switch
+BROKLE_ENABLED=true                            # Master switch (default: true). Set to false to completely disable SDK.
+
+# Required (when enabled)
 BROKLE_API_KEY="bk_your_secret"
 
 # Optional Configuration
