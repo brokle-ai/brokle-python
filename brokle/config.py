@@ -395,6 +395,7 @@ class BrokleConfig:
             f"api_key='{masked_key}', "
             f"base_url='{self.base_url}', "
             f"environment='{self.environment}', "
+            f"enabled={self.enabled}, "
             f"tracing_enabled={self.tracing_enabled}, "
             f"metrics_enabled={self.metrics_enabled}, "
             f"logs_enabled={self.logs_enabled}, "
