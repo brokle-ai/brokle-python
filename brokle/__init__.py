@@ -119,6 +119,8 @@ from .scorers import (
     RegexMatch,
     JSONValid,
     LengthCheck,
+    # LLM-as-Judge scorers
+    LLMScorer,
     # Decorators
     scorer,
     multi_scorer,
@@ -304,6 +306,7 @@ __all__ = [
     "RegexMatch",
     "JSONValid",
     "LengthCheck",
+    "LLMScorer",
     "scorer",
     "multi_scorer",
     # Experiments
