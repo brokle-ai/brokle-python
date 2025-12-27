@@ -15,6 +15,21 @@ class PromptType(str, Enum):
     CHAT = "chat"
 
 
+class TemplateDialect(str, Enum):
+    """
+    Template dialect for rendering.
+
+    - SIMPLE: Basic {{variable}} substitution only
+    - MUSTACHE: Full Mustache support with sections, loops, partials
+    - JINJA2: Jinja2 with filters, conditionals, loops
+    - AUTO: Auto-detect dialect from template syntax
+    """
+    SIMPLE = "simple"
+    MUSTACHE = "mustache"
+    JINJA2 = "jinja2"
+    AUTO = "auto"
+
+
 class MessageRole(str, Enum):
     """Message role in a chat template."""
     SYSTEM = "system"
@@ -68,6 +83,7 @@ class PromptVersion:
     commit_message: str
     created_by: str
     created_at: str
+    dialect: Optional[TemplateDialect] = None
 
 
 @dataclass
@@ -89,10 +105,13 @@ class PromptData:
     created_by: str
     created_at: str
     updated_at: str
+    dialect: Optional[TemplateDialect] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "PromptData":
         """Create from API response dictionary."""
+        dialect_val = data.get("dialect")
+        dialect = TemplateDialect(dialect_val) if dialect_val else None
         return cls(
             id=data["id"],
             project_id=data["project_id"],
@@ -110,6 +129,7 @@ class PromptData:
             created_by=data.get("created_by", ""),
             created_at=data["created_at"],
             updated_at=data["updated_at"],
+            dialect=dialect,
         )
 
 
@@ -269,4 +289,38 @@ class AnthropicRequest:
     system: Optional[str] = None
 
 
-Variables = Dict[str, Union[str, int, float, bool]]
+# VariableValue can be primitives, lists, or nested dicts
+# This enables Mustache sections ({{#items}}...{{/items}}) and history injection
+VariableValue = Union[
+    str,
+    int,
+    float,
+    bool,
+    None,
+    List[Any],  # For arrays (history injection, Mustache loops)
+    Dict[str, Any],  # For nested access ({{user.name}})
+]
+
+Variables = Dict[str, VariableValue]
+"""
+Variables object for template compilation.
+
+Supports:
+- Primitives: str, int, float, bool
+- Arrays: for Mustache sections ({{#items}}...{{/items}}) or history injection
+- Dicts: for nested access ({{user.name}})
+
+Example:
+    variables: Variables = {
+        "name": "Alice",
+        "count": 42,
+        "premium": True,
+        # Array for Mustache loop or history injection
+        "history": [
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi there!"}
+        ],
+        # Nested dict
+        "user": {"name": "Alice", "email": "alice@example.com"}
+    }
+"""
