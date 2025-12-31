@@ -37,10 +37,13 @@ from .compiler import (
     is_chat_template,
     get_compiled_content,
     get_compiled_messages,
+    detect_dialect,
+    detect_template_dialect,
 )
 
 from .types import (
     PromptType,
+    TemplateDialect,
     MessageRole,
     ChatMessage,
     TextTemplate,
@@ -61,6 +64,7 @@ from .types import (
     AnthropicMessage,
     AnthropicRequest,
     Variables,
+    VariableValue,
     Fallback,
     TextFallback,
     ChatFallback,
@@ -74,10 +78,12 @@ __all__ = [
     "Prompt",
     "PromptCache",
     "CacheOptions",
+    # Exceptions
     "PromptError",
     "PromptNotFoundError",
     "PromptCompileError",
     "PromptFetchError",
+    # Compiler functions
     "extract_variables",
     "compile_template",
     "compile_text_template",
@@ -87,7 +93,11 @@ __all__ = [
     "is_chat_template",
     "get_compiled_content",
     "get_compiled_messages",
+    "detect_dialect",
+    "detect_template_dialect",
+    # Types
     "PromptType",
+    "TemplateDialect",
     "MessageRole",
     "ChatMessage",
     "TextTemplate",
@@ -108,6 +118,7 @@ __all__ = [
     "AnthropicMessage",
     "AnthropicRequest",
     "Variables",
+    "VariableValue",
     "Fallback",
     "TextFallback",
     "ChatFallback",
