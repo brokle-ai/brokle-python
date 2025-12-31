@@ -29,7 +29,35 @@ from ._client import (
     reset_client,
 )
 from .config import BrokleConfig
+
+# New namespace modules (recommended)
+from .datasets import (
+    AsyncDataset,
+    AsyncDatasetsManager,
+    Dataset,
+    DatasetData,
+    DatasetError,
+    DatasetItem,
+    DatasetItemInput,
+    DatasetsManager,
+)
 from .decorators import observe
+from .experiments import (
+    AsyncExperimentsManager,
+    EvaluationError,
+    EvaluationItem,
+    EvaluationResults,
+    Experiment,
+    ExperimentsManager,
+    ScorerExecutionError,
+    SummaryStats,
+    TaskError,
+)
+from .experiments.types import (
+    SpanExtractExpected,
+    SpanExtractInput,
+    SpanExtractOutput,
+)
 from .metrics import (
     DURATION_BOUNDARIES,
     TOKEN_BOUNDARIES,
@@ -37,11 +65,6 @@ from .metrics import (
     GenAIMetrics,
     MetricNames,
     create_genai_metrics,
-)
-from .transport import (
-    TransportType,
-    create_metric_exporter,
-    create_trace_exporter,
 )
 from .observations import (
     BrokleAgent,
@@ -52,128 +75,94 @@ from .observations import (
     BrokleTool,
     ObservationType,
 )
+from .prompts import (  # Manager classes; Core classes; Exceptions; Compiler utilities; Types
+    AnthropicMessage,
+    AnthropicRequest,
+    AsyncPromptManager,
+    CacheEntry,
+    CacheOptions,
+    ChatFallback,
+    ChatMessage,
+    ChatTemplate,
+    Fallback,
+    GetPromptOptions,
+    ListPromptsOptions,
+    MessageRole,
+    ModelConfig,
+    OpenAIMessage,
+    PaginatedResponse,
+    Pagination,
+    Prompt,
+    PromptCache,
+    PromptCompileError,
+    PromptConfig,
+    PromptData,
+    PromptError,
+    PromptFetchError,
+    PromptManager,
+    PromptNotFoundError,
+    PromptType,
+    PromptVersion,
+    Template,
+    TextFallback,
+    TextTemplate,
+    UpsertPromptRequest,
+    Variables,
+    compile_chat_template,
+    compile_template,
+    compile_text_template,
+    extract_variables,
+    get_compiled_content,
+    get_compiled_messages,
+    is_chat_template,
+    is_text_template,
+    validate_variables,
+)
+from .query import (
+    AsyncQueryManager,
+    InvalidFilterError,
+    QueriedSpan,
+    QueryAPIError,
+    QueryError,
+    QueryManager,
+    QueryResult,
+    SpanEvent,
+    TokenUsage,
+    ValidationResult,
+)
+from .scorers import (  # Built-in scorers; LLM-as-Judge scorers; Decorators
+    Contains,
+    ExactMatch,
+    JSONValid,
+    LengthCheck,
+    LLMScorer,
+    RegexMatch,
+    multi_scorer,
+    scorer,
+)
+from .scores import (
+    AsyncScoresManager,
+    ScoreError,
+    Scorer,
+    ScorerArgs,
+    ScorerError,
+    ScoreResult,
+    ScorerProtocol,
+    ScoresManager,
+    ScoreSource,
+    ScoreType,
+    ScoreValue,
+)
 from .streaming import (
     StreamingAccumulator,
     StreamingMetrics,
     StreamingResult,
 )
-from .utils.masking import MaskingHelper
-
-# New namespace modules (recommended)
-from .datasets import (
-    DatasetsManager,
-    AsyncDatasetsManager,
-    Dataset,
-    AsyncDataset,
-    DatasetItem,
-    DatasetItemInput,
-    DatasetData,
-    DatasetError,
+from .transport import (
+    TransportType,
+    create_metric_exporter,
+    create_trace_exporter,
 )
-from .scores import (
-    ScoresManager,
-    AsyncScoresManager,
-    ScoreType,
-    ScoreSource,
-    ScoreResult,
-    ScoreValue,
-    ScorerProtocol,
-    Scorer,
-    ScorerArgs,
-    ScoreError,
-    ScorerError,
-)
-from .experiments import (
-    ExperimentsManager,
-    AsyncExperimentsManager,
-    EvaluationResults,
-    EvaluationItem,
-    SummaryStats,
-    Experiment,
-    EvaluationError,
-    TaskError,
-    ScorerExecutionError,
-)
-from .experiments.types import (
-    SpanExtractInput,
-    SpanExtractOutput,
-    SpanExtractExpected,
-)
-from .query import (
-    QueryManager,
-    AsyncQueryManager,
-    QueriedSpan,
-    QueryResult,
-    ValidationResult,
-    TokenUsage,
-    SpanEvent,
-    QueryError,
-    InvalidFilterError,
-    QueryAPIError,
-)
-
-from .scorers import (
-    # Built-in scorers
-    ExactMatch,
-    Contains,
-    RegexMatch,
-    JSONValid,
-    LengthCheck,
-    # LLM-as-Judge scorers
-    LLMScorer,
-    # Decorators
-    scorer,
-    multi_scorer,
-)
-from .prompts import (
-    # Manager classes
-    AsyncPromptManager,
-    PromptManager,
-    # Core classes
-    Prompt,
-    PromptCache,
-    CacheOptions,
-    # Exceptions
-    PromptError,
-    PromptNotFoundError,
-    PromptCompileError,
-    PromptFetchError,
-    # Compiler utilities
-    extract_variables,
-    compile_template,
-    compile_text_template,
-    compile_chat_template,
-    validate_variables,
-    is_text_template,
-    is_chat_template,
-    get_compiled_content,
-    get_compiled_messages,
-    # Types
-    PromptType,
-    MessageRole,
-    ChatMessage,
-    TextTemplate,
-    ChatTemplate,
-    Template,
-    ModelConfig,
-    PromptConfig,
-    PromptVersion,
-    PromptData,
-    GetPromptOptions,
-    ListPromptsOptions,
-    Pagination,
-    PaginatedResponse,
-    UpsertPromptRequest,
-    CacheEntry,
-    OpenAIMessage,
-    AnthropicMessage,
-    AnthropicRequest,
-    Variables,
-    Fallback,
-    TextFallback,
-    ChatFallback,
-)
-
 from .types import (
     Attrs,
     BrokleOtelSpanAttributes,
@@ -184,6 +173,7 @@ from .types import (
     SpanLevel,
     SpanType,
 )
+from .utils.masking import MaskingHelper
 from .version import __version__, __version_info__
 
 # Wrappers are imported separately to avoid requiring provider SDKs

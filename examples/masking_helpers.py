@@ -12,6 +12,7 @@ Key concepts:
 """
 
 import json
+
 from brokle import Brokle
 from brokle.utils.masking import MaskingHelper
 
@@ -23,7 +24,7 @@ def example_1_all_pii():
 
     client = Brokle(
         api_key="bk_your_api_key",
-        mask=MaskingHelper.mask_pii  # Masks emails, phones, SSN, cards, API keys
+        mask=MaskingHelper.mask_pii,  # Masks emails, phones, SSN, cards, API keys
     )
 
     with client.start_as_current_span(
@@ -34,7 +35,7 @@ def example_1_all_pii():
         SSN: 123-45-6789
         Card: 1234-5678-9012-3456
         API Key: sk_test_1234567890abcdefghij1234567890
-        """
+        """,
     ) as span:
         pass  # Input already set at initialization
 
@@ -49,14 +50,10 @@ def example_2_specific_pii():
     print("-" * 50)
 
     # Email masking only
-    client_emails = Brokle(
-        api_key="bk_your_api_key",
-        mask=MaskingHelper.mask_emails
-    )
+    client_emails = Brokle(api_key="bk_your_api_key", mask=MaskingHelper.mask_emails)
 
     with client_emails.start_as_current_span(
-        "email-only",
-        input="Contact john@example.com or call 555-123-4567"
+        "email-only", input="Contact john@example.com or call 555-123-4567"
     ) as span:
         # Result: "Contact [EMAIL] or call 555-123-4567"
         pass
@@ -64,14 +61,10 @@ def example_2_specific_pii():
     print("✓ Email-only masking applied")
 
     # Phone masking only
-    client_phones = Brokle(
-        api_key="bk_your_api_key",
-        mask=MaskingHelper.mask_phones
-    )
+    client_phones = Brokle(api_key="bk_your_api_key", mask=MaskingHelper.mask_phones)
 
     with client_phones.start_as_current_span(
-        "phone-only",
-        input="Email: admin@company.com, Phone: 555-987-6543"
+        "phone-only", input="Email: admin@company.com, Phone: 555-987-6543"
     ) as span:
         # Result: "Email: admin@company.com, Phone: [PHONE]"
         pass
@@ -91,7 +84,7 @@ def example_3_field_based():
     # Mask by field name
     client = Brokle(
         api_key="bk_your_api_key",
-        mask=MaskingHelper.field_mask(['password', 'ssn', 'api_key', 'secret_token'])
+        mask=MaskingHelper.field_mask(["password", "ssn", "api_key", "secret_token"]),
     )
 
     with client.start_as_current_span("process-credentials") as span:
@@ -100,7 +93,7 @@ def example_3_field_based():
             "password": "super_secret_123",  # Masked
             "email": "john@example.com",  # Not masked (use mask_emails for this)
             "api_key": "sk_1234567890",  # Masked
-            "created_at": "2024-01-01"  # Not masked
+            "created_at": "2024-01-01",  # Not masked
         }
 
         span.set_attribute("metadata", json.dumps(credentials))
@@ -119,7 +112,7 @@ def example_4_combined():
     combined_mask = MaskingHelper.combine_masks(
         MaskingHelper.mask_emails,  # Mask all emails
         MaskingHelper.mask_phones,  # Mask all phones
-        MaskingHelper.field_mask(['password', 'secret'])  # Mask specific fields
+        MaskingHelper.field_mask(["password", "secret"]),  # Mask specific fields
     )
 
     client = Brokle(api_key="bk_your_api_key", mask=combined_mask)
@@ -128,7 +121,7 @@ def example_4_combined():
         data = {
             "contact": "john@example.com or 555-123-4567",  # Email & phone masked
             "password": "my_secret",  # Field masked
-            "public_info": "Not sensitive"  # Not masked
+            "public_info": "Not sensitive",  # Not masked
         }
 
         span.set_attribute("metadata", json.dumps(data))
@@ -145,15 +138,13 @@ def example_5_custom_pattern():
 
     # Mask IPv4 addresses
     mask_ip = MaskingHelper.custom_pattern_mask(
-        r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
-        '[IP_ADDRESS]'
+        r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", "[IP_ADDRESS]"
     )
 
     client = Brokle(api_key="bk_your_api_key", mask=mask_ip)
 
     with client.start_as_current_span(
-        "server-logs",
-        input="Request from 192.168.1.1 to server 10.0.0.5"
+        "server-logs", input="Request from 192.168.1.1 to server 10.0.0.5"
     ) as span:
         # Result: "Request from [IP_ADDRESS] to server [IP_ADDRESS]"
         pass
@@ -171,7 +162,7 @@ def example_6_real_world():
     # Combine all necessary PII protection
     mask = MaskingHelper.combine_masks(
         MaskingHelper.mask_pii,  # All common PII
-        MaskingHelper.field_mask(['api_key', 'secret', 'token'])  # Sensitive fields
+        MaskingHelper.field_mask(["api_key", "secret", "token"]),  # Sensitive fields
     )
 
     client = Brokle(api_key="bk_your_api_key", mask=mask)
@@ -181,20 +172,24 @@ def example_6_real_world():
         name="customer-support-response",
         model="gpt-4",
         provider="openai",
-        input_messages=[{
-            "role": "user",
-            "content": "User email: support@customer.com wants help with account 123-45-6789"
-        }]
+        input_messages=[
+            {
+                "role": "user",
+                "content": "User email: support@customer.com wants help with account 123-45-6789",
+            }
+        ],
     ) as generation:
         # Simulated LLM response
-        output_messages = [{
-            "role": "assistant",
-            "content": "I'll help you with that. Please verify at support@customer.com"
-        }]
+        output_messages = [
+            {
+                "role": "assistant",
+                "content": "I'll help you with that. Please verify at support@customer.com",
+            }
+        ]
 
         generation.update(
             output_messages=output_messages,
-            usage={"input_tokens": 25, "output_tokens": 15}
+            usage={"input_tokens": 25, "output_tokens": 15},
         )
 
     print("✓ LLM generation with full PII protection")

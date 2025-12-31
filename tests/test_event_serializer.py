@@ -20,7 +20,6 @@ Tests cover:
 """
 
 import json
-import math
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from enum import Enum
@@ -36,7 +35,6 @@ from brokle.utils.serializer import (
     serialize_function_args,
     serialize_value,
 )
-
 
 # ============== Primitive Types ==============
 
@@ -270,8 +268,9 @@ def test_serialize_value_pydantic_model():
 def test_serialize_value_pydantic_model_nested():
     """Test serialization of nested Pydantic model."""
     try:
-        from pydantic import BaseModel
         from typing import List
+
+        from pydantic import BaseModel
 
         class Address(BaseModel):
             city: str

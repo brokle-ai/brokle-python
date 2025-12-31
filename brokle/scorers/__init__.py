@@ -54,12 +54,11 @@ Usage:
     ... )
 """
 
+# Re-export ScoreResult for convenience in custom scorers
+from ..scores.types import ScoreResult, ScoreType
 from .base import Contains, ExactMatch, JSONValid, LengthCheck, RegexMatch
 from .decorator import multi_scorer, scorer
 from .llm_scorer import LLMScorer
-
-# Re-export ScoreResult for convenience in custom scorers
-from ..scores.types import ScoreResult, ScoreType
 
 __all__ = [
     # Built-in scorers

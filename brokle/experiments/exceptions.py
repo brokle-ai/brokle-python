@@ -7,6 +7,8 @@ This module provides exception classes for experiment-related errors:
 - ScorerExecutionError: Scorer execution failed
 """
 
+from typing import Optional
+
 
 class EvaluationError(Exception):
     """
@@ -37,8 +39,8 @@ class TaskError(EvaluationError):
     def __init__(
         self,
         message: str,
-        dataset_item_id: str | None = None,
-        original_error: Exception | None = None,
+        dataset_item_id: Optional[str] = None,
+        original_error: Optional[Exception] = None,
     ):
         super().__init__(message)
         self.dataset_item_id = dataset_item_id
@@ -61,9 +63,9 @@ class ScorerExecutionError(EvaluationError):
     def __init__(
         self,
         message: str,
-        scorer_name: str | None = None,
-        dataset_item_id: str | None = None,
-        original_error: Exception | None = None,
+        scorer_name: Optional[str] = None,
+        dataset_item_id: Optional[str] = None,
+        original_error: Optional[Exception] = None,
     ):
         super().__init__(message)
         self.scorer_name = scorer_name

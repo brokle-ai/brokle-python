@@ -4,11 +4,9 @@ Clean Integration Tests
 Tests the actual public API without deprecated internal methods.
 """
 
-import os
-
 import pytest
 
-from brokle import Brokle, get_client
+from brokle import Brokle
 from brokle.config import BrokleConfig
 
 # brokle.exceptions module was removed

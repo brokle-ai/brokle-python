@@ -35,9 +35,9 @@ Usage:
 """
 
 import functools
-from typing import Any, Callable, List, TypeVar, Union, cast
+from typing import Any, Callable, List, TypeVar, cast
 
-from ..scores.types import ScoreResult, ScoreType, ScoreValue, ScorerProtocol
+from ..scores.types import ScoreResult, ScorerProtocol, ScoreType, ScoreValue
 
 F = TypeVar("F", bound=Callable[..., ScoreValue])
 

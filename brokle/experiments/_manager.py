@@ -33,14 +33,14 @@ import inspect
 import statistics
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from .._http import AsyncHTTPClient, SyncHTTPClient, unwrap_response
 from ..config import BrokleConfig
 from ..datasets.dataset import AsyncDataset, Dataset, DatasetItem
 from ..query.types import QueriedSpan
-from ..scores.types import ScoreResult, ScoreType, ScoreValue, ScorerProtocol
-from .exceptions import EvaluationError, ScorerExecutionError, TaskError
+from ..scores.types import ScoreResult, ScorerProtocol, ScoreType, ScoreValue
+from .exceptions import EvaluationError
 from .types import (
     AsyncTaskFunction,
     EvaluationItem,
@@ -338,7 +338,9 @@ class ExperimentsManager(_BaseExperimentsManagerMixin):
         """
         # Validate mode
         if dataset is not None and spans is not None:
-            raise EvaluationError("Cannot specify both 'dataset' and 'spans'. Choose one mode.")
+            raise EvaluationError(
+                "Cannot specify both 'dataset' and 'spans'. Choose one mode."
+            )
 
         if spans is not None:
             # Span-based evaluation (THE WEDGE)
@@ -845,7 +847,9 @@ class AsyncExperimentsManager(_BaseExperimentsManagerMixin):
         """
         # Validate mode
         if dataset is not None and spans is not None:
-            raise EvaluationError("Cannot specify both 'dataset' and 'spans'. Choose one mode.")
+            raise EvaluationError(
+                "Cannot specify both 'dataset' and 'spans'. Choose one mode."
+            )
 
         if spans is not None:
             # Span-based evaluation (THE WEDGE)
@@ -1100,7 +1104,9 @@ class AsyncExperimentsManager(_BaseExperimentsManagerMixin):
         payload = {"items": [item.to_dict() for item in items]}
 
         try:
-            await self._http.post(f"/v1/experiments/{experiment_id}/items", json=payload)
+            await self._http.post(
+                f"/v1/experiments/{experiment_id}/items", json=payload
+            )
         except Exception as e:
             raise EvaluationError(f"Failed to submit items: {e}")
 

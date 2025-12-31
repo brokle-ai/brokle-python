@@ -10,7 +10,9 @@ if TYPE_CHECKING:
     from ..prompts import Prompt
 
 
-def extract_brokle_options(kwargs: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def extract_brokle_options(
+    kwargs: Dict[str, Any],
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """
     Extract brokle_options from kwargs and return clean kwargs.
 

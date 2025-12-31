@@ -7,10 +7,10 @@ and validation. Supports simple, Mustache, and Jinja2 dialects.
 
 import json
 import re
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import List, Set, Tuple
 
 import chevron
-from jinja2 import Environment, BaseLoader, select_autoescape
+from jinja2 import BaseLoader, Environment
 
 from .types import (
     ChatMessage,
@@ -43,7 +43,9 @@ PATTERNS = {
     # Mustache variable extraction (including sections)
     "mustache_vars": re.compile(r"\{\{([#^\/]?)(\w+)\}\}"),
     # Jinja2 variable extraction (captures full dot-notation path)
-    "jinja2_vars": re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_.]*?)(?:\s*\|[^}]*)?\s*\}\}"),
+    "jinja2_vars": re.compile(
+        r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_.]*?)(?:\s*\|[^}]*)?\s*\}\}"
+    ),
     "jinja2_for_loop": re.compile(r"\{%\s*for\s+\w+\s+in\s+(\w+)"),
     "jinja2_condition": re.compile(r"\{%\s*(?:if|elif)\s+(\w+)"),
 }
@@ -66,9 +68,9 @@ def detect_dialect(content: str) -> TemplateDialect:
     """
     # Check for Jinja2 first (more specific syntax)
     if (
-        PATTERNS["jinja2_block"].search(content) or
-        PATTERNS["jinja2_filter"].search(content) or
-        PATTERNS["jinja2_dot_notation"].search(content)
+        PATTERNS["jinja2_block"].search(content)
+        or PATTERNS["jinja2_filter"].search(content)
+        or PATTERNS["jinja2_dot_notation"].search(content)
     ):
         return TemplateDialect.JINJA2
 
@@ -105,9 +107,7 @@ def detect_template_dialect(template: Template) -> TemplateDialect:
     return TemplateDialect.SIMPLE
 
 
-def _extract_variables_from_string(
-    content: str, dialect: TemplateDialect
-) -> List[str]:
+def _extract_variables_from_string(content: str, dialect: TemplateDialect) -> List[str]:
     """
     Extract variables from a string based on dialect.
 
@@ -154,8 +154,7 @@ def _extract_variables_from_string(
 
 
 def extract_variables(
-    template: Template,
-    dialect: TemplateDialect = TemplateDialect.AUTO
+    template: Template, dialect: TemplateDialect = TemplateDialect.AUTO
 ) -> List[str]:
     """
     Extract variable names from a template.
@@ -191,9 +190,7 @@ def extract_variables(
 
 
 def _compile_string(
-    content: str,
-    variables: Variables,
-    dialect: TemplateDialect
+    content: str, variables: Variables, dialect: TemplateDialect
 ) -> str:
     """
     Compile a string using the specified dialect.
@@ -207,6 +204,7 @@ def _compile_string(
         Compiled string
     """
     if dialect == TemplateDialect.SIMPLE:
+
         def replacer(match: re.Match) -> str:
             var_name = match.group(1)
             if var_name in variables:
@@ -234,7 +232,7 @@ def _compile_string(
 def compile_text_template(
     template: TextTemplate,
     variables: Variables,
-    dialect: TemplateDialect = TemplateDialect.AUTO
+    dialect: TemplateDialect = TemplateDialect.AUTO,
 ) -> TextTemplate:
     """
     Compile a text template.
@@ -260,9 +258,7 @@ def compile_text_template(
 
 
 def _compile_chat_message(
-    message: ChatMessage,
-    variables: Variables,
-    dialect: TemplateDialect
+    message: ChatMessage, variables: Variables, dialect: TemplateDialect
 ) -> ChatMessage:
     """
     Compile a chat message.
@@ -284,7 +280,7 @@ def _compile_chat_message(
 def compile_chat_template(
     template: ChatTemplate,
     variables: Variables,
-    dialect: TemplateDialect = TemplateDialect.AUTO
+    dialect: TemplateDialect = TemplateDialect.AUTO,
 ) -> ChatTemplate:
     """
     Compile a chat template with support for placeholders.
@@ -318,21 +314,19 @@ def compile_chat_template(
             if isinstance(placeholder_value, list):
                 # Inject messages from the array
                 for item in placeholder_value:
-                    if (
-                        isinstance(item, dict)
-                        and "role" in item
-                        and "content" in item
-                    ):
-                        result.append({
-                            "role": item["role"],
-                            "content": str(item["content"]),
-                            **({"name": item["name"]} if "name" in item else {}),
-                            **(
-                                {"tool_call_id": item["tool_call_id"]}
-                                if "tool_call_id" in item
-                                else {}
-                            ),
-                        })
+                    if isinstance(item, dict) and "role" in item and "content" in item:
+                        result.append(
+                            {
+                                "role": item["role"],
+                                "content": str(item["content"]),
+                                **({"name": item["name"]} if "name" in item else {}),
+                                **(
+                                    {"tool_call_id": item["tool_call_id"]}
+                                    if "tool_call_id" in item
+                                    else {}
+                                ),
+                            }
+                        )
             # Skip placeholder if value is not a list
             continue
 
@@ -345,7 +339,7 @@ def compile_chat_template(
 def compile_template(
     template: Template,
     variables: Variables,
-    dialect: TemplateDialect = TemplateDialect.AUTO
+    dialect: TemplateDialect = TemplateDialect.AUTO,
 ) -> Template:
     """
     Compile any template type.
@@ -366,7 +360,7 @@ def compile_template(
 def validate_variables(
     template: Template,
     variables: Variables,
-    dialect: TemplateDialect = TemplateDialect.AUTO
+    dialect: TemplateDialect = TemplateDialect.AUTO,
 ) -> Tuple[List[str], bool]:
     """
     Validate that all required variables are provided.
@@ -399,7 +393,7 @@ def is_chat_template(template: Template) -> bool:
 def get_compiled_content(
     template: TextTemplate,
     variables: Variables,
-    dialect: TemplateDialect = TemplateDialect.AUTO
+    dialect: TemplateDialect = TemplateDialect.AUTO,
 ) -> str:
     """
     Get the content string from a text template after compilation.
@@ -418,7 +412,7 @@ def get_compiled_content(
 def get_compiled_messages(
     template: ChatTemplate,
     variables: Variables,
-    dialect: TemplateDialect = TemplateDialect.AUTO
+    dialect: TemplateDialect = TemplateDialect.AUTO,
 ) -> List[ChatMessage]:
     """
     Get the messages array from a chat template after compilation.

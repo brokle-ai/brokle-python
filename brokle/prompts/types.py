@@ -4,13 +4,14 @@ Prompt Management Types
 Type definitions for the Brokle Prompt Management system.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
 
 
 class PromptType(str, Enum):
     """Prompt type - text for simple templates, chat for message arrays."""
+
     TEXT = "text"
     CHAT = "chat"
 
@@ -24,6 +25,7 @@ class TemplateDialect(str, Enum):
     - JINJA2: Jinja2 with filters, conditionals, loops
     - AUTO: Auto-detect dialect from template syntax
     """
+
     SIMPLE = "simple"
     MUSTACHE = "mustache"
     JINJA2 = "jinja2"
@@ -32,6 +34,7 @@ class TemplateDialect(str, Enum):
 
 class MessageRole(str, Enum):
     """Message role in a chat template."""
+
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
@@ -40,6 +43,7 @@ class MessageRole(str, Enum):
 
 class ChatMessage(TypedDict, total=False):
     """Chat message structure."""
+
     role: str
     content: str
     name: Optional[str]
@@ -48,11 +52,13 @@ class ChatMessage(TypedDict, total=False):
 
 class TextTemplate(TypedDict):
     """Text template structure."""
+
     content: str
 
 
 class ChatTemplate(TypedDict):
     """Chat template structure."""
+
     messages: List[ChatMessage]
 
 
@@ -61,6 +67,7 @@ Template = Union[TextTemplate, ChatTemplate]
 
 class ModelConfig(TypedDict, total=False):
     """Model configuration for LLM execution."""
+
     model: Optional[str]
     temperature: Optional[float]
     max_tokens: Optional[int]
@@ -73,6 +80,7 @@ class ModelConfig(TypedDict, total=False):
 @dataclass
 class PromptVersion:
     """Prompt version data."""
+
     id: str
     prompt_id: str
     version: int
@@ -89,6 +97,7 @@ class PromptVersion:
 @dataclass
 class PromptData:
     """Full prompt data from API."""
+
     id: str
     project_id: str
     name: str
@@ -170,6 +179,7 @@ class PromptSummary:
 @dataclass
 class GetPromptOptions:
     """Options for fetching a prompt."""
+
     label: Optional[str] = None
     version: Optional[int] = None
     cache_ttl: int = 60  # seconds
@@ -179,6 +189,7 @@ class GetPromptOptions:
 @dataclass
 class ListPromptsOptions:
     """Options for listing prompts."""
+
     type: Optional[PromptType] = None
     tags: Optional[List[str]] = None
     search: Optional[str] = None
@@ -189,6 +200,7 @@ class ListPromptsOptions:
 @dataclass
 class Pagination:
     """Pagination info."""
+
     total: int
     page: int
     limit: int
@@ -198,6 +210,7 @@ class Pagination:
 @dataclass
 class PaginatedResponse:
     """Paginated response for prompt lists."""
+
     data: List["PromptSummary"]
     pagination: Pagination
 
@@ -205,6 +218,7 @@ class PaginatedResponse:
 @dataclass
 class UpsertPromptRequest:
     """Request to create or update a prompt."""
+
     name: str
     type: PromptType
     template: Template
@@ -237,6 +251,7 @@ class UpsertPromptRequest:
 @dataclass
 class CacheEntry:
     """Cache entry for prompts."""
+
     data: PromptData
     fetched_at: float
     ttl: int
@@ -261,6 +276,7 @@ class PromptConfig:
         max_retries: Maximum number of retry attempts for failed requests (default: 2)
         retry_delay: Base delay between retries in seconds (default: 1.0)
     """
+
     cache_enabled: bool = True
     cache_ttl_seconds: int = 60
     cache_max_size: int = 1000
@@ -270,6 +286,7 @@ class PromptConfig:
 
 class OpenAIMessage(TypedDict, total=False):
     """OpenAI message format."""
+
     role: Literal["system", "user", "assistant", "tool"]
     content: str
     name: Optional[str]
@@ -278,6 +295,7 @@ class OpenAIMessage(TypedDict, total=False):
 
 class AnthropicMessage(TypedDict):
     """Anthropic message format."""
+
     role: Literal["user", "assistant"]
     content: str
 
@@ -285,6 +303,7 @@ class AnthropicMessage(TypedDict):
 @dataclass
 class AnthropicRequest:
     """Anthropic request structure with system prompt."""
+
     messages: List[AnthropicMessage]
     system: Optional[str] = None
 

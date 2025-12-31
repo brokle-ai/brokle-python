@@ -7,10 +7,10 @@ appropriate status and error information.
 """
 
 import time
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
 import pytest
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry.trace import StatusCode
 
 from brokle.streaming.accumulator import StreamingAccumulator
 from brokle.streaming.wrappers import BrokleAsyncStreamWrapper, BrokleStreamWrapper

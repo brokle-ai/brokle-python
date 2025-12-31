@@ -23,7 +23,7 @@ Why this works:
 
 import logging
 from types import MappingProxyType
-from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, List, Mapping, Optional, Sequence
 
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import Event, ReadableSpan

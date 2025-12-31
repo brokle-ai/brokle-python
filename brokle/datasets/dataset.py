@@ -300,7 +300,9 @@ class Dataset:
             >>> for item in items:
             ...     print(item.input)
         """
-        self._log(f"Fetching items from dataset {self._id}: limit={limit}, offset={offset}")
+        self._log(
+            f"Fetching items from dataset {self._id}: limit={limit}, offset={offset}"
+        )
 
         try:
             raw_response = self._http.get(
@@ -629,7 +631,9 @@ class Dataset:
         try:
             import pandas as pd
         except ImportError:
-            raise ImportError("pandas is required for to_pandas(). Install with: pip install pandas")
+            raise ImportError(
+                "pandas is required for to_pandas(). Install with: pip install pandas"
+            )
 
         self._log("Exporting items to DataFrame")
 
@@ -819,7 +823,9 @@ class AsyncDataset:
             >>> for item in items:
             ...     print(item.input)
         """
-        self._log(f"Fetching items from dataset {self._id}: limit={limit}, offset={offset}")
+        self._log(
+            f"Fetching items from dataset {self._id}: limit={limit}, offset={offset}"
+        )
 
         try:
             raw_response = await self._http.get(
@@ -928,7 +934,9 @@ class AsyncDataset:
                     if line:
                         items.append(json.loads(line))
 
-            return await self._import_items(items, keys_mapping, deduplicate, source="json")
+            return await self._import_items(
+                items, keys_mapping, deduplicate, source="json"
+            )
         except FileNotFoundError:
             raise
         except json.JSONDecodeError as e:
@@ -972,7 +980,9 @@ class AsyncDataset:
 
         try:
             items = df.to_dict(orient="records")
-            return await self._import_items(items, keys_mapping, deduplicate, source="sdk")
+            return await self._import_items(
+                items, keys_mapping, deduplicate, source="sdk"
+            )
         except Exception as e:
             raise DatasetError(f"Failed to import from DataFrame: {e}")
 
@@ -1147,7 +1157,9 @@ class AsyncDataset:
         try:
             import pandas as pd
         except ImportError:
-            raise ImportError("pandas is required for to_pandas(). Install with: pip install pandas")
+            raise ImportError(
+                "pandas is required for to_pandas(). Install with: pip install pandas"
+            )
 
         self._log("Exporting items to DataFrame")
 

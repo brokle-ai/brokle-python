@@ -8,8 +8,7 @@ and OpenTelemetry setup used by both Brokle and AsyncBrokle.
 import atexit
 import json
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple
 
 from opentelemetry import trace
 
@@ -18,15 +17,16 @@ if TYPE_CHECKING:
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import Span, TracerProvider
 from opentelemetry.sdk.trace.sampling import ALWAYS_ON, TraceIdRatioBased
-from opentelemetry.trace import SpanKind, Status, StatusCode, Tracer
+from opentelemetry.trace import SpanKind
 
 from .config import BrokleConfig
 from .exporter import create_exporter_for_config
 from .logs import BrokleLoggerProvider
 from .metrics import BrokleMeterProvider, GenAIMetrics, create_genai_metrics
 from .processor import BrokleSpanProcessor
-from .prompts import CacheOptions, PromptConfig
-from .types import Attrs, LLMProvider, OperationType, SchemaURLs, SpanType
+from .prompts import PromptConfig
+from .types import Attrs, SchemaURLs, SpanType
+
 
 class BaseBrokleClient:
     """
@@ -629,7 +629,7 @@ class BaseBrokleClient:
     update_current_generation = update_current_span
 
 
-def _serialize_with_mime(value: Any) -> tuple[str, str]:
+def _serialize_with_mime(value: Any) -> Tuple[str, str]:
     """
     Serialize value to string with MIME type detection.
 
@@ -665,6 +665,7 @@ def _serialize_with_mime(value: Any) -> tuple[str, str]:
 
         if hasattr(value, "__dataclass_fields__"):
             import dataclasses
+
             return json.dumps(dataclasses.asdict(value)), "application/json"
 
         return str(value), "text/plain"

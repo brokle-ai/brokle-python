@@ -8,9 +8,8 @@ exporter wrapper pattern.
 
 from types import MappingProxyType
 from typing import Any
-from unittest.mock import Mock, call
+from unittest.mock import Mock
 
-import pytest
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
@@ -26,7 +25,9 @@ from brokle.types.attributes import BrokleOtelSpanAttributes as Attrs
 def create_mock_span(attributes: dict) -> Mock:
     """Create a mock ReadableSpan with given attributes."""
     span = Mock(spec=ReadableSpan)
-    span.attributes = MappingProxyType(attributes) if attributes else MappingProxyType({})
+    span.attributes = (
+        MappingProxyType(attributes) if attributes else MappingProxyType({})
+    )
     span.name = "test-span"
     span.context = SpanContext(
         trace_id=0x12345678901234567890123456789012,
@@ -55,11 +56,13 @@ class TestMaskedReadableSpan:
 
     def test_masks_specified_attributes(self):
         """Verify only specified attributes are masked."""
-        span = create_mock_span({
-            Attrs.INPUT_VALUE: "sensitive input",
-            Attrs.OUTPUT_VALUE: "sensitive output",
-            Attrs.GEN_AI_REQUEST_MODEL: "gpt-4",  # Not in maskable keys
-        })
+        span = create_mock_span(
+            {
+                Attrs.INPUT_VALUE: "sensitive input",
+                Attrs.OUTPUT_VALUE: "sensitive output",
+                Attrs.GEN_AI_REQUEST_MODEL: "gpt-4",  # Not in maskable keys
+            }
+        )
 
         def simple_mask(value):
             return "[MASKED]"
@@ -76,11 +79,13 @@ class TestMaskedReadableSpan:
 
     def test_preserves_non_maskable_attributes(self):
         """Verify non-maskable attributes are passed through unchanged."""
-        span = create_mock_span({
-            Attrs.GEN_AI_REQUEST_MODEL: "gpt-4",
-            Attrs.GEN_AI_REQUEST_TEMPERATURE: 0.7,
-            Attrs.GEN_AI_USAGE_INPUT_TOKENS: 100,
-        })
+        span = create_mock_span(
+            {
+                Attrs.GEN_AI_REQUEST_MODEL: "gpt-4",
+                Attrs.GEN_AI_REQUEST_TEMPERATURE: 0.7,
+                Attrs.GEN_AI_USAGE_INPUT_TOKENS: 100,
+            }
+        )
 
         masked = MaskedReadableSpan(
             span=span,
@@ -126,9 +131,11 @@ class TestMaskedReadableSpan:
             call_count += 1
             return f"[MASKED-{call_count}]"
 
-        span = create_mock_span({
-            Attrs.INPUT_VALUE: "sensitive",
-        })
+        span = create_mock_span(
+            {
+                Attrs.INPUT_VALUE: "sensitive",
+            }
+        )
 
         masked = MaskedReadableSpan(
             span=span,
@@ -150,10 +157,12 @@ class TestMaskedReadableSpan:
         def failing_mask(value):
             raise ValueError("Mask error")
 
-        span = create_mock_span({
-            Attrs.INPUT_VALUE: "sensitive",
-            Attrs.OUTPUT_VALUE: "also sensitive",
-        })
+        span = create_mock_span(
+            {
+                Attrs.INPUT_VALUE: "sensitive",
+                Attrs.OUTPUT_VALUE: "also sensitive",
+            }
+        )
 
         masked = MaskedReadableSpan(
             span=span,
@@ -162,8 +171,14 @@ class TestMaskedReadableSpan:
         )
 
         # Should return fallback value, not raise
-        assert masked.attributes[Attrs.INPUT_VALUE] == "<fully masked due to failed mask function>"
-        assert masked.attributes[Attrs.OUTPUT_VALUE] == "<fully masked due to failed mask function>"
+        assert (
+            masked.attributes[Attrs.INPUT_VALUE]
+            == "<fully masked due to failed mask function>"
+        )
+        assert (
+            masked.attributes[Attrs.OUTPUT_VALUE]
+            == "<fully masked due to failed mask function>"
+        )
 
     def test_delegates_name_property(self):
         """Verify name property delegates to wrapped span."""
@@ -225,12 +240,14 @@ class TestMaskedReadableSpan:
                 return [recursive_mask(item) for item in data]
             return data
 
-        span = create_mock_span({
-            Attrs.METADATA: {
-                "user": {"password": "secret123", "name": "John"},
-                "data": ["secret info", "public info"],
+        span = create_mock_span(
+            {
+                Attrs.METADATA: {
+                    "user": {"password": "secret123", "name": "John"},
+                    "data": ["secret info", "public info"],
+                }
             }
-        })
+        )
 
         masked = MaskedReadableSpan(
             span=span,
@@ -259,10 +276,12 @@ class TestMaskingSpanExporter:
             maskable_keys=[Attrs.INPUT_VALUE],
         )
 
-        span = create_mock_span({
-            Attrs.INPUT_VALUE: "sensitive",
-            Attrs.GEN_AI_REQUEST_MODEL: "gpt-4",
-        })
+        span = create_mock_span(
+            {
+                Attrs.INPUT_VALUE: "sensitive",
+                Attrs.GEN_AI_REQUEST_MODEL: "gpt-4",
+            }
+        )
 
         result = exporter.export([span])
 
@@ -382,16 +401,18 @@ class TestIntegrationWithMaskableAttributes:
         )
 
         # Create span with all maskable attributes plus some non-maskable ones
-        span = create_mock_span({
-            Attrs.INPUT_VALUE: "user input",
-            Attrs.OUTPUT_VALUE: "model output",
-            Attrs.GEN_AI_INPUT_MESSAGES: '[{"role": "user", "content": "secret"}]',
-            Attrs.GEN_AI_OUTPUT_MESSAGES: '[{"role": "assistant", "content": "response"}]',
-            Attrs.METADATA: {"key": "value"},
-            # Non-maskable attributes
-            Attrs.GEN_AI_REQUEST_MODEL: "gpt-4",
-            Attrs.GEN_AI_USAGE_INPUT_TOKENS: 100,
-        })
+        span = create_mock_span(
+            {
+                Attrs.INPUT_VALUE: "user input",
+                Attrs.OUTPUT_VALUE: "model output",
+                Attrs.GEN_AI_INPUT_MESSAGES: '[{"role": "user", "content": "secret"}]',
+                Attrs.GEN_AI_OUTPUT_MESSAGES: '[{"role": "assistant", "content": "response"}]',
+                Attrs.METADATA: {"key": "value"},
+                # Non-maskable attributes
+                Attrs.GEN_AI_REQUEST_MODEL: "gpt-4",
+                Attrs.GEN_AI_USAGE_INPUT_TOKENS: 100,
+            }
+        )
 
         exporter.export([span])
 

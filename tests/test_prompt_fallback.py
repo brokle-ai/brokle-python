@@ -5,15 +5,12 @@ Ensures prompts are always available even during network failures through fallba
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
 
 from brokle.prompts import (
     Prompt,
     PromptType,
-    ChatMessage,
 )
 from brokle.prompts.types import PromptData
-from brokle.prompts.exceptions import PromptFetchError
 
 
 class TestPromptCreateFallback:
@@ -35,7 +32,7 @@ class TestPromptCreateFallback:
         """List fallback creates CHAT type prompt."""
         fallback = [
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "{{user_query}}"}
+            {"role": "user", "content": "{{user_query}}"},
         ]
 
         prompt = Prompt.create_fallback("assistant", fallback)
@@ -83,11 +80,13 @@ class TestFallbackTemplateCompilation:
         """Chat fallback templates compile correctly with variables."""
         fallback = [
             {"role": "system", "content": "You help with {{topic}}."},
-            {"role": "user", "content": "{{question}}"}
+            {"role": "user", "content": "{{question}}"},
         ]
         prompt = Prompt.create_fallback("qa", fallback)
 
-        compiled = prompt.compile({"topic": "Python", "question": "How do decorators work?"})
+        compiled = prompt.compile(
+            {"topic": "Python", "question": "How do decorators work?"}
+        )
 
         assert compiled["messages"][0]["content"] == "You help with Python."
         assert compiled["messages"][1]["content"] == "How do decorators work?"
@@ -107,7 +106,7 @@ class TestFallbackTemplateCompilation:
         """Chat fallback converts to OpenAI messages format."""
         fallback = [
             {"role": "system", "content": "You are helpful."},
-            {"role": "user", "content": "Hello {{name}}!"}
+            {"role": "user", "content": "Hello {{name}}!"},
         ]
         prompt = Prompt.create_fallback("assistant", fallback)
 
@@ -199,7 +198,7 @@ class TestFallbackVariableExtraction:
         """Variables are extracted from chat fallback messages."""
         fallback = [
             {"role": "system", "content": "You assist with {{domain}}."},
-            {"role": "user", "content": "Question: {{query}}"}
+            {"role": "user", "content": "Question: {{query}}"},
         ]
         prompt = Prompt.create_fallback("test", fallback)
 

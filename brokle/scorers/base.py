@@ -169,9 +169,7 @@ class RegexMatch:
         >>> result.value  # 1.0
     """
 
-    def __init__(
-        self, pattern: Union[str, re.Pattern[str]], name: str = "regex_match"
-    ):
+    def __init__(self, pattern: Union[str, re.Pattern[str]], name: str = "regex_match"):
         self.name = name
         self.pattern = re.compile(pattern) if isinstance(pattern, str) else pattern
 

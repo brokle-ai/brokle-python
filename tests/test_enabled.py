@@ -1,10 +1,11 @@
 """Tests for BROKLE_ENABLED master switch functionality."""
 
-import pytest
 from unittest.mock import MagicMock
 
-from brokle.config import BrokleConfig
+import pytest
+
 from brokle import Brokle, observe
+from brokle.config import BrokleConfig
 from brokle.wrappers import wrap_openai
 
 
@@ -116,6 +117,7 @@ class TestDecoratorEnabled:
         monkeypatch.setenv("BROKLE_ENABLED", "false")
 
         import brokle._client
+
         brokle._client._global_client = None
 
         @observe()
@@ -130,6 +132,7 @@ class TestDecoratorEnabled:
         monkeypatch.setenv("BROKLE_ENABLED", "false")
 
         import brokle._client
+
         brokle._client._global_client = None
 
         @observe()
@@ -148,6 +151,7 @@ class TestWrapperEnabled:
         monkeypatch.setenv("BROKLE_ENABLED", "false")
 
         import brokle._client
+
         brokle._client._global_client = None
 
         mock_client = MagicMock()

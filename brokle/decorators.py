@@ -9,12 +9,11 @@ import inspect
 import json
 from typing import Any, Callable, Dict, List, Optional
 
-from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
 from ._client import get_client
 from .types import Attrs, SpanType
-from .utils.serializer import EventSerializer, serialize_value, serialize_function_args
+from .utils.serializer import EventSerializer, serialize_value
 
 
 def observe(

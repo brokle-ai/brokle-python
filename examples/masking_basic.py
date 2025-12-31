@@ -13,6 +13,7 @@ Key concepts:
 
 import json
 import re
+
 from brokle import Brokle
 
 
@@ -24,7 +25,7 @@ def mask_emails(data):
     """
     if isinstance(data, str):
         # Replace email addresses with [EMAIL]
-        return re.sub(r'\b[\w.]+@[\w.]+\b', '[EMAIL]', data)
+        return re.sub(r"\b[\w.]+@[\w.]+\b", "[EMAIL]", data)
     elif isinstance(data, dict):
         # Recursively mask dict values
         return {k: mask_emails(v) for k, v in data.items()}
@@ -48,9 +49,9 @@ def mask_pii_comprehensive(data):
     if isinstance(data, str):
         # Apply multiple regex patterns
         masked = data
-        masked = re.sub(r'\b[\w.]+@[\w.]+\b', '[EMAIL]', masked)
-        masked = re.sub(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', '[PHONE]', masked)
-        masked = re.sub(r'\b\d{3}-\d{2}-\d{4}\b', '[SSN]', masked)
+        masked = re.sub(r"\b[\w.]+@[\w.]+\b", "[EMAIL]", masked)
+        masked = re.sub(r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b", "[PHONE]", masked)
+        masked = re.sub(r"\b\d{3}-\d{2}-\d{4}\b", "[SSN]", masked)
         return masked
     elif isinstance(data, dict):
         return {k: mask_pii_comprehensive(v) for k, v in data.items()}
@@ -71,7 +72,7 @@ def main():
 
     with client.start_as_current_span(
         "process-user-request",
-        input="Please contact john@example.com for more information"
+        input="Please contact john@example.com for more information",
     ) as span:
         # Simulate processing
         response = "Email sent successfully"
@@ -85,8 +86,7 @@ def main():
     print("-" * 50)
 
     client_comprehensive = Brokle(
-        api_key="bk_your_api_key",
-        mask=mask_pii_comprehensive
+        api_key="bk_your_api_key", mask=mask_pii_comprehensive
     )
 
     with client_comprehensive.start_as_current_span("process-contact") as span:
@@ -94,7 +94,7 @@ def main():
             "email": "admin@company.com",
             "phone": "555-123-4567",
             "ssn": "123-45-6789",
-            "name": "John Doe"  # This won't be masked (not a pattern)
+            "name": "John Doe",  # This won't be masked (not a pattern)
         }
 
         span.set_attribute("metadata", json.dumps(contact_info))
@@ -109,19 +109,13 @@ def main():
     nested_data = {
         "users": [
             {"email": "user1@example.com", "role": "admin"},
-            {"email": "user2@example.com", "role": "user"}
+            {"email": "user2@example.com", "role": "user"},
         ],
-        "admin": {
-            "contact": {
-                "email": "admin@example.com",
-                "phone": "555-987-6543"
-            }
-        }
+        "admin": {"contact": {"email": "admin@example.com", "phone": "555-987-6543"}},
     }
 
     with client_comprehensive.start_as_current_span(
-        "process-users",
-        input=nested_data
+        "process-users", input=nested_data
     ) as span:
         pass  # Input already set via context manager
 

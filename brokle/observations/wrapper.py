@@ -6,16 +6,13 @@ Wraps OpenTelemetry spans with type-specific methods and attributes.
 
 import json
 import time
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 from opentelemetry.trace import Span, Status, StatusCode
 
-from ..types import Attrs, SpanType
+from ..types import Attrs
 from .types import ObservationType
-
-if TYPE_CHECKING:
-    from opentelemetry.sdk.trace import ReadableSpan
 
 
 @dataclass

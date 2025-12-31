@@ -18,7 +18,7 @@ from typing import List, Optional, Union
 
 from ._base import BaseAsyncPromptsManager, BaseSyncPromptsManager
 from .prompt import Prompt
-from .types import ChatMessage, Fallback, PaginatedResponse, UpsertPromptRequest
+from .types import ChatMessage, PaginatedResponse, UpsertPromptRequest
 
 
 class PromptManager(BaseSyncPromptsManager):

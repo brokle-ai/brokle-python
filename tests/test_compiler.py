@@ -1,4 +1,5 @@
 """Tests for template compiler dot notation handling."""
+
 from brokle.prompts.compiler import (
     detect_dialect,
     extract_variables,
