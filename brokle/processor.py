@@ -21,11 +21,11 @@ from opentelemetry.sdk.trace import ReadableSpan, Span
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
 
 from .config import BrokleConfig
-from .types.attributes import BrokleOtelSpanAttributes as Attrs
 
 # Re-export MASKABLE_ATTRIBUTES for backwards compatibility
 # (now defined in types/attributes.py)
 from .types.attributes import MASKABLE_ATTRIBUTES  # noqa: F401
+from .types.attributes import BrokleOtelSpanAttributes as Attrs
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class BrokleSpanProcessor(BatchSpanProcessor):
 
     def on_start(
         self,
-        span: "Span",  # type: ignore
+        span: "Span",
         parent_context: Optional[Context] = None,
     ) -> None:
         """Called when a span is started. Sets environment and release attributes."""
@@ -95,6 +95,6 @@ class BrokleSpanProcessor(BatchSpanProcessor):
         """Shut down the processor and flush pending spans."""
         super().shutdown()
 
-    def force_flush(self, timeout_millis: int = 30000) -> bool:
+    def force_flush(self, timeout_millis: Optional[int] = None) -> bool:
         """Force flush all pending spans."""
         return super().force_flush(timeout_millis)

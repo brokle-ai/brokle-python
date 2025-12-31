@@ -15,14 +15,11 @@ Example:
 
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import Any, Dict, Optional
 
 from opentelemetry.metrics import Counter, Histogram, Meter
 
 from .constants import MetricNames
-
-if TYPE_CHECKING:
-    from opentelemetry.sdk.metrics import Meter as SDKMeter
 
 logger = logging.getLogger(__name__)
 

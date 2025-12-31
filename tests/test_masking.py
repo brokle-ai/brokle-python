@@ -9,14 +9,12 @@ Comprehensive test suite for PII masking in the Brokle SDK, covering:
 Note: Core masking exporter tests are in test_masking_exporter.py
 """
 
-import re
-from typing import Any
-
 import pytest
 
 from brokle.config import BrokleConfig
 from brokle.types.attributes import MASKABLE_ATTRIBUTES
 from brokle.types.attributes import BrokleOtelSpanAttributes as Attrs
+from brokle.utils.masking import MaskingHelper
 
 
 class TestMaskingConfiguration:
@@ -29,6 +27,7 @@ class TestMaskingConfiguration:
 
     def test_masking_function_can_be_configured(self):
         """Verify mask function can be set in config."""
+
         def simple_mask(data):
             return "[MASKED]"
 
@@ -57,9 +56,6 @@ class TestMaskableAttributesConstant:
         assert Attrs.BROKLE_ENVIRONMENT not in MASKABLE_ATTRIBUTES
 
 
-from brokle.utils.masking import MaskingHelper
-
-
 class TestMaskingHelperEmails:
     """Test email masking helpers."""
 
@@ -70,7 +66,9 @@ class TestMaskingHelperEmails:
 
     def test_mask_emails_multiple(self):
         """Test multiple emails in one string."""
-        result = MaskingHelper.mask_emails("Email john@example.com or admin@company.org")
+        result = MaskingHelper.mask_emails(
+            "Email john@example.com or admin@company.org"
+        )
         assert result == "Email [EMAIL] or [EMAIL]"
 
     def test_mask_emails_in_dict(self):
@@ -97,7 +95,9 @@ class TestMaskingHelperPhones:
 
     def test_mask_phones_multiple_formats(self):
         """Test different phone formats."""
-        result = MaskingHelper.mask_phones("Call 555-123-4567 or 555.987.6543 or 5551234567")
+        result = MaskingHelper.mask_phones(
+            "Call 555-123-4567 or 555.987.6543 or 5551234567"
+        )
         assert result == "Call [PHONE] or [PHONE] or [PHONE]"
 
 
@@ -429,7 +429,7 @@ class TestMaskingHelperIntegration:
         with client.start_as_current_span(
             "test-real-masking",
             input="Contact john@example.com",
-            output="Sent to admin@company.org"
+            output="Sent to admin@company.org",
         ) as span:
             # Set attribute with email (will be masked)
             span.set_attribute("gen_ai.input.messages", "Email: help@example.com")

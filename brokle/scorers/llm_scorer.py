@@ -54,7 +54,6 @@ from typing import Any, Dict, List, Optional, Union
 
 from ..scores.types import ScoreResult, ScoreType
 
-
 # Model to provider mapping
 MODEL_PROVIDER_MAP = {
     "gpt-4": "openai",

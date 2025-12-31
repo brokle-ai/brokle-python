@@ -9,8 +9,6 @@ Regression test for: Metrics resource drops release/version when tracing is off
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestOtelResourceAttributes:
     """Test OpenTelemetry Resource attribute handling in Brokle client."""
@@ -41,7 +39,7 @@ class TestOtelResourceAttributes:
         mock_meter_provider.return_value = mock_meter_instance
 
         # Create client with tracing disabled but metrics enabled
-        client = Brokle(
+        Brokle(
             api_key="bk_test_key_1234567890",
             tracing_enabled=False,
             metrics_enabled=True,
@@ -88,7 +86,7 @@ class TestOtelResourceAttributes:
         mock_tracer_provider.return_value = mock_tracer_instance
 
         # Create client with tracing enabled but metrics disabled
-        client = Brokle(
+        Brokle(
             api_key="bk_test_key_1234567890",
             tracing_enabled=True,
             metrics_enabled=False,
@@ -139,7 +137,7 @@ class TestOtelResourceAttributes:
         mock_meter_provider.return_value = mock_meter_instance
 
         # Create client with both tracing and metrics enabled
-        client = Brokle(
+        Brokle(
             api_key="bk_test_key_1234567890",
             tracing_enabled=True,
             metrics_enabled=True,
@@ -185,7 +183,7 @@ class TestOtelResourceAttributes:
         mock_meter_provider.return_value = mock_meter_instance
 
         # Create client without release/version
-        client = Brokle(
+        Brokle(
             api_key="bk_test_key_1234567890",
             tracing_enabled=False,
             metrics_enabled=True,
@@ -225,7 +223,7 @@ class TestOtelResourceAttributes:
         mock_meter_provider.return_value = mock_meter_instance
 
         # Create client with only release (no version)
-        client = Brokle(
+        Brokle(
             api_key="bk_test_key_1234567890",
             tracing_enabled=False,
             metrics_enabled=True,
@@ -264,7 +262,7 @@ class TestOtelResourceAttributes:
         mock_meter_provider.return_value = mock_meter_instance
 
         # Create client with only version (no release)
-        client = Brokle(
+        Brokle(
             api_key="bk_test_key_1234567890",
             tracing_enabled=False,
             metrics_enabled=True,
@@ -308,7 +306,7 @@ class TestGetClientConfigForwarding:
                 # Call get_client with transport override
                 from brokle import get_client
 
-                client = get_client(transport="grpc")
+                get_client(transport="grpc")
 
                 # Verify Brokle was called with config object
                 mock_brokle.assert_called_once()
@@ -343,7 +341,7 @@ class TestGetClientConfigForwarding:
 
                 from brokle import get_client
 
-                client = get_client(metrics_export_interval=30.0)
+                get_client(metrics_export_interval=30.0)
 
                 mock_brokle.assert_called_once()
                 config = mock_brokle.call_args.kwargs["config"]
@@ -373,7 +371,7 @@ class TestGetClientConfigForwarding:
 
                 from brokle import get_client
 
-                client = get_client(version="experiment-A")
+                get_client(version="experiment-A")
 
                 mock_brokle.assert_called_once()
                 config = mock_brokle.call_args.kwargs["config"]
@@ -403,7 +401,7 @@ class TestGetClientConfigForwarding:
 
                 from brokle import get_client
 
-                client = get_client(transport="grpc", grpc_endpoint="localhost:4317")
+                get_client(transport="grpc", grpc_endpoint="localhost:4317")
 
                 mock_brokle.assert_called_once()
                 config = mock_brokle.call_args.kwargs["config"]
@@ -434,7 +432,7 @@ class TestGetClientConfigForwarding:
 
                 from brokle import get_client
 
-                client = get_client(max_queue_size=4096)
+                get_client(max_queue_size=4096)
 
                 mock_brokle.assert_called_once()
                 config = mock_brokle.call_args.kwargs["config"]
@@ -464,7 +462,7 @@ class TestGetClientConfigForwarding:
 
                 from brokle import get_client
 
-                client = get_client(export_timeout=60000)
+                get_client(export_timeout=60000)
 
                 mock_brokle.assert_called_once()
                 config = mock_brokle.call_args.kwargs["config"]
@@ -497,7 +495,7 @@ class TestGetClientConfigForwarding:
 
                 from brokle import get_client
 
-                client = get_client()
+                get_client()
 
                 mock_brokle.assert_called_once()
                 config = mock_brokle.call_args.kwargs["config"]
@@ -530,7 +528,7 @@ class TestGetClientConfigForwarding:
 
                 from brokle import get_client
 
-                client = get_client()
+                get_client()
 
                 mock_brokle.assert_called_once()
                 config = mock_brokle.call_args.kwargs["config"]
@@ -575,7 +573,7 @@ class TestGetClientConfigForwarding:
             clear=False,
         ):
             # Call get_client with release and version
-            client = get_client(
+            get_client(
                 release="v2.0.0",
                 version="experiment-B",
                 tracing_enabled=True,
@@ -634,7 +632,7 @@ class TestGetClientConfigForwarding:
             clear=False,
         ):
             # Call get_client - should read release/version from env
-            client = get_client(
+            get_client(
                 tracing_enabled=True,
                 metrics_enabled=False,
             )

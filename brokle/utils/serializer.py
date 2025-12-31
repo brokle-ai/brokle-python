@@ -20,6 +20,7 @@ logger = getLogger(__name__)
 
 try:
     from pydantic import BaseModel
+
     HAS_PYDANTIC = True
 except ImportError:
     BaseModel = None  # type: ignore
@@ -27,6 +28,7 @@ except ImportError:
 
 try:
     import numpy as np
+
     HAS_NUMPY = True
 except ImportError:
     np = None  # type: ignore

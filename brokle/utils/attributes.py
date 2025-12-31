@@ -6,7 +6,7 @@ handling structured content.
 """
 
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from opentelemetry.sdk.trace import Span
 
@@ -96,7 +96,7 @@ def serialize_messages(
 
 def extract_system_messages(
     messages: List[Dict[str, Any]],
-) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
     Extract system messages from message list.
 
@@ -177,7 +177,7 @@ def format_tool_calls(tool_calls: List[Any]) -> List[Dict[str, Any]]:
 
 def mask_sensitive_content(
     content: str,
-    mask_fn: Optional[callable] = None,
+    mask_fn: Optional[Callable[[str], str]] = None,
 ) -> str:
     """
     Mask sensitive content using custom masking function.

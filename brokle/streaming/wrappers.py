@@ -13,7 +13,7 @@ Example:
 """
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Type
 
 from opentelemetry.trace import Status, StatusCode
 from wrapt import ObjectProxy
@@ -64,11 +64,11 @@ class BrokleStreamWrapper(ObjectProxy):
         self._self_completed = False
         self._self_result: Optional[StreamingResult] = None
 
-    def __iter__(self):
+    def __iter__(self) -> "BrokleStreamWrapper":
         """Return iterator (self)."""
         return self
 
-    def __next__(self):
+    def __next__(self) -> Any:
         """Get next chunk from stream and process through accumulator."""
         try:
             chunk = self.__wrapped__.__next__()
@@ -84,20 +84,26 @@ class BrokleStreamWrapper(ObjectProxy):
             self._self_accumulator.on_chunk(chunk)
             return chunk
 
-    def __enter__(self):
+    def __enter__(self) -> "BrokleStreamWrapper":
         """Context manager entry."""
         if hasattr(self.__wrapped__, "__enter__"):
             self.__wrapped__.__enter__()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Any,
+    ) -> Optional[bool]:
         """Context manager exit."""
         self._complete_instrumentation()
         if hasattr(self.__wrapped__, "__exit__"):
-            return self.__wrapped__.__exit__(exc_type, exc_val, exc_tb)
+            result = self.__wrapped__.__exit__(exc_type, exc_val, exc_tb)
+            return bool(result) if result is not None else False
         return False
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Destructor - attempt to complete instrumentation if not done."""
         if not self._self_completed:
             try:
@@ -106,7 +112,7 @@ class BrokleStreamWrapper(ObjectProxy):
                 # Ignore errors during cleanup
                 pass
 
-    def _complete_instrumentation(self):
+    def _complete_instrumentation(self) -> None:
         """Finalize accumulator and record span attributes."""
         if self._self_completed:
             return
@@ -126,7 +132,7 @@ class BrokleStreamWrapper(ObjectProxy):
         # End the span (it was started without a context manager)
         self._self_span.end()
 
-    def _complete_instrumentation_with_error(self, exception: BaseException):
+    def _complete_instrumentation_with_error(self, exception: BaseException) -> None:
         """Finalize accumulator with error status for failed streams."""
         if self._self_completed:
             return
@@ -199,11 +205,11 @@ class BrokleAsyncStreamWrapper(ObjectProxy):
         self._self_completed = False
         self._self_result: Optional[StreamingResult] = None
 
-    def __aiter__(self):
+    def __aiter__(self) -> "BrokleAsyncStreamWrapper":
         """Return async iterator (self)."""
         return self
 
-    async def __anext__(self):
+    async def __anext__(self) -> Any:
         """Get next chunk from async stream and process through accumulator."""
         try:
             chunk = await self.__wrapped__.__anext__()
@@ -219,20 +225,26 @@ class BrokleAsyncStreamWrapper(ObjectProxy):
             self._self_accumulator.on_chunk(chunk)
             return chunk
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "BrokleAsyncStreamWrapper":
         """Async context manager entry."""
         if hasattr(self.__wrapped__, "__aenter__"):
             await self.__wrapped__.__aenter__()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Any,
+    ) -> Optional[bool]:
         """Async context manager exit."""
         self._complete_instrumentation()
         if hasattr(self.__wrapped__, "__aexit__"):
-            return await self.__wrapped__.__aexit__(exc_type, exc_val, exc_tb)
+            result = await self.__wrapped__.__aexit__(exc_type, exc_val, exc_tb)
+            return bool(result) if result is not None else False
         return False
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Destructor - attempt to complete instrumentation if not done."""
         if not self._self_completed:
             try:
@@ -241,7 +253,7 @@ class BrokleAsyncStreamWrapper(ObjectProxy):
                 # Ignore errors during cleanup
                 pass
 
-    def _complete_instrumentation(self):
+    def _complete_instrumentation(self) -> None:
         """Finalize accumulator and record span attributes."""
         if self._self_completed:
             return
@@ -261,7 +273,7 @@ class BrokleAsyncStreamWrapper(ObjectProxy):
         # End the span (it was started without a context manager)
         self._self_span.end()
 
-    def _complete_instrumentation_with_error(self, exception: BaseException):
+    def _complete_instrumentation_with_error(self, exception: BaseException) -> None:
         """Finalize accumulator with error status for failed streams."""
         if self._self_completed:
             return

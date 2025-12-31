@@ -38,7 +38,7 @@ except ImportError:
 from opentelemetry.trace import Status, StatusCode
 
 from .._client import get_client
-from ..types import Attrs, LLMProvider, OperationType, SpanType
+from ..types import Attrs, LLMProvider, SpanType
 
 
 class BrokleLangChainCallback(BaseCallbackHandler):

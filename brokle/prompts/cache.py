@@ -17,6 +17,7 @@ T = TypeVar("T")
 @dataclass
 class CacheEntry(Generic[T]):
     """Cache entry with data and metadata."""
+
     data: T
     fetched_at: float
     ttl: int
@@ -25,6 +26,7 @@ class CacheEntry(Generic[T]):
 @dataclass
 class CacheOptions:
     """Cache configuration options."""
+
     max_size: int = 100
     default_ttl: int = 60  # seconds
     stale_while_revalidate: bool = True
@@ -80,7 +82,10 @@ class PromptCache(Generic[T]):
                 self._cache.move_to_end(key)
                 return entry.data
 
-            if self._stale_while_revalidate and age < entry.ttl + self._stale_grace_period:
+            if (
+                self._stale_while_revalidate
+                and age < entry.ttl + self._stale_grace_period
+            ):
                 self._cache.move_to_end(key)
                 return entry.data
 
@@ -240,9 +245,7 @@ class PromptCache(Generic[T]):
 
     @staticmethod
     def generate_key(
-        name: str,
-        label: Optional[str] = None,
-        version: Optional[int] = None
+        name: str, label: Optional[str] = None, version: Optional[int] = None
     ) -> str:
         """
         Generate a cache key for a prompt.

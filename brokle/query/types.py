@@ -9,7 +9,7 @@ Provides types for querying production spans:
 - SpanEvent: Event attached to a span
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 
@@ -149,7 +149,11 @@ class QueriedSpan:
         input_val = data.get("input")
         output_val = data.get("output")
         # Model: check direct field first, then attributes
-        model = data.get("model_name") or attributes.get("gen_ai.response.model") or attributes.get("gen_ai.request.model")
+        model = (
+            data.get("model_name")
+            or attributes.get("gen_ai.response.model")
+            or attributes.get("gen_ai.request.model")
+        )
         token_usage = TokenUsage.from_dict(data.get("usage_details"))
 
         # Extract service_name - check direct field first, then resource attributes

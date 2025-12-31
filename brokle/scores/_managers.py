@@ -43,7 +43,7 @@ from typing import Any, Dict, List, Optional, Union
 from .._http import AsyncHTTPClient, SyncHTTPClient, unwrap_response
 from ..config import BrokleConfig
 from .exceptions import ScoreError
-from .types import ScoreResult, ScoreSource, ScoreType, ScoreValue, ScorerProtocol
+from .types import ScoreResult, ScorerProtocol, ScoreSource, ScoreType, ScoreValue
 
 
 class _BaseScoresManagerMixin:
@@ -68,8 +68,8 @@ class _BaseScoresManagerMixin:
         if result is None:
             return []
 
-        scorer_name = (
-            getattr(scorer, "name", None) or getattr(scorer, "__name__", "scorer")
+        scorer_name = getattr(scorer, "name", None) or getattr(
+            scorer, "__name__", "scorer"
         )
 
         if isinstance(result, list):
@@ -79,7 +79,9 @@ class _BaseScoresManagerMixin:
         elif isinstance(result, bool):
             return [
                 ScoreResult(
-                    name=scorer_name, value=1.0 if result else 0.0, type=ScoreType.BOOLEAN
+                    name=scorer_name,
+                    value=1.0 if result else 0.0,
+                    type=ScoreType.BOOLEAN,
                 )
             ]
         elif isinstance(result, (int, float)):
@@ -202,9 +204,8 @@ class ScoresManager(_BaseScoresManagerMixin):
             try:
                 result = scorer(output=output, expected=expected, **kwargs)
             except Exception as e:
-                scorer_name = (
-                    getattr(scorer, "name", None)
-                    or getattr(scorer, "__name__", "unknown")
+                scorer_name = getattr(scorer, "name", None) or getattr(
+                    scorer, "__name__", "unknown"
                 )
                 return self._submit_score(
                     trace_id=trace_id,
@@ -431,9 +432,8 @@ class AsyncScoresManager(_BaseScoresManagerMixin):
             try:
                 result = scorer(output=output, expected=expected, **kwargs)
             except Exception as e:
-                scorer_name = (
-                    getattr(scorer, "name", None)
-                    or getattr(scorer, "__name__", "unknown")
+                scorer_name = getattr(scorer, "name", None) or getattr(
+                    scorer, "__name__", "unknown"
                 )
                 return await self._submit_score(
                     trace_id=trace_id,

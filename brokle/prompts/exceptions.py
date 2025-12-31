@@ -21,12 +21,7 @@ class PromptError(Exception):
         status_code: Optional HTTP status code for API responses
     """
 
-    def __init__(
-        self,
-        message: str,
-        code: str,
-        status_code: Optional[int] = None
-    ):
+    def __init__(self, message: str, code: str, status_code: Optional[int] = None):
         super().__init__(message)
         self.message = message
         self.code = code
@@ -60,10 +55,7 @@ class PromptNotFoundError(PromptError):
     """
 
     def __init__(
-        self,
-        name: str,
-        version: Optional[int] = None,
-        label: Optional[str] = None
+        self, name: str, version: Optional[int] = None, label: Optional[str] = None
     ):
         if version is not None:
             target = f"version {version}"
@@ -91,11 +83,7 @@ class PromptCompileError(PromptError):
         missing_variables: List of variable names that were required but not provided
     """
 
-    def __init__(
-        self,
-        message: str,
-        missing_variables: Optional[List[str]] = None
-    ):
+    def __init__(self, message: str, missing_variables: Optional[List[str]] = None):
         super().__init__(message, "PROMPT_COMPILE_ERROR")
         self.missing_variables = missing_variables or []
 
@@ -111,9 +99,5 @@ class PromptFetchError(PromptError):
         status_code: HTTP status code from the failed request (if available)
     """
 
-    def __init__(
-        self,
-        message: str,
-        status_code: Optional[int] = None
-    ):
+    def __init__(self, message: str, status_code: Optional[int] = None):
         super().__init__(message, "PROMPT_FETCH_ERROR", status_code)

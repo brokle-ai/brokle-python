@@ -23,7 +23,6 @@ def example_simple_llm():
 
     try:
         from langchain.chat_models import ChatOpenAI
-        from langchain.prompts import ChatPromptTemplate
     except ImportError:
         print(
             "LangChain not installed. Install with: pip install langchain langchain-openai"
@@ -139,7 +138,7 @@ def example_multi_step_chain():
         try:
             result = eval(expression)
             return f"Result: {result}"
-        except:
+        except Exception:
             return "Invalid expression"
 
     tools = [

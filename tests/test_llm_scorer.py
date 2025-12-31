@@ -7,8 +7,9 @@ Follows industry testing patterns from Optik, Braintrust, and Langfuse:
 - Test all response parsing modes (JSON, text, choice scores, multi-score)
 """
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
 
 from brokle.scorers.llm_scorer import (
     LLMScorer,
@@ -16,7 +17,6 @@ from brokle.scorers.llm_scorer import (
     _render_template,
 )
 from brokle.scores.types import ScoreResult, ScoreType
-
 
 # =============================================================================
 # Fixtures
@@ -41,22 +41,12 @@ def mock_async_client():
 
 def make_success_response(content: str) -> dict:
     """Create a standard success response from playground."""
-    return {
-        "success": True,
-        "data": {
-            "response": {
-                "content": content
-            }
-        }
-    }
+    return {"success": True, "data": {"response": {"content": content}}}
 
 
 def make_error_response(message: str = "Unknown error") -> dict:
     """Create an error response."""
-    return {
-        "success": False,
-        "error": {"message": message}
-    }
+    return {"success": False, "error": {"message": message}}
 
 
 # =============================================================================
@@ -124,11 +114,9 @@ class TestTemplateRendering:
 
     def test_all_three_variables(self):
         template = "Q: {{input}}\nA: {{output}}\nRef: {{expected}}"
-        result = _render_template(template, {
-            "input": "What is 2+2?",
-            "output": "4",
-            "expected": "4"
-        })
+        result = _render_template(
+            template, {"input": "What is 2+2?", "output": "4", "expected": "4"}
+        )
         assert "Q: What is 2+2?" in result
         assert "A: 4" in result
         assert "Ref: 4" in result
@@ -176,9 +164,7 @@ class TestLLMScorerInit:
 
     def test_default_values(self, mock_client):
         scorer = LLMScorer(
-            client=mock_client,
-            name="test_scorer",
-            prompt="Rate this: {{output}}"
+            client=mock_client, name="test_scorer", prompt="Rate this: {{output}}"
         )
         assert scorer.name == "test_scorer"
         assert scorer.model == "gpt-4o"
@@ -201,7 +187,7 @@ class TestLLMScorerInit:
             temperature=0.7,
             max_tokens=1000,
             use_cot=True,
-            choice_scores={"A": 1.0, "B": 0.0}
+            choice_scores={"A": 1.0, "B": 0.0},
         )
         assert scorer.model == "claude-3-opus"
         assert scorer._provider == "anthropic"
@@ -222,11 +208,7 @@ class TestRequestPayloadBuilding:
     """Tests for _build_request_payload method."""
 
     def test_basic_payload(self, mock_client):
-        scorer = LLMScorer(
-            client=mock_client,
-            name="test",
-            prompt="Rate: {{output}}"
-        )
+        scorer = LLMScorer(client=mock_client, name="test", prompt="Rate: {{output}}")
         payload = scorer._build_request_payload("Rate: hello")
 
         assert payload["template"] == "Rate: hello"
@@ -241,7 +223,7 @@ class TestRequestPayloadBuilding:
             client=mock_client,
             name="test",
             prompt="{{output}}",
-            credential_id="cred_abc"
+            credential_id="cred_abc",
         )
         payload = scorer._build_request_payload("test")
 
@@ -249,21 +231,14 @@ class TestRequestPayloadBuilding:
 
     def test_payload_with_max_tokens(self, mock_client):
         scorer = LLMScorer(
-            client=mock_client,
-            name="test",
-            prompt="{{output}}",
-            max_tokens=500
+            client=mock_client, name="test", prompt="{{output}}", max_tokens=500
         )
         payload = scorer._build_request_payload("test")
 
         assert payload["config_overrides"]["max_tokens"] == 500
 
     def test_payload_without_optional_fields(self, mock_client):
-        scorer = LLMScorer(
-            client=mock_client,
-            name="test",
-            prompt="{{output}}"
-        )
+        scorer = LLMScorer(client=mock_client, name="test", prompt="{{output}}")
         payload = scorer._build_request_payload("test")
 
         assert "credential_id" not in payload["config_overrides"]
@@ -295,18 +270,14 @@ class TestJsonResponseParsing:
 
     def test_value_key_instead_of_score(self, mock_client):
         scorer = LLMScorer(client=mock_client, name="test", prompt="{{output}}")
-        mock_client._http.post.return_value = make_success_response(
-            '{"value": 0.7}'
-        )
+        mock_client._http.post.return_value = make_success_response('{"value": 0.7}')
 
         result = scorer(output="test")
         assert result.value == 0.7
 
     def test_rating_key(self, mock_client):
         scorer = LLMScorer(client=mock_client, name="test", prompt="{{output}}")
-        mock_client._http.post.return_value = make_success_response(
-            '{"rating": 8}'
-        )
+        mock_client._http.post.return_value = make_success_response('{"rating": 8}')
 
         result = scorer(output="test")
         assert result.value == 8.0  # Raw value, no normalization in JSON
@@ -325,7 +296,7 @@ class TestJsonResponseParsing:
             client=mock_client,
             name="factuality",
             prompt="{{output}}",
-            choice_scores={"A": 1.0, "B": 0.5, "C": 0.0}
+            choice_scores={"A": 1.0, "B": 0.5, "C": 0.0},
         )
         mock_client._http.post.return_value = make_success_response(
             '{"choice": "B", "reason": "Partially correct"}'
@@ -344,11 +315,9 @@ class TestJsonResponseParsing:
             client=mock_client,
             name="test",
             prompt="{{output}}",
-            choice_scores={"A": 1.0, "B": 0.0}
+            choice_scores={"A": 1.0, "B": 0.0},
         )
-        mock_client._http.post.return_value = make_success_response(
-            '{"choice": "a"}'
-        )
+        mock_client._http.post.return_value = make_success_response('{"choice": "a"}')
 
         result = scorer(output="test")
         assert result.value == 1.0
@@ -359,7 +328,7 @@ class TestJsonResponseParsing:
             client=mock_client,
             name="test",
             prompt="{{output}}",
-            choice_scores={"A": 1.0, "B": 0.0}
+            choice_scores={"A": 1.0, "B": 0.0},
         )
         mock_client._http.post.return_value = make_success_response(
             '{"choice": "Answer A is correct"}'
@@ -370,10 +339,7 @@ class TestJsonResponseParsing:
 
     def test_multi_score_mode(self, mock_client):
         scorer = LLMScorer(
-            client=mock_client,
-            name="multi",
-            prompt="{{output}}",
-            multi_score=True
+            client=mock_client, name="multi", prompt="{{output}}", multi_score=True
         )
         mock_client._http.post.return_value = make_success_response(
             '{"accuracy": 0.9, "fluency": 0.8, "coherence": 0.7, "reason": "Good overall"}'
@@ -403,9 +369,7 @@ class TestJsonResponseParsing:
 
     def test_boolean_result_false(self, mock_client):
         scorer = LLMScorer(client=mock_client, name="test", prompt="{{output}}")
-        mock_client._http.post.return_value = make_success_response(
-            '{"result": false}'
-        )
+        mock_client._http.post.return_value = make_success_response('{"result": false}')
 
         result = scorer(output="test")
         assert result.value == 0.0
@@ -462,9 +426,7 @@ class TestTextResponseParsing:
 
     def test_extract_decimal_number(self, mock_client):
         scorer = LLMScorer(client=mock_client, name="test", prompt="{{output}}")
-        mock_client._http.post.return_value = make_success_response(
-            "Score: 0.75"
-        )
+        mock_client._http.post.return_value = make_success_response("Score: 0.75")
 
         result = scorer(output="test")
         assert result.value == 0.75
@@ -533,7 +495,7 @@ class TestErrorHandling:
         scorer = LLMScorer(client=mock_client, name="test", prompt="{{output}}")
         mock_client._http.post.return_value = {
             "success": True,
-            "data": {"response": {"content": ""}}
+            "data": {"response": {"content": ""}},
         }
 
         result = scorer(output="test")
@@ -545,7 +507,7 @@ class TestErrorHandling:
         scorer = LLMScorer(client=mock_client, name="test", prompt="{{output}}")
         mock_client._http.post.return_value = {
             "success": True,
-            "data": {"response": {}}
+            "data": {"response": {}},
         }
 
         result = scorer(output="test")
@@ -589,7 +551,7 @@ class TestChainOfThought:
             client=mock_client,
             name="test",
             prompt="Rate this: {{output}}",
-            use_cot=True
+            use_cot=True,
         )
         mock_client._http.post.return_value = make_success_response('{"score": 0.8}')
 
@@ -605,7 +567,7 @@ class TestChainOfThought:
             client=mock_client,
             name="test",
             prompt="Rate this: {{output}}",
-            use_cot=False
+            use_cot=False,
         )
         mock_client._http.post.return_value = make_success_response('{"score": 0.8}')
 
@@ -627,9 +589,7 @@ class TestAsyncSupport:
     @pytest.mark.asyncio
     async def test_async_call_success(self, mock_async_client):
         scorer = LLMScorer(
-            client=mock_async_client,
-            name="async_test",
-            prompt="{{output}}"
+            client=mock_async_client, name="async_test", prompt="{{output}}"
         )
         mock_async_client._http.post.return_value = make_success_response(
             '{"score": 0.9, "reason": "Excellent"}'
@@ -644,9 +604,7 @@ class TestAsyncSupport:
     @pytest.mark.asyncio
     async def test_async_error_handling(self, mock_async_client):
         scorer = LLMScorer(
-            client=mock_async_client,
-            name="async_test",
-            prompt="{{output}}"
+            client=mock_async_client, name="async_test", prompt="{{output}}"
         )
         mock_async_client._http.post.side_effect = Exception("Async network error")
 
@@ -662,7 +620,7 @@ class TestAsyncSupport:
             client=mock_async_client,
             name="multi",
             prompt="{{output}}",
-            multi_score=True
+            multi_score=True,
         )
         mock_async_client._http.post.return_value = make_success_response(
             '{"accuracy": 0.9, "fluency": 0.85}'
@@ -687,7 +645,7 @@ class TestEndToEnd:
             client=mock_client,
             name="relevance",
             prompt="Question: {{input}}\nAnswer: {{output}}\n\nRate relevance 0-10.",
-            model="gpt-4o"
+            model="gpt-4o",
         )
         mock_client._http.post.return_value = make_success_response(
             '{"score": 8, "reason": "Answer addresses the question well"}'
@@ -696,7 +654,7 @@ class TestEndToEnd:
         result = scorer(
             input="What is Python?",
             output="Python is a programming language.",
-            expected=None
+            expected=None,
         )
 
         assert result.value == 8.0
@@ -713,7 +671,7 @@ class TestEndToEnd:
             client=mock_client,
             name="sentiment",
             prompt="Classify sentiment of: {{output}}\n(A) Positive (B) Neutral (C) Negative",
-            choice_scores={"A": 1.0, "B": 0.5, "C": 0.0}
+            choice_scores={"A": 1.0, "B": 0.5, "C": 0.0},
         )
         mock_client._http.post.return_value = make_success_response(
             '{"choice": "A", "reason": "Clearly positive language"}'

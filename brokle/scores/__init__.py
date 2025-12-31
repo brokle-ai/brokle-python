@@ -37,8 +37,8 @@ from .exceptions import ScoreError, ScorerError
 from .types import (
     Scorer,
     ScorerArgs,
-    ScorerProtocol,
     ScoreResult,
+    ScorerProtocol,
     ScoreSource,
     ScoreType,
     ScoreValue,

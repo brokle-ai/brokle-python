@@ -14,7 +14,7 @@ All masking functions support recursive application to nested data structures
 """
 
 import re
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List
 
 
 class MaskingHelper:
@@ -43,28 +43,28 @@ class MaskingHelper:
 
     # ========== Regex Patterns ==========
 
-    EMAIL_PATTERN = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    EMAIL_PATTERN = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
     """Matches email addresses (RFC 5322 simplified)"""
 
-    PHONE_PATTERN = r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b'
+    PHONE_PATTERN = r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b"
     """Matches US phone numbers (xxx-xxx-xxxx, xxx.xxx.xxxx, xxxxxxxxxx)"""
 
-    SSN_PATTERN = r'\b\d{3}-\d{2}-\d{4}\b'
+    SSN_PATTERN = r"\b\d{3}-\d{2}-\d{4}\b"
     """Matches US Social Security Numbers (xxx-xx-xxxx)"""
 
-    CREDIT_CARD_PATTERN = r'\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b'
+    CREDIT_CARD_PATTERN = r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b"
     """Matches credit card numbers (16 digits with optional separators)"""
 
-    API_KEY_PATTERN = r'(sk|pk|bk|api)_[a-zA-Z0-9_]{20,}'
+    API_KEY_PATTERN = r"(sk|pk|bk|api)_[a-zA-Z0-9_]{20,}"
     """Matches common API key formats (sk_, pk_, bk_, api_ prefix + 20+ chars)"""
 
     # ========== Replacement Strings ==========
 
-    EMAIL_REPLACEMENT = '[EMAIL]'
-    PHONE_REPLACEMENT = '[PHONE]'
-    SSN_REPLACEMENT = '[SSN]'
-    CREDIT_CARD_REPLACEMENT = '[CREDIT_CARD]'
-    API_KEY_REPLACEMENT = '[API_KEY]'
+    EMAIL_REPLACEMENT = "[EMAIL]"
+    PHONE_REPLACEMENT = "[PHONE]"
+    SSN_REPLACEMENT = "[SSN]"
+    CREDIT_CARD_REPLACEMENT = "[CREDIT_CARD]"
+    API_KEY_REPLACEMENT = "[API_KEY]"
 
     # ========== Primary Masking Functions ==========
 
@@ -110,7 +110,9 @@ class MaskingHelper:
         """
         return MaskingHelper._recursive_mask(
             data,
-            lambda s: re.sub(MaskingHelper.EMAIL_PATTERN, MaskingHelper.EMAIL_REPLACEMENT, s),
+            lambda s: re.sub(
+                MaskingHelper.EMAIL_PATTERN, MaskingHelper.EMAIL_REPLACEMENT, s
+            ),
         )
 
     @staticmethod
@@ -130,7 +132,9 @@ class MaskingHelper:
         """
         return MaskingHelper._recursive_mask(
             data,
-            lambda s: re.sub(MaskingHelper.PHONE_PATTERN, MaskingHelper.PHONE_REPLACEMENT, s),
+            lambda s: re.sub(
+                MaskingHelper.PHONE_PATTERN, MaskingHelper.PHONE_REPLACEMENT, s
+            ),
         )
 
     @staticmethod
@@ -150,7 +154,9 @@ class MaskingHelper:
         """
         return MaskingHelper._recursive_mask(
             data,
-            lambda s: re.sub(MaskingHelper.SSN_PATTERN, MaskingHelper.SSN_REPLACEMENT, s),
+            lambda s: re.sub(
+                MaskingHelper.SSN_PATTERN, MaskingHelper.SSN_REPLACEMENT, s
+            ),
         )
 
     @staticmethod
@@ -171,7 +177,9 @@ class MaskingHelper:
         return MaskingHelper._recursive_mask(
             data,
             lambda s: re.sub(
-                MaskingHelper.CREDIT_CARD_PATTERN, MaskingHelper.CREDIT_CARD_REPLACEMENT, s
+                MaskingHelper.CREDIT_CARD_PATTERN,
+                MaskingHelper.CREDIT_CARD_REPLACEMENT,
+                s,
             ),
         )
 
@@ -194,7 +202,9 @@ class MaskingHelper:
         """
         return MaskingHelper._recursive_mask(
             data,
-            lambda s: re.sub(MaskingHelper.API_KEY_PATTERN, MaskingHelper.API_KEY_REPLACEMENT, s),
+            lambda s: re.sub(
+                MaskingHelper.API_KEY_PATTERN, MaskingHelper.API_KEY_REPLACEMENT, s
+            ),
         )
 
     # ========== Field-Based Masking ==========
@@ -202,7 +212,7 @@ class MaskingHelper:
     @staticmethod
     def field_mask(
         field_names: List[str],
-        replacement: str = '***MASKED***',
+        replacement: str = "***MASKED***",
         case_sensitive: bool = False,
     ) -> Callable[[Any], Any]:
         """
@@ -226,7 +236,9 @@ class MaskingHelper:
             >>> # Use with Brokle
             >>> client = Brokle(api_key="bk_secret", mask=field_mask(['password']))
         """
-        field_set = set(field_names if case_sensitive else [f.lower() for f in field_names])
+        field_set = set(
+            field_names if case_sensitive else [f.lower() for f in field_names]
+        )
 
         def mask_fields(data: Any) -> Any:
             if isinstance(data, dict):
@@ -322,11 +334,19 @@ class MaskingHelper:
         # Apply patterns in order of specificity (most to least specific)
         text = re.sub(MaskingHelper.SSN_PATTERN, MaskingHelper.SSN_REPLACEMENT, text)
         text = re.sub(
-            MaskingHelper.CREDIT_CARD_PATTERN, MaskingHelper.CREDIT_CARD_REPLACEMENT, text
+            MaskingHelper.CREDIT_CARD_PATTERN,
+            MaskingHelper.CREDIT_CARD_REPLACEMENT,
+            text,
         )
-        text = re.sub(MaskingHelper.API_KEY_PATTERN, MaskingHelper.API_KEY_REPLACEMENT, text)
-        text = re.sub(MaskingHelper.EMAIL_PATTERN, MaskingHelper.EMAIL_REPLACEMENT, text)
-        text = re.sub(MaskingHelper.PHONE_PATTERN, MaskingHelper.PHONE_REPLACEMENT, text)
+        text = re.sub(
+            MaskingHelper.API_KEY_PATTERN, MaskingHelper.API_KEY_REPLACEMENT, text
+        )
+        text = re.sub(
+            MaskingHelper.EMAIL_PATTERN, MaskingHelper.EMAIL_REPLACEMENT, text
+        )
+        text = re.sub(
+            MaskingHelper.PHONE_PATTERN, MaskingHelper.PHONE_REPLACEMENT, text
+        )
         return text
 
     @staticmethod
@@ -344,7 +364,10 @@ class MaskingHelper:
             Masked data with same structure as input
         """
         if isinstance(data, dict):
-            return {key: MaskingHelper._recursive_mask(value, mask_fn) for key, value in data.items()}
+            return {
+                key: MaskingHelper._recursive_mask(value, mask_fn)
+                for key, value in data.items()
+            }
         elif isinstance(data, list):
             return [MaskingHelper._recursive_mask(item, mask_fn) for item in data]
         elif isinstance(data, str):

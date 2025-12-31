@@ -21,14 +21,12 @@ from .types import (
     AnthropicMessage,
     AnthropicRequest,
     ChatMessage,
-    ChatTemplate,
     Fallback,
     ModelConfig,
     OpenAIMessage,
     PromptData,
     PromptType,
     Template,
-    TextTemplate,
     Variables,
 )
 
@@ -82,7 +80,7 @@ class Prompt:
         if not is_valid:
             raise PromptCompileError(
                 f"Missing required variables: {', '.join(missing)}",
-                missing_variables=missing
+                missing_variables=missing,
             )
         return compile_template(self.template, vars_dict)
 
@@ -108,14 +106,11 @@ class Prompt:
         if not is_valid:
             raise PromptCompileError(
                 f"Missing required variables: {', '.join(missing)}",
-                missing_variables=missing
+                missing_variables=missing,
             )
         return compile_text_template(self.template, vars_dict)["content"]
 
-    def compile_chat(
-        self,
-        variables: Optional[Variables] = None
-    ) -> List[ChatMessage]:
+    def compile_chat(self, variables: Optional[Variables] = None) -> List[ChatMessage]:
         """
         Get the compiled messages array (chat templates only).
 
@@ -137,7 +132,7 @@ class Prompt:
         if not is_valid:
             raise PromptCompileError(
                 f"Missing required variables: {', '.join(missing)}",
-                missing_variables=missing
+                missing_variables=missing,
             )
         return compile_chat_template(self.template, vars_dict)["messages"]
 
@@ -151,8 +146,7 @@ class Prompt:
         return self.template
 
     def to_openai_messages(
-        self,
-        variables: Optional[Variables] = None
+        self, variables: Optional[Variables] = None
     ) -> List[OpenAIMessage]:
         """
         Convert to OpenAI messages format.
@@ -186,8 +180,7 @@ class Prompt:
         return result
 
     def to_anthropic_messages(
-        self,
-        variables: Optional[Variables] = None
+        self, variables: Optional[Variables] = None
     ) -> AnthropicRequest:
         """
         Convert to Anthropic messages format.
@@ -218,10 +211,12 @@ class Prompt:
         for msg in other_messages:
             role = msg.get("role", "")
             if role in ("user", "assistant"):
-                anthropic_messages.append({
-                    "role": role,
-                    "content": msg.get("content", ""),
-                })
+                anthropic_messages.append(
+                    {
+                        "role": role,
+                        "content": msg.get("content", ""),
+                    }
+                )
 
         return AnthropicRequest(
             system=system_prompt if system_prompt else None,
@@ -283,13 +278,13 @@ class Prompt:
             LlamaIndex PromptTemplate (for text) or ChatPromptTemplate (for chat)
         """
         try:
+            from llama_index.core.base.llms.types import ChatMessage as LlamaMessage
+            from llama_index.core.base.llms.types import (
+                MessageRole,
+            )
             from llama_index.core.prompts import (
                 ChatPromptTemplate,
                 PromptTemplate,
-            )
-            from llama_index.core.base.llms.types import (
-                ChatMessage as LlamaMessage,
-                MessageRole,
             )
         except ImportError:
             raise ImportError(
@@ -320,10 +315,7 @@ class Prompt:
 
         return ChatPromptTemplate(message_templates=llama_messages)
 
-    def get_model_config(
-        self,
-        overrides: Optional[ModelConfig] = None
-    ) -> ModelConfig:
+    def get_model_config(self, overrides: Optional[ModelConfig] = None) -> ModelConfig:
         """
         Get model configuration with optional overrides.
 

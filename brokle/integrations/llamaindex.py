@@ -19,8 +19,7 @@ Example:
 
 import json
 import time
-from typing import Any, Dict, List, Optional
-from uuid import UUID
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from llama_index.core.callbacks import CallbackManager
@@ -244,7 +243,7 @@ class BrokleLlamaIndexHandler(BaseCallbackHandler):
             self._spans.pop(event_id, None)
             self._span_start_times.pop(event_id, None)
 
-    def _handle_llm_start(self, payload: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
+    def _handle_llm_start(self, payload: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
         """
         Handle LLM event start.
 
@@ -407,6 +406,7 @@ def set_global_handler(
     except (ImportError, AttributeError):
         try:
             import llama_index
+
             llama_index.global_handler = handler
         except (ImportError, AttributeError):
             callback_manager = CallbackManager([handler])

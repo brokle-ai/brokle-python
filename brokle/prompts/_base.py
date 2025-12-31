@@ -12,7 +12,7 @@ This design eliminates event loop lifecycle issues.
 
 import asyncio
 import threading
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 from .._http import AsyncHTTPClient, SyncHTTPClient, unwrap_response
 from ..config import BrokleConfig
@@ -135,7 +135,9 @@ class BaseSyncPromptsManager(_BasePromptsManagerMixin):
 
         try:
             raw_response = self._http.get(f"/v1/prompts/{name}", params)
-            data = unwrap_response(raw_response, resource_type="Prompt", identifier=name)
+            data = unwrap_response(
+                raw_response, resource_type="Prompt", identifier=name
+            )
             return PromptData.from_dict(data)
         except ValueError as e:
             if "not found" in str(e).lower():
@@ -180,7 +182,11 @@ class BaseSyncPromptsManager(_BasePromptsManagerMixin):
         """
         options = GetPromptOptions(label=label, version=version)
         cache_key = PromptCache.generate_key(name, label, version)
-        ttl = cache_ttl if cache_ttl is not None else self._prompt_config.cache_ttl_seconds
+        ttl = (
+            cache_ttl
+            if cache_ttl is not None
+            else self._prompt_config.cache_ttl_seconds
+        )
 
         # Force refresh - skip cache, but still use fallback on failure
         if force_refresh:
@@ -343,7 +349,9 @@ class BaseSyncPromptsManager(_BasePromptsManagerMixin):
         """
         try:
             raw_response = self._http.post("/v1/prompts", json=request.to_dict())
-            unwrap_response(raw_response, resource_type="Prompt", identifier=request.name)
+            unwrap_response(
+                raw_response, resource_type="Prompt", identifier=request.name
+            )
 
             # Invalidate cache for this prompt
             self.invalidate(request.name)
@@ -415,7 +423,9 @@ class BaseAsyncPromptsManager(_BasePromptsManagerMixin):
 
         try:
             raw_response = await self._http.get(f"/v1/prompts/{name}", params)
-            data = unwrap_response(raw_response, resource_type="Prompt", identifier=name)
+            data = unwrap_response(
+                raw_response, resource_type="Prompt", identifier=name
+            )
             return PromptData.from_dict(data)
         except ValueError as e:
             if "not found" in str(e).lower():
@@ -460,7 +470,11 @@ class BaseAsyncPromptsManager(_BasePromptsManagerMixin):
         """
         options = GetPromptOptions(label=label, version=version)
         cache_key = PromptCache.generate_key(name, label, version)
-        ttl = cache_ttl if cache_ttl is not None else self._prompt_config.cache_ttl_seconds
+        ttl = (
+            cache_ttl
+            if cache_ttl is not None
+            else self._prompt_config.cache_ttl_seconds
+        )
 
         # Force refresh - skip cache, but still use fallback on failure
         if force_refresh:
@@ -623,7 +637,9 @@ class BaseAsyncPromptsManager(_BasePromptsManagerMixin):
         """
         try:
             raw_response = await self._http.post("/v1/prompts", json=request.to_dict())
-            unwrap_response(raw_response, resource_type="Prompt", identifier=request.name)
+            unwrap_response(
+                raw_response, resource_type="Prompt", identifier=request.name
+            )
 
             # Invalidate cache for this prompt
             self.invalidate(request.name)

@@ -14,7 +14,16 @@ Span-based evaluation (THE WEDGE):
 """
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, List, Optional, TypedDict
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Coroutine,
+    Dict,
+    List,
+    Optional,
+    TypedDict,
+)
 
 from ..scores.types import ScoreResult
 

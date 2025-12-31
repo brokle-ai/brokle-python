@@ -188,6 +188,7 @@ def generate_test_metadata():
 def reset_client_state():
     """Reset client state before and after each test."""
     import brokle._client
+
     brokle._client._global_client = None
     yield
     brokle._client._global_client = None

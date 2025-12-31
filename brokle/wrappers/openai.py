@@ -7,7 +7,7 @@ Streaming responses are transparently instrumented with TTFT and ITL tracking.
 
 import json
 import time
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING
 
 from opentelemetry.trace import Status, StatusCode
 

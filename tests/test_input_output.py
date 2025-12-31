@@ -6,7 +6,6 @@ and OTLP GenAI standard (gen_ai.input.messages/output.messages) for LLM data.
 """
 
 import json
-import os
 from unittest.mock import patch
 
 import pytest

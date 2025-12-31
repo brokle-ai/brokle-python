@@ -10,9 +10,6 @@ Key behavior: Fallback prompts (is_fallback=True) are NOT linked to traces.
 This prevents polluting analytics with offline fallbacks.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
-
 from brokle.prompts import Prompt, PromptType
 from brokle.prompts.types import PromptData
 from brokle.types import Attrs

@@ -28,7 +28,7 @@ Async Usage:
 from datetime import datetime
 from typing import Any, AsyncIterator, Dict, Iterator, Optional
 
-from .._http import AsyncHTTPClient, SyncHTTPClient, unwrap_response
+from .._http import AsyncHTTPClient, SyncHTTPClient
 from ..config import BrokleConfig
 from .exceptions import InvalidFilterError, QueryAPIError
 from .types import QueriedSpan, QueryResult, ValidationResult
@@ -61,9 +61,17 @@ class _BaseQueryManagerMixin:
             "offset": offset,
         }
         if start_time:
-            body["start_time"] = start_time.isoformat() + "Z" if start_time.tzinfo is None else start_time.isoformat()
+            body["start_time"] = (
+                start_time.isoformat() + "Z"
+                if start_time.tzinfo is None
+                else start_time.isoformat()
+            )
         if end_time:
-            body["end_time"] = end_time.isoformat() + "Z" if end_time.tzinfo is None else end_time.isoformat()
+            body["end_time"] = (
+                end_time.isoformat() + "Z"
+                if end_time.tzinfo is None
+                else end_time.isoformat()
+            )
         return body
 
 
@@ -213,7 +221,11 @@ class QueryManager(_BaseQueryManagerMixin):
             if not result.has_more:
                 break
 
-            offset = result.next_offset if result.next_offset is not None else (offset + batch_size)
+            offset = (
+                result.next_offset
+                if result.next_offset is not None
+                else (offset + batch_size)
+            )
 
     def validate(self, filter: str) -> ValidationResult:
         """
@@ -238,7 +250,9 @@ class QueryManager(_BaseQueryManagerMixin):
         self._log(f"Validating filter: {filter}")
 
         try:
-            raw_response = self._http.post("/v1/spans/query/validate", json={"filter": filter})
+            raw_response = self._http.post(
+                "/v1/spans/query/validate", json={"filter": filter}
+            )
 
             if not raw_response.get("success"):
                 error = raw_response.get("error", {})
@@ -417,7 +431,11 @@ class AsyncQueryManager(_BaseQueryManagerMixin):
             if not result.has_more:
                 break
 
-            offset = result.next_offset if result.next_offset is not None else (offset + batch_size)
+            offset = (
+                result.next_offset
+                if result.next_offset is not None
+                else (offset + batch_size)
+            )
 
     async def validate(self, filter: str) -> ValidationResult:
         """
@@ -442,7 +460,9 @@ class AsyncQueryManager(_BaseQueryManagerMixin):
         self._log(f"Validating filter: {filter}")
 
         try:
-            raw_response = await self._http.post("/v1/spans/query/validate", json={"filter": filter})
+            raw_response = await self._http.post(
+                "/v1/spans/query/validate", json={"filter": filter}
+            )
 
             if not raw_response.get("success"):
                 error = raw_response.get("error", {})

@@ -11,7 +11,7 @@ The backend supports both protocols:
 
 import logging
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Dict
 
 from opentelemetry.sdk._logs.export import LogExporter
 from opentelemetry.sdk.metrics.export import MetricExporter

@@ -167,11 +167,11 @@ def example_chat_engine():
         print("Starting conversation...")
 
         response1 = chat_engine.chat("What is Brokle?")
-        print(f"Q: What is Brokle?")
+        print("Q: What is Brokle?")
         print(f"A: {response1}\n")
 
         response2 = chat_engine.chat("What does it provide?")
-        print(f"Q: What does it provide?")
+        print("Q: What does it provide?")
         print(f"A: {response2}\n")
 
         print("✓ Chat conversation traced with:")
@@ -276,7 +276,7 @@ def example_from_documents():
     try:
         # Build index - document parsing and chunking are traced
         print("Processing documents...")
-        index = VectorStoreIndex.from_documents(documents)
+        VectorStoreIndex.from_documents(documents)
 
         print("\n✓ Document processing traced:")
         print("  - node_parsing span (document parsing)")

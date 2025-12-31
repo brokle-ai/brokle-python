@@ -77,9 +77,7 @@ class SyncHTTPClient:
             )
         return self._client
 
-    def get(
-        self, path: str, params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def get(self, path: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Send sync GET request.
 
@@ -93,9 +91,7 @@ class SyncHTTPClient:
         response = self._get_client().get(path, params=params)
         return response.json()
 
-    def post(
-        self, path: str, json: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def post(self, path: str, json: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Send sync POST request.
 
