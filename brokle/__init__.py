@@ -58,9 +58,72 @@ from .streaming import (
     StreamingResult,
 )
 from .utils.masking import MaskingHelper
-from .evaluations import (
-    AsyncEvaluationsManager,
-    EvaluationsManager,
+
+# New namespace modules (recommended)
+from .datasets import (
+    DatasetsManager,
+    AsyncDatasetsManager,
+    Dataset,
+    AsyncDataset,
+    DatasetItem,
+    DatasetItemInput,
+    DatasetData,
+    DatasetError,
+)
+from .scores import (
+    ScoresManager,
+    AsyncScoresManager,
+    ScoreType,
+    ScoreSource,
+    ScoreResult,
+    ScoreValue,
+    ScorerProtocol,
+    Scorer,
+    ScorerArgs,
+    ScoreError,
+    ScorerError,
+)
+from .experiments import (
+    ExperimentsManager,
+    AsyncExperimentsManager,
+    EvaluationResults,
+    EvaluationItem,
+    SummaryStats,
+    Experiment,
+    EvaluationError,
+    TaskError,
+    ScorerExecutionError,
+)
+from .experiments.types import (
+    SpanExtractInput,
+    SpanExtractOutput,
+    SpanExtractExpected,
+)
+from .query import (
+    QueryManager,
+    AsyncQueryManager,
+    QueriedSpan,
+    QueryResult,
+    ValidationResult,
+    TokenUsage,
+    SpanEvent,
+    QueryError,
+    InvalidFilterError,
+    QueryAPIError,
+)
+
+from .scorers import (
+    # Built-in scorers
+    ExactMatch,
+    Contains,
+    RegexMatch,
+    JSONValid,
+    LengthCheck,
+    # LLM-as-Judge scorers
+    LLMScorer,
+    # Decorators
+    scorer,
+    multi_scorer,
 )
 from .prompts import (
     # Manager classes
@@ -216,7 +279,59 @@ __all__ = [
     "Fallback",
     "TextFallback",
     "ChatFallback",
-    # Evaluations
-    "EvaluationsManager",
-    "AsyncEvaluationsManager",
+    # Datasets
+    "DatasetsManager",
+    "AsyncDatasetsManager",
+    "Dataset",
+    "AsyncDataset",
+    "DatasetItem",
+    "DatasetItemInput",
+    "DatasetData",
+    "DatasetError",
+    # Scores
+    "ScoresManager",
+    "AsyncScoresManager",
+    "ScoreType",
+    "ScoreSource",
+    "ScoreResult",
+    "ScoreValue",
+    "ScorerProtocol",
+    "Scorer",
+    "ScorerArgs",
+    "ScoreError",
+    "ScorerError",
+    # Scorers
+    "ExactMatch",
+    "Contains",
+    "RegexMatch",
+    "JSONValid",
+    "LengthCheck",
+    "LLMScorer",
+    "scorer",
+    "multi_scorer",
+    # Experiments
+    "ExperimentsManager",
+    "AsyncExperimentsManager",
+    "EvaluationResults",
+    "EvaluationItem",
+    "SummaryStats",
+    "Experiment",
+    "EvaluationError",
+    "TaskError",
+    "ScorerExecutionError",
+    # Query (THE WEDGE)
+    "QueryManager",
+    "AsyncQueryManager",
+    "QueriedSpan",
+    "QueryResult",
+    "ValidationResult",
+    "TokenUsage",
+    "SpanEvent",
+    "QueryError",
+    "InvalidFilterError",
+    "QueryAPIError",
+    # Span Extract Types (for span-based evaluation)
+    "SpanExtractInput",
+    "SpanExtractOutput",
+    "SpanExtractExpected",
 ]

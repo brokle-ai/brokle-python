@@ -106,7 +106,10 @@ class BaseBrokleClient:
 
         self._prompt_config = PromptConfig()
         self._prompts_manager = None
-        self._evaluations_manager = None
+        self._datasets_manager = None
+        self._scores_manager = None
+        self._experiments_manager = None
+        self._query_manager = None
 
         # Master switch: if disabled, create no-op client (skip all OTEL init)
         if not self.config.enabled:
@@ -123,8 +126,6 @@ class BaseBrokleClient:
         self._metrics: Optional[GenAIMetrics] = None
         self._logger_provider: Optional[BrokleLoggerProvider] = None
 
-        # Create shared Resource (used by TracerProvider, MeterProvider, LoggerProvider)
-        # Schema URL enables semantic convention versioning
         resource = Resource.create({}, schema_url=SchemaURLs.DEFAULT)
 
         resource_attrs = {}
@@ -141,7 +142,6 @@ class BaseBrokleClient:
             self._provider = None
             self._processor = None
         else:
-            # TraceIdRatioBased sampler ensures entire traces are sampled together
             if self.config.sample_rate < 1.0:
                 sampler = TraceIdRatioBased(self.config.sample_rate)
             else:
@@ -209,9 +209,7 @@ class BaseBrokleClient:
         """
         if not api_key:
             return "unknown"
-        # Hash or extract project ID from API key
-        # For now, use a portion of the key as identifier
-        return api_key[:20]  # Placeholder - backend determines actual project
+        return api_key[:20]
 
     @staticmethod
     def _get_sdk_version() -> str:
@@ -654,27 +652,21 @@ def _serialize_with_mime(value: Any) -> tuple[str, str]:
             return "null", "application/json"
 
         if isinstance(value, (dict, list)):
-            # Use default=str to handle non-serializable objects
             return json.dumps(value, default=str), "application/json"
 
         if isinstance(value, str):
             return value, "text/plain"
 
         if isinstance(value, bytes):
-            # Decode with error replacement for malformed UTF-8
             return value.decode("utf-8", errors="replace"), "text/plain"
 
-        # Fallback for custom objects (Pydantic models, dataclasses, etc.)
         if hasattr(value, "model_dump"):
-            # Pydantic model
             return json.dumps(value.model_dump(exclude_none=True)), "application/json"
 
         if hasattr(value, "__dataclass_fields__"):
-            # Dataclass
             import dataclasses
             return json.dumps(dataclasses.asdict(value)), "application/json"
 
-        # Last resort: string representation
         return str(value), "text/plain"
 
     except Exception as e:
