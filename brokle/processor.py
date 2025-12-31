@@ -1,16 +1,20 @@
 """
 Brokle span processor extending OpenTelemetry's BatchSpanProcessor.
 
-Provides span-level processing including PII masking while delegating
-batching, queuing, retry logic, and sampling to OpenTelemetry SDK.
+Provides span-level attribute enrichment (environment, release) while
+delegating batching, queuing, retry logic, and sampling to OpenTelemetry SDK.
 
 Note: Sampling is handled by TracerProvider's TraceIdRatioBased sampler
 (configured in client.py), not by this processor. This ensures entire
 traces are sampled together (not individual spans).
+
+Note: PII masking is handled at the exporter layer via MaskingSpanExporter,
+not in this processor. This uses only public OpenTelemetry APIs and avoids
+accessing internal span attributes.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Optional
 
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace import ReadableSpan, Span
@@ -19,23 +23,22 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
 from .config import BrokleConfig
 from .types.attributes import BrokleOtelSpanAttributes as Attrs
 
-logger = logging.getLogger(__name__)
+# Re-export MASKABLE_ATTRIBUTES for backwards compatibility
+# (now defined in types/attributes.py)
+from .types.attributes import MASKABLE_ATTRIBUTES  # noqa: F401
 
-# Attributes that should be masked if masking is configured
-MASKABLE_ATTRIBUTES = [
-    Attrs.INPUT_VALUE,
-    Attrs.OUTPUT_VALUE,
-    Attrs.GEN_AI_INPUT_MESSAGES,
-    Attrs.GEN_AI_OUTPUT_MESSAGES,
-    Attrs.METADATA,
-]
+logger = logging.getLogger(__name__)
 
 
 class BrokleSpanProcessor(BatchSpanProcessor):
     """
     Brokle span processor extending OpenTelemetry's BatchSpanProcessor.
 
-    Provides PII masking while delegating batching, queuing, and retry to OTEL.
+    Enriches spans with environment and release attributes on start.
+    Batching, queuing, retry, and export are delegated to OTEL SDK.
+
+    Note: PII masking is handled at the exporter layer (MaskingSpanExporter),
+    not in this processor. This ensures we use only public OTEL APIs.
     """
 
     def __init__(
@@ -79,10 +82,13 @@ class BrokleSpanProcessor(BatchSpanProcessor):
         super().on_start(span, parent_context)
 
     def on_end(self, span: ReadableSpan) -> None:
-        """Called when span ends. Applies PII masking if configured."""
-        if self.config.mask:
-            self._apply_masking(span)
+        """
+        Called when span ends. Forward to BatchSpanProcessor for batching.
 
+        Note: PII masking is handled at the exporter layer (MaskingSpanExporter),
+        not here. This ensures we use only public OTEL APIs and don't access
+        internal span attributes.
+        """
         super().on_end(span)
 
     def shutdown(self) -> None:
@@ -92,30 +98,3 @@ class BrokleSpanProcessor(BatchSpanProcessor):
     def force_flush(self, timeout_millis: int = 30000) -> bool:
         """Force flush all pending spans."""
         return super().force_flush(timeout_millis)
-
-    def _apply_masking(self, span: ReadableSpan) -> None:
-        """
-        Apply PII masking to sensitive span attributes.
-
-        Uses span._attributes (internal OpenTelemetry API) because span.attributes
-        is immutable (MappingProxyType). No official API exists for post-processing.
-        May break in future OTEL versions.
-
-        See: https://github.com/open-telemetry/opentelemetry-specification/issues/2990
-        """
-        if not span._attributes:
-            return
-
-        for attr_key in MASKABLE_ATTRIBUTES:
-            if attr_key in span._attributes:
-                original_value = span._attributes[attr_key]
-                masked_value = self._mask_attribute(original_value)
-                span._attributes[attr_key] = masked_value
-
-    def _mask_attribute(self, data: Any) -> Any:
-        """Apply masking function with error fallback."""
-        try:
-            return self.config.mask(data)
-        except Exception as e:
-            logger.error(f"Masking failed: {type(e).__name__}: {str(e)[:100]}")
-            return "<fully masked due to failed mask function>"

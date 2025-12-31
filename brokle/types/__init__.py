@@ -4,6 +4,7 @@ Brokle OpenTelemetry type definitions and attribute constants.
 
 from .attributes import Attrs  # Convenience alias
 from .attributes import (
+    MASKABLE_ATTRIBUTES,
     BrokleOtelSpanAttributes,
     LLMProvider,
     OperationType,
@@ -22,4 +23,5 @@ __all__ = [
     "OperationType",
     "ScoreDataType",
     "SchemaURLs",
+    "MASKABLE_ATTRIBUTES",
 ]

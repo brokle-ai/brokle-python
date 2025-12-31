@@ -278,6 +278,17 @@ class MemoryType:
 Attrs = BrokleOtelSpanAttributes
 
 
+# Attributes that should be masked if masking is configured
+# These typically contain PII or sensitive content from LLM interactions
+MASKABLE_ATTRIBUTES = [
+    Attrs.INPUT_VALUE,
+    Attrs.OUTPUT_VALUE,
+    Attrs.GEN_AI_INPUT_MESSAGES,
+    Attrs.GEN_AI_OUTPUT_MESSAGES,
+    Attrs.METADATA,
+]
+
+
 class SchemaURLs:
     """OpenTelemetry semantic convention schema URLs."""
 
