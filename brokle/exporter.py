@@ -129,11 +129,14 @@ def create_exporter_for_config(config: BrokleConfig) -> SpanExporter:
     - HTTP: Default, uses /v1/traces endpoint
     - gRPC: Uses port 4317, requires opentelemetry-exporter-otlp-proto-grpc
 
+    When config.mask is set, the exporter is automatically wrapped with
+    MaskingSpanExporter for PII redaction using public OTEL APIs.
+
     Args:
         config: Brokle configuration instance
 
     Returns:
-        Appropriate SpanExporter instance
+        Appropriate SpanExporter instance (optionally wrapped with masking)
 
     Example:
         >>> config = BrokleConfig.from_env()
@@ -142,6 +145,12 @@ def create_exporter_for_config(config: BrokleConfig) -> SpanExporter:
         >>> # Use gRPC transport
         >>> config = BrokleConfig(api_key="bk_...", transport="grpc")
         >>> exporter = create_exporter_for_config(config)
+
+        >>> # With PII masking
+        >>> def mask_pii(data):
+        ...     return "[MASKED]" if data else data
+        >>> config = BrokleConfig(api_key="bk_...", mask=mask_pii)
+        >>> exporter = create_exporter_for_config(config)  # Wrapped with masking
     """
     # If tracing is disabled, use no-op exporter
     if not config.tracing_enabled:
@@ -152,7 +161,20 @@ def create_exporter_for_config(config: BrokleConfig) -> SpanExporter:
         # Use gRPC transport
         from .transport import TransportType, create_trace_exporter
 
-        return create_trace_exporter(config, TransportType.GRPC)
+        exporter = create_trace_exporter(config, TransportType.GRPC)
+    else:
+        # Default: HTTP transport via existing implementation
+        exporter = create_brokle_exporter(config)
 
-    # Default: HTTP transport via existing implementation
-    return create_brokle_exporter(config)
+    # Wrap with MaskingSpanExporter if masking is configured
+    if config.mask is not None:
+        from .masking_exporter import MaskingSpanExporter
+        from .types.attributes import MASKABLE_ATTRIBUTES
+
+        exporter = MaskingSpanExporter(
+            exporter=exporter,
+            mask_fn=config.mask,
+            maskable_keys=MASKABLE_ATTRIBUTES,
+        )
+
+    return exporter
