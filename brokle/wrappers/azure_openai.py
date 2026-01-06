@@ -1,13 +1,13 @@
 """
-OpenAI SDK wrapper for automatic observability.
+Azure OpenAI SDK wrapper for automatic observability.
 
-Wraps OpenAI client to automatically create OTEL spans with GenAI 1.28+ attributes.
-Streaming responses are transparently instrumented with TTFT and ITL tracking.
+Wraps Azure OpenAI client to automatically create OTEL spans with GenAI 1.28+ attributes.
+Extends the OpenAI wrapper pattern with Azure-specific attributes.
 """
 
 import json
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from opentelemetry.trace import Status, StatusCode
 
@@ -24,35 +24,39 @@ from ..utils.attributes import (
 from ._common import add_prompt_attributes, extract_brokle_options, record_openai_response
 
 if TYPE_CHECKING:
-    import openai
+    from openai import AzureOpenAI, AsyncAzureOpenAI
 
 
-def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
+def wrap_azure_openai(client: "AzureOpenAI") -> "AzureOpenAI":
     """
-    Wrap OpenAI client for automatic observability.
+    Wrap Azure OpenAI client for automatic observability.
 
-    This function wraps the OpenAI client's chat.completions.create method
+    This function wraps the Azure OpenAI client's chat.completions.create method
     to automatically create OTEL spans with GenAI semantic attributes.
 
     Args:
-        client: OpenAI client instance
+        client: AzureOpenAI client instance
 
     Returns:
-        Wrapped OpenAI client (same instance with instrumented methods)
+        Wrapped AzureOpenAI client (same instance with instrumented methods)
 
     Example:
-        >>> import openai
-        >>> from brokle import get_client, wrap_openai
+        >>> from openai import AzureOpenAI
+        >>> from brokle import get_client, wrap_azure_openai
         >>>
         >>> # Initialize Brokle
         >>> brokle = get_client()
         >>>
-        >>> # Wrap OpenAI client
-        >>> client = wrap_openai(openai.OpenAI(api_key="..."))
+        >>> # Wrap Azure OpenAI client
+        >>> client = wrap_azure_openai(AzureOpenAI(
+        ...     azure_endpoint="https://YOUR_RESOURCE.openai.azure.com",
+        ...     api_key="...",
+        ...     api_version="2024-02-15-preview"
+        ... ))
         >>>
         >>> # All calls automatically tracked
         >>> response = client.chat.completions.create(
-        ...     model="gpt-4",
+        ...     model="gpt-4",  # Your deployment name
         ...     messages=[{"role": "user", "content": "Hello"}]
         ... )
         >>> brokle.flush()
@@ -62,6 +66,10 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
     if not brokle_client.config.enabled:
         return client
 
+    # Extract Azure-specific metadata from client
+    azure_endpoint = getattr(client, "_azure_endpoint", None)
+    api_version = getattr(client, "_api_version", None)
+
     original_chat_create = client.chat.completions.create
 
     def wrapped_chat_create(*args, **kwargs):
@@ -70,7 +78,7 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
         kwargs, brokle_opts = extract_brokle_options(kwargs)
 
         brokle_client = get_client()
-        model = kwargs.get("model", "unknown")
+        model = kwargs.get("model", "unknown")  # In Azure, this is deployment name
         messages = kwargs.get("messages", [])
         temperature = kwargs.get("temperature")
         max_tokens = kwargs.get("max_tokens")
@@ -85,11 +93,20 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
         non_system_msgs, system_msgs = extract_system_messages(messages)
         attrs = {
             Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
-            Attrs.GEN_AI_PROVIDER_NAME: LLMProvider.OPENAI,
+            Attrs.GEN_AI_PROVIDER_NAME: LLMProvider.AZURE_OPENAI,
             Attrs.GEN_AI_OPERATION_NAME: OperationType.CHAT,
             Attrs.GEN_AI_REQUEST_MODEL: model,
             Attrs.BROKLE_STREAMING: stream,
+            Attrs.AZURE_OPENAI_DEPLOYMENT_NAME: model,
         }
+
+        # Add Azure-specific attributes
+        if azure_endpoint:
+            # Extract resource name from endpoint
+            resource_name = azure_endpoint.replace("https://", "").split(".")[0]
+            attrs[Attrs.AZURE_OPENAI_RESOURCE_NAME] = resource_name
+        if api_version:
+            attrs[Attrs.AZURE_OPENAI_API_VERSION] = api_version
 
         if non_system_msgs:
             attrs[Attrs.GEN_AI_INPUT_MESSAGES] = serialize_messages(non_system_msgs)
@@ -116,8 +133,6 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
 
         if n is not None:
             attrs[Attrs.OPENAI_REQUEST_N] = n
-        if kwargs.get("service_tier"):
-            attrs[Attrs.OPENAI_REQUEST_SERVICE_TIER] = kwargs["service_tier"]
         if kwargs.get("seed"):
             attrs[Attrs.OPENAI_REQUEST_SEED] = kwargs["seed"]
         if kwargs.get("logprobs"):
@@ -142,7 +157,6 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
         brokle_client, original_method, args, kwargs, span_name, attrs
     ):
         """Handle streaming response with transparent wrapper instrumentation."""
-        # Span will be ended by stream wrapper
         tracer = brokle_client._tracer
         span = tracer.start_span(span_name, attributes=attrs)
 
@@ -180,28 +194,43 @@ def wrap_openai(client: "openai.OpenAI") -> "openai.OpenAI":
     return client
 
 
-def wrap_openai_async(client: "openai.AsyncOpenAI") -> "openai.AsyncOpenAI":
+def wrap_azure_openai_async(
+    client: "AsyncAzureOpenAI",
+) -> "AsyncAzureOpenAI":
     """
-    Wrap AsyncOpenAI client for automatic observability.
+    Wrap AsyncAzureOpenAI client for automatic observability.
 
-    Similar to wrap_openai but for async client.
+    Similar to wrap_azure_openai but for async client.
 
     Args:
-        client: AsyncOpenAI client instance
+        client: AsyncAzureOpenAI client instance
 
     Returns:
-        Wrapped AsyncOpenAI client
+        Wrapped AsyncAzureOpenAI client
 
     Example:
-        >>> import openai
-        >>> from brokle import get_client, wrap_openai_async
+        >>> from openai import AsyncAzureOpenAI
+        >>> from brokle import get_client, wrap_azure_openai_async
         >>>
         >>> brokle = get_client()
-        >>> client = wrap_openai_async(openai.AsyncOpenAI(api_key="..."))
+        >>> client = wrap_azure_openai_async(AsyncAzureOpenAI(
+        ...     azure_endpoint="https://YOUR_RESOURCE.openai.azure.com",
+        ...     api_key="...",
+        ...     api_version="2024-02-15-preview"
+        ... ))
         >>>
         >>> # Async calls automatically tracked
         >>> response = await client.chat.completions.create(...)
     """
+    # Return unwrapped if SDK disabled
+    brokle_client = get_client()
+    if not brokle_client.config.enabled:
+        return client
+
+    # Extract Azure-specific metadata from client
+    azure_endpoint = getattr(client, "_azure_endpoint", None)
+    api_version = getattr(client, "_api_version", None)
+
     original_chat_create = client.chat.completions.create
 
     async def wrapped_chat_create(*args, **kwargs):
@@ -217,11 +246,18 @@ def wrap_openai_async(client: "openai.AsyncOpenAI") -> "openai.AsyncOpenAI":
         non_system_msgs, system_msgs = extract_system_messages(messages)
         attrs = {
             Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
-            Attrs.GEN_AI_PROVIDER_NAME: LLMProvider.OPENAI,
+            Attrs.GEN_AI_PROVIDER_NAME: LLMProvider.AZURE_OPENAI,
             Attrs.GEN_AI_OPERATION_NAME: OperationType.CHAT,
             Attrs.GEN_AI_REQUEST_MODEL: model,
             Attrs.BROKLE_STREAMING: stream,
+            Attrs.AZURE_OPENAI_DEPLOYMENT_NAME: model,
         }
+
+        if azure_endpoint:
+            resource_name = azure_endpoint.replace("https://", "").split(".")[0]
+            attrs[Attrs.AZURE_OPENAI_RESOURCE_NAME] = resource_name
+        if api_version:
+            attrs[Attrs.AZURE_OPENAI_API_VERSION] = api_version
 
         if non_system_msgs:
             attrs[Attrs.GEN_AI_INPUT_MESSAGES] = serialize_messages(non_system_msgs)
@@ -248,7 +284,6 @@ def wrap_openai_async(client: "openai.AsyncOpenAI") -> "openai.AsyncOpenAI":
         brokle_client, original_method, args, kwargs, span_name, attrs
     ):
         """Handle async streaming response with transparent wrapper instrumentation."""
-        # Span will be ended by stream wrapper
         tracer = brokle_client._tracer
         span = tracer.start_span(span_name, attributes=attrs)
 
