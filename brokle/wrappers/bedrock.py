@@ -8,6 +8,7 @@ Uses the unified factory pattern for consistent sync/async behavior.
 """
 
 import json
+import threading
 import time
 from typing import TYPE_CHECKING
 
@@ -41,6 +42,8 @@ class _BedrockStreamWrapper:
         self._stop_reason = None
         self._usage = {}
         self._stream = response.get("stream", iter([]))
+        self._finalized = False
+        self._lock = threading.Lock()
 
     def __iter__(self):
         return self
@@ -69,7 +72,12 @@ class _BedrockStreamWrapper:
             raise
 
     def _finalize(self):
-        """Finalize span with accumulated data."""
+        """Finalize span with accumulated data (thread-safe)."""
+        with self._lock:
+            if self._finalized:
+                return
+            self._finalized = True
+
         if self._content_parts:
             output_messages = [{
                 "role": "assistant",

@@ -8,6 +8,7 @@ Uses the unified factory pattern for consistent sync/async behavior.
 """
 
 import json
+import threading
 from typing import TYPE_CHECKING, Any, Dict, List, TypeVar, Union
 
 from opentelemetry.trace import Status, StatusCode
@@ -43,6 +44,8 @@ class _CohereStreamWrapper:
         self._generation_id = None
         self._input_tokens = None
         self._output_tokens = None
+        self._finalized = False
+        self._lock = threading.Lock()
 
     def __iter__(self):
         return self
@@ -85,7 +88,126 @@ class _CohereStreamWrapper:
             raise
 
     def _finalize(self):
-        """Finalize span with accumulated data."""
+        """Finalize span with accumulated data (thread-safe)."""
+        with self._lock:
+            if self._finalized:
+                return
+            self._finalized = True
+
+        if self._generation_id:
+            self._span.set_attribute(Attrs.GEN_AI_RESPONSE_ID, self._generation_id)
+
+        if self._content_parts:
+            output_messages = [{
+                "role": "assistant",
+                "content": "".join(self._content_parts),
+            }]
+            self._span.set_attribute(
+                Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages)
+            )
+
+        if self._finish_reason:
+            self._span.set_attribute(
+                Attrs.GEN_AI_RESPONSE_FINISH_REASONS, [self._finish_reason]
+            )
+
+        if self._citations:
+            self._span.set_attribute(
+                Attrs.COHERE_RESPONSE_CITATIONS,
+                json.dumps(_serialize_citations(self._citations)),
+            )
+
+        # Token usage (now captured from stream-end event)
+        if self._input_tokens is not None:
+            self._span.set_attribute(Attrs.GEN_AI_USAGE_INPUT_TOKENS, self._input_tokens)
+        if self._output_tokens is not None:
+            self._span.set_attribute(Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, self._output_tokens)
+        if self._input_tokens is not None and self._output_tokens is not None:
+            self._span.set_attribute(
+                Attrs.BROKLE_USAGE_TOTAL_TOKENS,
+                self._input_tokens + self._output_tokens
+            )
+
+        # Set streaming metrics
+        if self._accumulator.ttft_ms is not None:
+            self._span.set_attribute(Attrs.GEN_AI_RESPONSE_TTFT, self._accumulator.ttft_ms)
+        if self._accumulator.avg_itl_ms is not None:
+            self._span.set_attribute(Attrs.GEN_AI_RESPONSE_ITL, self._accumulator.avg_itl_ms)
+        if self._accumulator.duration_ms is not None:
+            self._span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, self._accumulator.duration_ms)
+
+        self._span.set_status(Status(StatusCode.OK))
+        self._span.end()
+
+
+class _CohereAsyncStreamWrapper:
+    """
+    Async wrapper for Cohere streaming responses.
+
+    Handles Cohere-specific streaming events like text-generation,
+    citation-generation, and stream-end.
+    """
+
+    def __init__(self, stream, span, accumulator):
+        self._stream = stream
+        self._span = span
+        self._accumulator = accumulator
+        self._content_parts = []
+        self._finish_reason = None
+        self._citations = []
+        self._generation_id = None
+        self._input_tokens = None
+        self._output_tokens = None
+        self._finalized = False
+        self._lock = threading.Lock()
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        try:
+            event = await self._stream.__anext__()
+            self._accumulator.on_chunk_received()
+
+            # Handle different event types
+            event_type = getattr(event, "event_type", None)
+
+            if event_type == "text-generation":
+                if hasattr(event, "text"):
+                    self._content_parts.append(event.text)
+            elif event_type == "stream-end":
+                if hasattr(event, "finish_reason"):
+                    self._finish_reason = event.finish_reason
+                if hasattr(event, "response"):
+                    resp = event.response
+                    if hasattr(resp, "generation_id"):
+                        self._generation_id = resp.generation_id
+                    if hasattr(resp, "citations"):
+                        self._citations = resp.citations
+                    # Extract token usage from final response
+                    if hasattr(resp, "meta") and resp.meta:
+                        meta = resp.meta
+                        if hasattr(meta, "billed_units"):
+                            units = meta.billed_units
+                            self._input_tokens = getattr(units, "input_tokens", None)
+                            self._output_tokens = getattr(units, "output_tokens", None)
+            elif event_type == "citation-generation":
+                if hasattr(event, "citations"):
+                    self._citations.extend(event.citations)
+
+            return event
+
+        except StopAsyncIteration:
+            self._finalize()
+            raise
+
+    def _finalize(self):
+        """Finalize span with accumulated data (thread-safe)."""
+        with self._lock:
+            if self._finalized:
+                return
+            self._finalized = True
+
         if self._generation_id:
             self._span.set_attribute(Attrs.GEN_AI_RESPONSE_ID, self._generation_id)
 
@@ -187,7 +309,7 @@ def wrap_cohere(
 
     original_chat = client.chat
 
-    # Create wrapper using unified factory with Cohere-specific stream wrapper
+    # Create wrapper using unified factory with Cohere-specific stream wrappers
     wrapped = create_wrapper(
         original_method=original_chat,
         build_attrs=build_cohere_attrs,
@@ -196,6 +318,7 @@ def wrap_cohere(
         get_model=lambda kw: kw.get("model", "command"),
         is_stream=lambda kw: kw.get("stream", False),
         stream_wrapper_class=_CohereStreamWrapper,
+        async_stream_wrapper_class=_CohereAsyncStreamWrapper,
     )
 
     client.chat = wrapped

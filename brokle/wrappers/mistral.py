@@ -8,6 +8,7 @@ Uses the unified factory pattern for consistent sync/async behavior.
 """
 
 import json
+import threading
 from typing import TYPE_CHECKING, TypeVar
 
 from opentelemetry.trace import Status, StatusCode
@@ -40,6 +41,8 @@ class _MistralStreamWrapper:
         self._content_parts = []
         self._finish_reason = None
         self._usage = None
+        self._finalized = False
+        self._lock = threading.Lock()
 
     def __iter__(self):
         return self
@@ -71,7 +74,107 @@ class _MistralStreamWrapper:
             raise
 
     def _finalize(self):
-        """Finalize span with accumulated data."""
+        """Finalize span with accumulated data (thread-safe)."""
+        with self._lock:
+            if self._finalized:
+                return
+            self._finalized = True
+
+        if self._content_parts:
+            output_messages = [{
+                "role": "assistant",
+                "content": "".join(self._content_parts),
+            }]
+            self._span.set_attribute(
+                Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages)
+            )
+
+        if self._finish_reason:
+            self._span.set_attribute(
+                Attrs.GEN_AI_RESPONSE_FINISH_REASONS, [self._finish_reason]
+            )
+            self._span.set_attribute(
+                Attrs.MISTRAL_RESPONSE_FINISH_REASON, self._finish_reason
+            )
+
+        if self._usage:
+            input_tokens = getattr(self._usage, "prompt_tokens", None)
+            output_tokens = getattr(self._usage, "completion_tokens", None)
+
+            if input_tokens is not None:
+                self._span.set_attribute(Attrs.GEN_AI_USAGE_INPUT_TOKENS, input_tokens)
+            if output_tokens is not None:
+                self._span.set_attribute(Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, output_tokens)
+
+            total_tokens = calculate_total_tokens(input_tokens, output_tokens)
+            if total_tokens:
+                self._span.set_attribute(Attrs.BROKLE_USAGE_TOTAL_TOKENS, total_tokens)
+
+        # Set streaming metrics
+        if self._accumulator.ttft_ms is not None:
+            self._span.set_attribute(Attrs.GEN_AI_RESPONSE_TTFT, self._accumulator.ttft_ms)
+        if self._accumulator.avg_itl_ms is not None:
+            self._span.set_attribute(Attrs.GEN_AI_RESPONSE_ITL, self._accumulator.avg_itl_ms)
+        if self._accumulator.duration_ms is not None:
+            self._span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, self._accumulator.duration_ms)
+
+        self._span.set_status(Status(StatusCode.OK))
+        self._span.end()
+
+
+class _MistralAsyncStreamWrapper:
+    """
+    Async wrapper for Mistral streaming responses.
+
+    Handles Mistral-specific streaming format with data.choices.delta pattern.
+    """
+
+    def __init__(self, stream, span, accumulator):
+        self._stream = stream
+        self._span = span
+        self._accumulator = accumulator
+        self._content_parts = []
+        self._finish_reason = None
+        self._usage = None
+        self._finalized = False
+        self._lock = threading.Lock()
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        try:
+            chunk = await self._stream.__anext__()
+            self._accumulator.on_chunk_received()
+
+            # Accumulate content
+            if hasattr(chunk, "data") and chunk.data:
+                data = chunk.data
+                if hasattr(data, "choices") and data.choices:
+                    for choice in data.choices:
+                        if hasattr(choice, "delta") and choice.delta:
+                            delta = choice.delta
+                            if hasattr(delta, "content") and delta.content:
+                                self._content_parts.append(delta.content)
+                        if hasattr(choice, "finish_reason") and choice.finish_reason:
+                            self._finish_reason = str(choice.finish_reason)
+
+                if hasattr(data, "usage") and data.usage:
+                    self._usage = data.usage
+
+            return chunk
+
+        except StopAsyncIteration:
+            self._finalize()
+            raise
+
+    def _finalize(self):
+        """Finalize span with accumulated data (thread-safe)."""
+        with self._lock:
+            if self._finalized:
+                return
+            self._finalized = True
+
         if self._content_parts:
             output_messages = [{
                 "role": "assistant",
@@ -151,7 +254,7 @@ def wrap_mistral(client: "Mistral") -> "Mistral":
 
     original_chat_complete = client.chat.complete
 
-    # Create wrapper using unified factory with Mistral-specific stream wrapper
+    # Create wrapper using unified factory with Mistral-specific stream wrappers
     wrapped = create_wrapper(
         original_method=original_chat_complete,
         build_attrs=build_mistral_attrs,
@@ -160,6 +263,7 @@ def wrap_mistral(client: "Mistral") -> "Mistral":
         get_model=lambda kw: kw.get("model", "mistral-large-latest"),
         is_stream=lambda kw: kw.get("stream", False),
         stream_wrapper_class=_MistralStreamWrapper,
+        async_stream_wrapper_class=_MistralAsyncStreamWrapper,
     )
 
     client.chat.complete = wrapped
