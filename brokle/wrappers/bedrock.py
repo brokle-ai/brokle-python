@@ -3,282 +3,35 @@ AWS Bedrock SDK wrapper for automatic observability.
 
 Wraps AWS Bedrock Runtime client to automatically create OTEL spans with GenAI 1.28+ attributes.
 Supports the Converse API for cross-model compatibility.
+
+Uses the unified factory pattern for consistent sync/async behavior.
 """
 
 import json
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING
 
 from opentelemetry.trace import Status, StatusCode
 
 from .._client import get_client
 from ..streaming import StreamingAccumulator
-from ..types import Attrs, LLMProvider, OperationType, SpanType
-from ..utils.attributes import calculate_total_tokens
+from ..types import Attrs
 from ._common import add_prompt_attributes, extract_brokle_options
+from ._extractors import extract_bedrock_response
+from ._factory import create_wrapper
+from ._provider_config import build_bedrock_attrs, bedrock_span_name
 
 if TYPE_CHECKING:
     from mypy_boto3_bedrock_runtime import BedrockRuntimeClient
 
 
-def wrap_bedrock(client: "BedrockRuntimeClient") -> "BedrockRuntimeClient":
-    """
-    Wrap AWS Bedrock Runtime client for automatic observability.
-
-    This function wraps the Bedrock Runtime client's converse method
-    to automatically create OTEL spans with GenAI semantic attributes.
-
-    Args:
-        client: BedrockRuntimeClient instance
-
-    Returns:
-        Wrapped BedrockRuntimeClient (same instance with instrumented methods)
-
-    Example:
-        >>> import boto3
-        >>> from brokle import get_client, wrap_bedrock
-        >>>
-        >>> # Initialize Brokle
-        >>> brokle = get_client()
-        >>>
-        >>> # Wrap Bedrock client
-        >>> bedrock = wrap_bedrock(boto3.client("bedrock-runtime"))
-        >>>
-        >>> # All calls automatically tracked
-        >>> response = bedrock.converse(
-        ...     modelId="anthropic.claude-3-sonnet-20240229-v1:0",
-        ...     messages=[{"role": "user", "content": [{"text": "Hello!"}]}]
-        ... )
-        >>> brokle.flush()
-    """
-    # Return unwrapped if SDK disabled
-    brokle_client = get_client()
-    if not brokle_client.config.enabled:
-        return client
-
-    original_converse = client.converse
-
-    def wrapped_converse(*args, **kwargs):
-        """Wrapped converse with automatic tracing."""
-        # Extract brokle_options before processing kwargs
-        kwargs, brokle_opts = extract_brokle_options(kwargs)
-
-        brokle_client = get_client()
-
-        model_id = kwargs.get("modelId", "unknown")
-        messages = kwargs.get("messages", [])
-        system = kwargs.get("system", [])
-        inference_config = kwargs.get("inferenceConfig", {})
-        guardrail_config = kwargs.get("guardrailConfig", {})
-
-        # Build input messages
-        input_messages = _build_input_messages(messages)
-        system_messages = _build_system_messages(system)
-
-        attrs = {
-            Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
-            Attrs.GEN_AI_PROVIDER_NAME: LLMProvider.BEDROCK,
-            Attrs.GEN_AI_OPERATION_NAME: OperationType.CHAT,
-            Attrs.GEN_AI_REQUEST_MODEL: model_id,
-            Attrs.BEDROCK_REQUEST_MODEL_ID: model_id,
-            Attrs.BROKLE_STREAMING: False,
-        }
-
-        if input_messages:
-            attrs[Attrs.GEN_AI_INPUT_MESSAGES] = json.dumps(input_messages)
-        if system_messages:
-            attrs[Attrs.GEN_AI_SYSTEM_INSTRUCTIONS] = json.dumps(system_messages)
-
-        # Extract inference config parameters
-        if inference_config:
-            if "maxTokens" in inference_config:
-                attrs[Attrs.GEN_AI_REQUEST_MAX_TOKENS] = inference_config["maxTokens"]
-            if "temperature" in inference_config:
-                attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = inference_config["temperature"]
-            if "topP" in inference_config:
-                attrs[Attrs.GEN_AI_REQUEST_TOP_P] = inference_config["topP"]
-            if "stopSequences" in inference_config:
-                attrs[Attrs.GEN_AI_REQUEST_STOP_SEQUENCES] = inference_config["stopSequences"]
-
-        # Guardrail config
-        if guardrail_config:
-            if "guardrailIdentifier" in guardrail_config:
-                attrs[Attrs.BEDROCK_REQUEST_GUARDRAIL_ID] = guardrail_config["guardrailIdentifier"]
-            if "guardrailVersion" in guardrail_config:
-                attrs[Attrs.BEDROCK_REQUEST_GUARDRAIL_VERSION] = guardrail_config["guardrailVersion"]
-
-        add_prompt_attributes(attrs, brokle_opts)
-
-        # Extract short model name for span
-        model_name = model_id.split("/")[-1] if "/" in model_id else model_id.split(".")[-1]
-        span_name = f"{OperationType.CHAT} {model_name}"
-
-        return _handle_sync_response(
-            brokle_client, original_converse, args, kwargs, span_name, attrs
-        )
-
-    def _handle_sync_response(
-        brokle_client, original_method, args, kwargs, span_name, attrs
-    ):
-        """Handle non-streaming response with standard span lifecycle."""
-        with brokle_client.start_as_current_span(span_name, attributes=attrs) as span:
-            try:
-                start_time = time.time()
-                response = original_method(*args, **kwargs)
-                latency_ms = (time.time() - start_time) * 1000
-
-                # Extract response metadata
-                if "output" in response and "message" in response["output"]:
-                    message = response["output"]["message"]
-                    output_messages = []
-
-                    if "content" in message:
-                        content_parts = []
-                        for content in message["content"]:
-                            if "text" in content:
-                                content_parts.append(content["text"])
-                            elif "toolUse" in content:
-                                # Handle tool use
-                                tool = content["toolUse"]
-                                output_messages.append({
-                                    "role": "assistant",
-                                    "tool_calls": [{
-                                        "id": tool.get("toolUseId", ""),
-                                        "type": "function",
-                                        "function": {
-                                            "name": tool.get("name", ""),
-                                            "arguments": json.dumps(tool.get("input", {})),
-                                        },
-                                    }],
-                                })
-
-                        if content_parts:
-                            output_messages.insert(0, {
-                                "role": "assistant",
-                                "content": "".join(content_parts),
-                            })
-
-                    if output_messages:
-                        span.set_attribute(
-                            Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output_messages)
-                        )
-
-                # Stop reason
-                if "stopReason" in response:
-                    span.set_attribute(
-                        Attrs.GEN_AI_RESPONSE_FINISH_REASONS, [response["stopReason"]]
-                    )
-                    span.set_attribute(
-                        Attrs.BEDROCK_RESPONSE_STOP_REASON, response["stopReason"]
-                    )
-
-                # Token usage
-                if "usage" in response:
-                    usage = response["usage"]
-                    if "inputTokens" in usage:
-                        span.set_attribute(
-                            Attrs.GEN_AI_USAGE_INPUT_TOKENS, usage["inputTokens"]
-                        )
-                    if "outputTokens" in usage:
-                        span.set_attribute(
-                            Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, usage["outputTokens"]
-                        )
-                    if "totalTokens" in usage:
-                        span.set_attribute(
-                            Attrs.BROKLE_USAGE_TOTAL_TOKENS, usage["totalTokens"]
-                        )
-                    else:
-                        total = calculate_total_tokens(
-                            usage.get("inputTokens"),
-                            usage.get("outputTokens"),
-                        )
-                        if total:
-                            span.set_attribute(Attrs.BROKLE_USAGE_TOTAL_TOKENS, total)
-
-                # Metrics
-                if "metrics" in response:
-                    span.set_attribute(
-                        Attrs.BEDROCK_RESPONSE_METRICS, json.dumps(response["metrics"])
-                    )
-
-                span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, latency_ms)
-                span.set_status(Status(StatusCode.OK))
-
-                return response
-
-            except Exception as e:
-                span.set_status(Status(StatusCode.ERROR, str(e)))
-                span.record_exception(e)
-                raise
-
-    client.converse = wrapped_converse
-
-    # Also wrap converse_stream if available
-    if hasattr(client, "converse_stream"):
-        original_converse_stream = client.converse_stream
-
-        def wrapped_converse_stream(*args, **kwargs):
-            """Wrapped converse_stream with automatic tracing."""
-            kwargs, brokle_opts = extract_brokle_options(kwargs)
-
-            brokle_client = get_client()
-
-            model_id = kwargs.get("modelId", "unknown")
-            messages = kwargs.get("messages", [])
-            system = kwargs.get("system", [])
-            inference_config = kwargs.get("inferenceConfig", {})
-
-            input_messages = _build_input_messages(messages)
-            system_messages = _build_system_messages(system)
-
-            attrs = {
-                Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
-                Attrs.GEN_AI_PROVIDER_NAME: LLMProvider.BEDROCK,
-                Attrs.GEN_AI_OPERATION_NAME: OperationType.CHAT,
-                Attrs.GEN_AI_REQUEST_MODEL: model_id,
-                Attrs.BEDROCK_REQUEST_MODEL_ID: model_id,
-                Attrs.BROKLE_STREAMING: True,
-            }
-
-            if input_messages:
-                attrs[Attrs.GEN_AI_INPUT_MESSAGES] = json.dumps(input_messages)
-            if system_messages:
-                attrs[Attrs.GEN_AI_SYSTEM_INSTRUCTIONS] = json.dumps(system_messages)
-
-            if inference_config:
-                if "maxTokens" in inference_config:
-                    attrs[Attrs.GEN_AI_REQUEST_MAX_TOKENS] = inference_config["maxTokens"]
-                if "temperature" in inference_config:
-                    attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = inference_config["temperature"]
-                if "topP" in inference_config:
-                    attrs[Attrs.GEN_AI_REQUEST_TOP_P] = inference_config["topP"]
-
-            add_prompt_attributes(attrs, brokle_opts)
-
-            model_name = model_id.split("/")[-1] if "/" in model_id else model_id.split(".")[-1]
-            span_name = f"{OperationType.CHAT} {model_name}"
-
-            tracer = brokle_client._tracer
-            span = tracer.start_span(span_name, attributes=attrs)
-
-            try:
-                start_time = time.perf_counter()
-                response = original_converse_stream(*args, **kwargs)
-                accumulator = StreamingAccumulator(start_time)
-                return _BedrockStreamWrapper(response, span, accumulator)
-            except BaseException as e:
-                span.set_status(Status(StatusCode.ERROR, str(e)))
-                span.record_exception(e)
-                span.end()
-                raise
-
-        client.converse_stream = wrapped_converse_stream
-
-    return client
-
-
 class _BedrockStreamWrapper:
-    """Wrapper for Bedrock streaming responses."""
+    """
+    Wrapper for Bedrock streaming responses.
+
+    Handles Bedrock-specific streaming events like contentBlockDelta,
+    messageStop, and metadata.
+    """
 
     def __init__(self, response, span, accumulator):
         self._response = response
@@ -334,15 +87,24 @@ class _BedrockStreamWrapper:
                 Attrs.BEDROCK_RESPONSE_STOP_REASON, self._stop_reason
             )
 
+        # Token usage (now properly captured from metadata event)
         if self._usage:
-            if "inputTokens" in self._usage:
+            input_tokens = self._usage.get("inputTokens")
+            output_tokens = self._usage.get("outputTokens")
+
+            if input_tokens:
                 self._span.set_attribute(
-                    Attrs.GEN_AI_USAGE_INPUT_TOKENS, self._usage["inputTokens"]
+                    Attrs.GEN_AI_USAGE_INPUT_TOKENS, input_tokens
                 )
-            if "outputTokens" in self._usage:
+            if output_tokens:
                 self._span.set_attribute(
-                    Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, self._usage["outputTokens"]
+                    Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, output_tokens
                 )
+            # Calculate and set total tokens
+            if input_tokens or output_tokens:
+                total = (input_tokens or 0) + (output_tokens or 0)
+                if total:
+                    self._span.set_attribute(Attrs.BROKLE_USAGE_TOTAL_TOKENS, total)
 
         # Set streaming metrics
         if self._accumulator.ttft_ms is not None:
@@ -356,42 +118,88 @@ class _BedrockStreamWrapper:
         self._span.end()
 
 
-def _build_input_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Build input messages from Bedrock message format."""
-    result = []
-    for msg in messages:
-        role = msg.get("role", "user")
-        content = msg.get("content", [])
+def wrap_bedrock(client: "BedrockRuntimeClient") -> "BedrockRuntimeClient":
+    """
+    Wrap AWS Bedrock Runtime client for automatic observability.
 
-        text_parts = []
-        for item in content:
-            if isinstance(item, dict):
-                if "text" in item:
-                    text_parts.append(item["text"])
-            elif isinstance(item, str):
-                text_parts.append(item)
+    This function wraps the Bedrock Runtime client's converse method
+    to automatically create OTEL spans with GenAI semantic attributes.
 
-        if text_parts:
-            result.append({
-                "role": role,
-                "content": "".join(text_parts),
-            })
+    Args:
+        client: BedrockRuntimeClient instance
 
-    return result
+    Returns:
+        Wrapped BedrockRuntimeClient (same instance with instrumented methods)
 
+    Example:
+        >>> import boto3
+        >>> from brokle import get_client, wrap_bedrock
+        >>>
+        >>> # Initialize Brokle
+        >>> brokle = get_client()
+        >>>
+        >>> # Wrap Bedrock client
+        >>> bedrock = wrap_bedrock(boto3.client("bedrock-runtime"))
+        >>>
+        >>> # All calls automatically tracked
+        >>> response = bedrock.converse(
+        ...     modelId="anthropic.claude-3-sonnet-20240229-v1:0",
+        ...     messages=[{"role": "user", "content": [{"text": "Hello!"}]}]
+        ... )
+        >>> brokle.flush()
+    """
+    # Return unwrapped if SDK disabled
+    brokle_client = get_client()
+    if not brokle_client.config.enabled:
+        return client
 
-def _build_system_messages(system: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Build system messages from Bedrock system format."""
-    result = []
-    for item in system:
-        if isinstance(item, dict) and "text" in item:
-            result.append({
-                "role": "system",
-                "content": item["text"],
-            })
-        elif isinstance(item, str):
-            result.append({
-                "role": "system",
-                "content": item,
-            })
-    return result
+    original_converse = client.converse
+
+    # Create wrapper using unified factory
+    wrapped = create_wrapper(
+        original_method=original_converse,
+        build_attrs=build_bedrock_attrs,
+        extract_response=extract_bedrock_response,
+        get_span_name=bedrock_span_name,
+        get_model=lambda kw: kw.get("modelId", "unknown"),
+        is_stream=lambda kw: False,  # Bedrock uses separate converse_stream method
+    )
+
+    client.converse = wrapped
+
+    # Also wrap converse_stream if available
+    if hasattr(client, "converse_stream"):
+        original_converse_stream = client.converse_stream
+
+        def wrapped_converse_stream(*args, **kwargs):
+            """Wrapped converse_stream with automatic tracing."""
+            kwargs, brokle_opts = extract_brokle_options(kwargs)
+
+            brokle_client = get_client()
+            if not brokle_client.config.enabled:
+                return original_converse_stream(*args, **kwargs)
+
+            # Build attributes using unified extractor
+            attrs = build_bedrock_attrs(kwargs)
+            attrs[Attrs.BROKLE_STREAMING] = True
+            add_prompt_attributes(attrs, brokle_opts)
+
+            span_name = bedrock_span_name(kwargs)
+
+            tracer = brokle_client._tracer
+            span = tracer.start_span(span_name, attributes=attrs)
+
+            try:
+                start_time = time.perf_counter()
+                response = original_converse_stream(*args, **kwargs)
+                accumulator = StreamingAccumulator(start_time)
+                return _BedrockStreamWrapper(response, span, accumulator)
+            except BaseException as e:
+                span.set_status(Status(StatusCode.ERROR, str(e)))
+                span.record_exception(e)
+                span.end()
+                raise
+
+        client.converse_stream = wrapped_converse_stream
+
+    return client
