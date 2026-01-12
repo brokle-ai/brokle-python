@@ -110,6 +110,7 @@ class BaseBrokleClient:
         self._scores_manager = None
         self._experiments_manager = None
         self._query_manager = None
+        self._annotations_manager = None
 
         # Master switch: if disabled, create no-op client (skip all OTEL init)
         if not self.config.enabled:

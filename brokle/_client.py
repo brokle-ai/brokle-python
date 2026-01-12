@@ -36,6 +36,7 @@ from typing import Optional
 
 from ._base_client import BaseBrokleClient
 from ._http import AsyncHTTPClient, SyncHTTPClient
+from .annotations import AnnotationQueuesManager, AsyncAnnotationQueuesManager
 from .config import BrokleConfig
 from .datasets import AsyncDatasetsManager, DatasetsManager
 from .experiments import AsyncExperimentsManager, ExperimentsManager
@@ -218,6 +219,43 @@ class Brokle(BaseBrokleClient):
                 config=self.config,
             )
         return self._query_manager
+
+    @property
+    def annotations(self) -> AnnotationQueuesManager:
+        """
+        Access annotation queue management operations.
+
+        Returns an AnnotationQueuesManager for adding items to annotation
+        queues for human-in-the-loop (HITL) evaluation workflows.
+        All methods are synchronous.
+
+        Returns:
+            AnnotationQueuesManager instance
+
+        Example:
+            >>> # Add traces to an annotation queue
+            >>> result = client.annotations.add_traces(
+            ...     queue_id="queue123",
+            ...     trace_ids=["trace1", "trace2", "trace3"],
+            ...     priority=5,
+            ... )
+            >>> print(f"Added {result['created']} items")
+            >>>
+            >>> # Add items with mixed types
+            >>> client.annotations.add_items(
+            ...     queue_id="queue123",
+            ...     items=[
+            ...         {"object_id": "trace1", "object_type": "trace"},
+            ...         {"object_id": "span1", "object_type": "span", "priority": 10},
+            ...     ]
+            ... )
+        """
+        if self._annotations_manager is None:
+            self._annotations_manager = AnnotationQueuesManager(
+                http_client=self._http,
+                config=self.config,
+            )
+        return self._annotations_manager
 
     def auth_check(self) -> bool:
         """
@@ -437,6 +475,34 @@ class AsyncBrokle(BaseBrokleClient):
                 config=self.config,
             )
         return self._query_manager
+
+    @property
+    def annotations(self) -> AsyncAnnotationQueuesManager:
+        """
+        Access annotation queue management operations.
+
+        Returns an AsyncAnnotationQueuesManager for adding items to annotation
+        queues for human-in-the-loop (HITL) evaluation workflows.
+        All methods are async and must be awaited.
+
+        Returns:
+            AsyncAnnotationQueuesManager instance
+
+        Example:
+            >>> # Add traces to an annotation queue
+            >>> result = await client.annotations.add_traces(
+            ...     queue_id="queue123",
+            ...     trace_ids=["trace1", "trace2", "trace3"],
+            ...     priority=5,
+            ... )
+            >>> print(f"Added {result['created']} items")
+        """
+        if self._annotations_manager is None:
+            self._annotations_manager = AsyncAnnotationQueuesManager(
+                http_client=self._http,
+                config=self.config,
+            )
+        return self._annotations_manager
 
     async def auth_check(self) -> bool:
         """
