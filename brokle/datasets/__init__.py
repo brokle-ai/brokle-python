@@ -25,7 +25,15 @@ Usage:
 """
 
 from ._managers import AsyncDatasetsManager, DatasetsManager
-from .dataset import AsyncDataset, Dataset, DatasetItem, DatasetItemInput
+from .dataset import (
+    AsyncDataset,
+    BulkImportResult,
+    CSVColumnMapping,
+    Dataset,
+    DatasetItem,
+    DatasetItemInput,
+    KeysMapping,
+)
 from .exceptions import DatasetError
 from .types import DatasetData
 
@@ -38,6 +46,10 @@ __all__ = [
     "AsyncDataset",
     "DatasetItem",
     "DatasetItemInput",
+    # Import/Export types
+    "CSVColumnMapping",
+    "KeysMapping",
+    "BulkImportResult",
     # Types
     "DatasetData",
     # Exceptions
