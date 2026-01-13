@@ -43,6 +43,7 @@ from ..scores.types import ScoreResult, ScorerProtocol, ScoreType, ScoreValue
 from .exceptions import EvaluationError
 from .types import (
     AsyncTaskFunction,
+    ComparisonResult,
     EvaluationItem,
     EvaluationResults,
     Experiment,
@@ -533,13 +534,123 @@ class ExperimentsManager(_BaseExperimentsManagerMixin):
                 "/v1/experiments",
                 params={"limit": limit, "offset": offset},
             )
-            data = unwrap_response(raw_response, resource_type="Experiments")
-            experiments_data = data.get("experiments", [])
+            # unwrap_response returns the array directly from response["data"]
+            experiments_data = unwrap_response(raw_response, resource_type="Experiments")
             return [Experiment.from_dict(exp) for exp in experiments_data]
         except ValueError as e:
             raise EvaluationError(f"Failed to list experiments: {e}")
         except Exception as e:
             raise EvaluationError(f"Failed to list experiments: {e}")
+
+    def compare(
+        self,
+        experiment_ids: List[str],
+        baseline_id: Optional[str] = None,
+    ) -> ComparisonResult:
+        """
+        Compare multiple experiments.
+
+        Compares score metrics across experiments. Optionally specify a baseline
+        for calculating score differences.
+
+        Args:
+            experiment_ids: List of experiment IDs to compare (2-10 experiments)
+            baseline_id: Optional baseline experiment ID for diff calculations
+
+        Returns:
+            ComparisonResult with score aggregations and diffs
+
+        Raises:
+            EvaluationError: If the API request fails or experiments not found
+
+        Example:
+            >>> result = client.experiments.compare(
+            ...     experiment_ids=["exp_1", "exp_2", "exp_3"],
+            ...     baseline_id="exp_1",
+            ... )
+            >>> for scorer, exp_scores in result.scores.items():
+            ...     print(f"{scorer}:")
+            ...     for exp_id, stats in exp_scores.items():
+            ...         print(f"  {exp_id}: mean={stats['mean']:.3f}")
+        """
+        self._log(f"Comparing experiments: {experiment_ids}")
+
+        if len(experiment_ids) < 2:
+            raise EvaluationError("At least 2 experiments are required for comparison")
+        if len(experiment_ids) > 10:
+            raise EvaluationError("Maximum 10 experiments can be compared at once")
+
+        payload: Dict[str, Any] = {"experiment_ids": experiment_ids}
+        if baseline_id:
+            payload["baseline_id"] = baseline_id
+
+        try:
+            raw_response = self._http.post("/v1/experiments/compare", json=payload)
+            data = unwrap_response(raw_response, resource_type="ComparisonResult")
+            return ComparisonResult.from_dict(data)
+        except ValueError as e:
+            raise EvaluationError(f"Failed to compare experiments: {e}")
+        except Exception as e:
+            raise EvaluationError(f"Failed to compare experiments: {e}")
+
+    def rerun(
+        self,
+        experiment_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Experiment:
+        """
+        Re-run an experiment.
+
+        Creates a new experiment based on an existing one, using the same dataset.
+        The new experiment starts in pending status, ready for the SDK to run
+        with a new task function.
+
+        Args:
+            experiment_id: Source experiment ID to re-run
+            name: Optional new name (defaults to "{original_name}-rerun-{timestamp}")
+            description: Optional new description
+            metadata: Optional new metadata
+
+        Returns:
+            New Experiment object in pending status
+
+        Raises:
+            EvaluationError: If the API request fails or source experiment not found
+
+        Example:
+            >>> # Re-run with same configuration
+            >>> new_exp = client.experiments.rerun("exp_123")
+            >>> print(new_exp.id, new_exp.status)  # new ID, "pending"
+            >>>
+            >>> # Re-run with custom name
+            >>> new_exp = client.experiments.rerun(
+            ...     "exp_123",
+            ...     name="gpt4-retest-v2",
+            ... )
+        """
+        self._log(f"Re-running experiment: {experiment_id}")
+
+        payload: Dict[str, Any] = {}
+        if name:
+            payload["name"] = name
+        if description:
+            payload["description"] = description
+        if metadata:
+            payload["metadata"] = metadata
+
+        try:
+            raw_response = self._http.post(
+                f"/v1/experiments/{experiment_id}/rerun",
+                json=payload,
+            )
+            data = unwrap_response(raw_response, resource_type="Experiment")
+            return Experiment.from_dict(data)
+        except ValueError as e:
+            raise EvaluationError(f"Failed to re-run experiment: {e}")
+        except Exception as e:
+            raise EvaluationError(f"Failed to re-run experiment: {e}")
 
     def _fetch_dataset(self, dataset_id: str) -> Dataset:
         """Fetch dataset by ID."""
@@ -1044,13 +1155,125 @@ class AsyncExperimentsManager(_BaseExperimentsManagerMixin):
                 "/v1/experiments",
                 params={"limit": limit, "offset": offset},
             )
-            data = unwrap_response(raw_response, resource_type="Experiments")
-            experiments_data = data.get("experiments", [])
+            # unwrap_response returns the array directly from response["data"]
+            experiments_data = unwrap_response(raw_response, resource_type="Experiments")
             return [Experiment.from_dict(exp) for exp in experiments_data]
         except ValueError as e:
             raise EvaluationError(f"Failed to list experiments: {e}")
         except Exception as e:
             raise EvaluationError(f"Failed to list experiments: {e}")
+
+    async def compare(
+        self,
+        experiment_ids: List[str],
+        baseline_id: Optional[str] = None,
+    ) -> ComparisonResult:
+        """
+        Compare multiple experiments (async).
+
+        Compares score metrics across experiments. Optionally specify a baseline
+        for calculating score differences.
+
+        Args:
+            experiment_ids: List of experiment IDs to compare (2-10 experiments)
+            baseline_id: Optional baseline experiment ID for diff calculations
+
+        Returns:
+            ComparisonResult with score aggregations and diffs
+
+        Raises:
+            EvaluationError: If the API request fails or experiments not found
+
+        Example:
+            >>> result = await client.experiments.compare(
+            ...     experiment_ids=["exp_1", "exp_2", "exp_3"],
+            ...     baseline_id="exp_1",
+            ... )
+            >>> for scorer, exp_scores in result.scores.items():
+            ...     print(f"{scorer}:")
+            ...     for exp_id, stats in exp_scores.items():
+            ...         print(f"  {exp_id}: mean={stats['mean']:.3f}")
+        """
+        self._log(f"Comparing experiments: {experiment_ids}")
+
+        if len(experiment_ids) < 2:
+            raise EvaluationError("At least 2 experiments are required for comparison")
+        if len(experiment_ids) > 10:
+            raise EvaluationError("Maximum 10 experiments can be compared at once")
+
+        payload: Dict[str, Any] = {"experiment_ids": experiment_ids}
+        if baseline_id:
+            payload["baseline_id"] = baseline_id
+
+        try:
+            raw_response = await self._http.post(
+                "/v1/experiments/compare", json=payload
+            )
+            data = unwrap_response(raw_response, resource_type="ComparisonResult")
+            return ComparisonResult.from_dict(data)
+        except ValueError as e:
+            raise EvaluationError(f"Failed to compare experiments: {e}")
+        except Exception as e:
+            raise EvaluationError(f"Failed to compare experiments: {e}")
+
+    async def rerun(
+        self,
+        experiment_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Experiment:
+        """
+        Re-run an experiment (async).
+
+        Creates a new experiment based on an existing one, using the same dataset.
+        The new experiment starts in pending status, ready for the SDK to run
+        with a new task function.
+
+        Args:
+            experiment_id: Source experiment ID to re-run
+            name: Optional new name (defaults to "{original_name}-rerun-{timestamp}")
+            description: Optional new description
+            metadata: Optional new metadata
+
+        Returns:
+            New Experiment object in pending status
+
+        Raises:
+            EvaluationError: If the API request fails or source experiment not found
+
+        Example:
+            >>> # Re-run with same configuration
+            >>> new_exp = await client.experiments.rerun("exp_123")
+            >>> print(new_exp.id, new_exp.status)  # new ID, "pending"
+            >>>
+            >>> # Re-run with custom name
+            >>> new_exp = await client.experiments.rerun(
+            ...     "exp_123",
+            ...     name="gpt4-retest-v2",
+            ... )
+        """
+        self._log(f"Re-running experiment: {experiment_id}")
+
+        payload: Dict[str, Any] = {}
+        if name:
+            payload["name"] = name
+        if description:
+            payload["description"] = description
+        if metadata:
+            payload["metadata"] = metadata
+
+        try:
+            raw_response = await self._http.post(
+                f"/v1/experiments/{experiment_id}/rerun",
+                json=payload,
+            )
+            data = unwrap_response(raw_response, resource_type="Experiment")
+            return Experiment.from_dict(data)
+        except ValueError as e:
+            raise EvaluationError(f"Failed to re-run experiment: {e}")
+        except Exception as e:
+            raise EvaluationError(f"Failed to re-run experiment: {e}")
 
     async def _fetch_dataset(self, dataset_id: str) -> AsyncDataset:
         """Fetch dataset by ID (async)."""

@@ -348,7 +348,7 @@ class Dataset:
         else:
             raise TypeError(f"Item must be dict or DatasetItem, got {type(item)}")
 
-    def insert(self, items: List[DatasetItemInput]) -> int:
+    def insert(self, items: List[DatasetItemInput], deduplicate: bool = False) -> int:
         """
         Insert items into the dataset.
 
@@ -356,6 +356,8 @@ class Dataset:
             items: List of items to insert. Each item can be:
                 - A dict with 'input' (required), 'expected' (optional), 'metadata' (optional)
                 - A DatasetItem instance
+            deduplicate: If True, skip items with duplicate content (based on input+expected hash).
+                         Checks against existing items in the dataset and within the batch.
 
         Returns:
             Number of items created
@@ -369,6 +371,10 @@ class Dataset:
             ...     {"input": {"q": "2+2?"}, "expected": {"a": "4"}},
             ... ])
             1
+
+            >>> # With deduplication
+            >>> dataset.insert([item1, item1], deduplicate=True)
+            1  # Second item skipped as duplicate
         """
         if not items:
             return 0
@@ -379,7 +385,7 @@ class Dataset:
         try:
             raw_response = self._http.post(
                 f"/v1/datasets/{self._id}/items",
-                json={"items": normalized},
+                json={"items": normalized, "deduplicate": deduplicate},
             )
             data = unwrap_response(raw_response, resource_type="DatasetItems")
             return int(data.get("created", len(normalized)))
@@ -1157,7 +1163,7 @@ class AsyncDataset:
         else:
             raise TypeError(f"Item must be dict or DatasetItem, got {type(item)}")
 
-    async def insert(self, items: List[DatasetItemInput]) -> int:
+    async def insert(self, items: List[DatasetItemInput], deduplicate: bool = False) -> int:
         """
         Insert items into the dataset (async).
 
@@ -1165,6 +1171,8 @@ class AsyncDataset:
             items: List of items to insert. Each item can be:
                 - A dict with 'input' (required), 'expected' (optional), 'metadata' (optional)
                 - A DatasetItem instance
+            deduplicate: If True, skip items with duplicate content (based on input+expected hash).
+                         Checks against existing items in the dataset and within the batch.
 
         Returns:
             Number of items created
@@ -1178,6 +1186,10 @@ class AsyncDataset:
             ...     {"input": {"q": "2+2?"}, "expected": {"a": "4"}},
             ... ])
             1
+
+            >>> # With deduplication
+            >>> await dataset.insert([item1, item1], deduplicate=True)
+            1  # Second item skipped as duplicate
         """
         if not items:
             return 0
@@ -1188,7 +1200,7 @@ class AsyncDataset:
         try:
             raw_response = await self._http.post(
                 f"/v1/datasets/{self._id}/items",
-                json={"items": normalized},
+                json={"items": normalized, "deduplicate": deduplicate},
             )
             data = unwrap_response(raw_response, resource_type="DatasetItems")
             return int(data.get("created", len(normalized)))
