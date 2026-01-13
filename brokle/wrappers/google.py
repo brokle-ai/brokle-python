@@ -6,11 +6,13 @@ for accessing Gemini models.
 
 Wraps GoogleGenAI client to automatically create OTEL spans with GenAI 1.28+ attributes.
 Streaming responses are transparently instrumented with TTFT and ITL tracking.
+
+Uses the unified factory pattern for consistent sync/async behavior.
 """
 
 import json
 import time
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from opentelemetry.trace import Status, StatusCode
 
@@ -18,6 +20,8 @@ from .._client import get_client
 from ..streaming import StreamingAccumulator
 from ..types import Attrs, LLMProvider, OperationType, SpanType
 from ._common import add_prompt_attributes, extract_brokle_options
+from ._extractors import extract_google_response
+from ._provider_config import build_google_attrs, google_span_name
 
 if TYPE_CHECKING:
     from google import genai
@@ -102,46 +106,17 @@ def _traced_generate_content(original_fn):
         kwargs, brokle_opts = extract_brokle_options(kwargs)
 
         brokle_client = get_client()
+        if not brokle_client.config.enabled:
+            return original_fn(*args, **kwargs)
 
         # Extract model name
         model_name = kwargs.get("model", "gemini")
 
-        # Extract contents
-        contents = kwargs.get("contents", "")
-        input_messages = _build_input_messages(contents)
-
-        # Build attributes
-        attrs = {
-            Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
-            Attrs.GEN_AI_PROVIDER_NAME: LLMProvider.GOOGLE,
-            Attrs.GEN_AI_OPERATION_NAME: OperationType.CHAT,
-            Attrs.GEN_AI_REQUEST_MODEL: model_name,
-        }
-
-        if input_messages:
-            attrs[Attrs.GEN_AI_INPUT_MESSAGES] = json.dumps(input_messages)
-
-        # Extract config parameters
-        config = kwargs.get("config", {})
-        if config:
-            if hasattr(config, "temperature") and config.temperature is not None:
-                attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = config.temperature
-            elif isinstance(config, dict) and "temperature" in config:
-                attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = config["temperature"]
-
-            if hasattr(config, "max_output_tokens") and config.max_output_tokens is not None:
-                attrs[Attrs.GEN_AI_REQUEST_MAX_TOKENS] = config.max_output_tokens
-            elif isinstance(config, dict) and "max_output_tokens" in config:
-                attrs[Attrs.GEN_AI_REQUEST_MAX_TOKENS] = config["max_output_tokens"]
-
-            if hasattr(config, "top_p") and config.top_p is not None:
-                attrs[Attrs.GEN_AI_REQUEST_TOP_P] = config.top_p
-            elif isinstance(config, dict) and "top_p" in config:
-                attrs[Attrs.GEN_AI_REQUEST_TOP_P] = config["top_p"]
-
+        # Build attributes using unified extractor
+        attrs = build_google_attrs(kwargs, model_name=model_name)
         add_prompt_attributes(attrs, brokle_opts)
 
-        span_name = f"{OperationType.CHAT} {model_name}"
+        span_name = google_span_name(kwargs, model_name=model_name)
 
         with brokle_client.start_as_current_span(span_name, attributes=attrs) as span:
             try:
@@ -149,10 +124,8 @@ def _traced_generate_content(original_fn):
                 response = original_fn(*args, **kwargs)
                 latency_ms = (time.time() - start_time) * 1000
 
-                # Extract response attributes
-                _extract_response_attributes(response, span)
-
-                span.set_attribute(Attrs.BROKLE_USAGE_LATENCY_MS, latency_ms)
+                # Extract response attributes using unified extractor
+                extract_google_response(span, response, latency_ms)
                 span.set_status(Status(StatusCode.OK))
 
                 return response
@@ -173,29 +146,18 @@ def _traced_generate_content_stream(original_fn):
         kwargs, brokle_opts = extract_brokle_options(kwargs)
 
         brokle_client = get_client()
+        if not brokle_client.config.enabled:
+            return original_fn(*args, **kwargs)
 
         # Extract model name
         model_name = kwargs.get("model", "gemini")
 
-        # Extract contents
-        contents = kwargs.get("contents", "")
-        input_messages = _build_input_messages(contents)
-
-        # Build attributes
-        attrs = {
-            Attrs.BROKLE_SPAN_TYPE: SpanType.GENERATION,
-            Attrs.GEN_AI_PROVIDER_NAME: LLMProvider.GOOGLE,
-            Attrs.GEN_AI_OPERATION_NAME: OperationType.CHAT,
-            Attrs.GEN_AI_REQUEST_MODEL: model_name,
-            Attrs.BROKLE_STREAMING: True,
-        }
-
-        if input_messages:
-            attrs[Attrs.GEN_AI_INPUT_MESSAGES] = json.dumps(input_messages)
-
+        # Build attributes using unified extractor
+        attrs = build_google_attrs(kwargs, model_name=model_name)
+        attrs[Attrs.BROKLE_STREAMING] = True
         add_prompt_attributes(attrs, brokle_opts)
 
-        span_name = f"{OperationType.CHAT} {model_name}"
+        span_name = google_span_name(kwargs, model_name=model_name)
 
         tracer = brokle_client._tracer
         span = tracer.start_span(span_name, attributes=attrs)
@@ -219,6 +181,8 @@ def _traced_embed_content(original_fn):
 
     def wrapper(*args, **kwargs):
         brokle_client = get_client()
+        if not brokle_client.config.enabled:
+            return original_fn(*args, **kwargs)
 
         # Extract model name
         model_name = kwargs.get("model", "embedding")
@@ -261,7 +225,11 @@ def _traced_embed_content(original_fn):
 
 
 class _GoogleGenAIStreamWrapper:
-    """Wrapper for Google GenAI streaming responses (new SDK)."""
+    """
+    Wrapper for Google GenAI streaming responses.
+
+    Handles Google's streaming format with candidates and usage_metadata.
+    """
 
     def __init__(self, stream, span, accumulator):
         self._stream = stream
@@ -269,6 +237,7 @@ class _GoogleGenAIStreamWrapper:
         self._accumulator = accumulator
         self._content_parts = []
         self._finish_reason = None
+        self._usage_metadata = None
 
     def __iter__(self):
         return self
@@ -289,11 +258,9 @@ class _GoogleGenAIStreamWrapper:
                     if hasattr(candidate, "finish_reason"):
                         self._finish_reason = str(candidate.finish_reason)
 
-            # Also check for text property directly (convenience accessor)
-            if hasattr(chunk, "text") and chunk.text:
-                # Only add if not already captured from candidates
-                if not self._content_parts or chunk.text not in self._content_parts:
-                    self._content_parts.append(chunk.text)
+            # Capture usage metadata (usually in last chunk)
+            if hasattr(chunk, "usage_metadata") and chunk.usage_metadata:
+                self._usage_metadata = chunk.usage_metadata
 
             return chunk
 
@@ -317,6 +284,19 @@ class _GoogleGenAIStreamWrapper:
                 Attrs.GEN_AI_RESPONSE_FINISH_REASONS, [self._finish_reason]
             )
 
+        # Token usage (now captured from stream)
+        if self._usage_metadata:
+            prompt_tokens = getattr(self._usage_metadata, "prompt_token_count", 0)
+            completion_tokens = getattr(self._usage_metadata, "candidates_token_count", 0)
+            total_tokens = getattr(self._usage_metadata, "total_token_count", 0)
+
+            if prompt_tokens:
+                self._span.set_attribute(Attrs.GEN_AI_USAGE_INPUT_TOKENS, prompt_tokens)
+            if completion_tokens:
+                self._span.set_attribute(Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, completion_tokens)
+            if total_tokens:
+                self._span.set_attribute(Attrs.BROKLE_USAGE_TOTAL_TOKENS, total_tokens)
+
         # Set streaming metrics
         if self._accumulator.ttft_ms is not None:
             self._span.set_attribute(Attrs.GEN_AI_RESPONSE_TTFT, self._accumulator.ttft_ms)
@@ -327,90 +307,3 @@ class _GoogleGenAIStreamWrapper:
 
         self._span.set_status(Status(StatusCode.OK))
         self._span.end()
-
-
-def _build_input_messages(contents) -> List[Dict[str, Any]]:
-    """Build input messages from Google GenAI content format (new SDK)."""
-    messages = []
-
-    if isinstance(contents, str):
-        messages.append({"role": "user", "content": contents})
-    elif isinstance(contents, list):
-        for item in contents:
-            if isinstance(item, str):
-                messages.append({"role": "user", "content": item})
-            elif hasattr(item, "parts"):
-                # Content object
-                role = getattr(item, "role", "user")
-                parts_text = []
-                for part in item.parts:
-                    if hasattr(part, "text"):
-                        parts_text.append(part.text)
-                if parts_text:
-                    messages.append({"role": role, "content": "".join(parts_text)})
-            elif isinstance(item, dict):
-                role = item.get("role", "user")
-                parts = item.get("parts", [])
-                content_parts = []
-                for part in parts:
-                    if isinstance(part, str):
-                        content_parts.append(part)
-                    elif isinstance(part, dict) and "text" in part:
-                        content_parts.append(part["text"])
-                if content_parts:
-                    messages.append({"role": role, "content": "".join(content_parts)})
-
-    return messages
-
-
-def _extract_response_attributes(response, span) -> None:
-    """Extract attributes from generateContent response (new SDK format)."""
-    try:
-        # New SDK response structure
-        candidates = getattr(response, "candidates", None)
-        if candidates and len(candidates) > 0:
-            candidate = candidates[0]
-            finish_reason = getattr(candidate, "finish_reason", None)
-            if finish_reason:
-                span.set_attribute(
-                    Attrs.GEN_AI_RESPONSE_FINISH_REASONS,
-                    [str(finish_reason)]
-                )
-
-            # Extract text from content parts
-            content = getattr(candidate, "content", None)
-            if content and hasattr(content, "parts"):
-                output_text = "".join(
-                    part.text for part in content.parts
-                    if hasattr(part, "text")
-                )
-                if output_text:
-                    span.set_attribute(
-                        Attrs.GEN_AI_OUTPUT_MESSAGES,
-                        json.dumps([{"role": "assistant", "content": output_text}])
-                    )
-
-        # Usage metadata
-        usage_metadata = getattr(response, "usage_metadata", None)
-        if usage_metadata:
-            prompt_tokens = getattr(usage_metadata, "prompt_token_count", 0)
-            completion_tokens = getattr(usage_metadata, "candidates_token_count", 0)
-            total_tokens = getattr(usage_metadata, "total_token_count", 0)
-
-            if prompt_tokens:
-                span.set_attribute(Attrs.GEN_AI_USAGE_INPUT_TOKENS, prompt_tokens)
-            if completion_tokens:
-                span.set_attribute(Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, completion_tokens)
-            if total_tokens:
-                span.set_attribute(Attrs.BROKLE_USAGE_TOTAL_TOKENS, total_tokens)
-
-        # Also check for text property directly (convenience accessor)
-        if not candidates and hasattr(response, "text") and response.text:
-            span.set_attribute(
-                Attrs.GEN_AI_OUTPUT_MESSAGES,
-                json.dumps([{"role": "assistant", "content": response.text}])
-            )
-
-    except Exception:
-        # Ignore extraction errors
-        pass
