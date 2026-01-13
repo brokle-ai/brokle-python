@@ -177,7 +177,15 @@ from .utils.masking import MaskingHelper
 from .version import __version__, __version_info__
 
 # Wrappers are imported separately to avoid requiring provider SDKs
-# from .wrappers import wrap_openai, wrap_anthropic
+# Usage: from brokle.wrappers import wrap_openai, wrap_anthropic, wrap_google, etc.
+# Available wrappers:
+#   - wrap_openai, wrap_openai_async (OpenAI)
+#   - wrap_anthropic, wrap_anthropic_async (Anthropic)
+#   - wrap_azure_openai, wrap_azure_openai_async (Azure OpenAI)
+#   - wrap_google (Google GenAI)
+#   - wrap_mistral (Mistral AI)
+#   - wrap_cohere (Cohere)
+#   - wrap_bedrock (AWS Bedrock)
 
 __all__ = [
     # Version

@@ -89,6 +89,33 @@ class BrokleOtelSpanAttributes:
     GOOGLE_REQUEST_CANDIDATE_COUNT = "google.request.candidate_count"
     GOOGLE_RESPONSE_SAFETY_RATINGS = "google.response.safety_ratings"
 
+    # ========== Mistral Specific Attributes ==========
+    MISTRAL_REQUEST_SAFE_PROMPT = "mistral.request.safe_prompt"
+    MISTRAL_REQUEST_RANDOM_SEED = "mistral.request.random_seed"
+    MISTRAL_REQUEST_TOOL_CHOICE = "mistral.request.tool_choice"
+    MISTRAL_RESPONSE_FINISH_REASON = "mistral.response.finish_reason"
+
+    # ========== Cohere Specific Attributes ==========
+    COHERE_REQUEST_PREAMBLE = "cohere.request.preamble"
+    COHERE_REQUEST_CONNECTORS = "cohere.request.connectors"
+    COHERE_REQUEST_SEARCH_QUERIES_ONLY = "cohere.request.search_queries_only"
+    COHERE_REQUEST_DOCUMENTS = "cohere.request.documents"
+    COHERE_REQUEST_CITATION_QUALITY = "cohere.request.citation_quality"
+    COHERE_RESPONSE_CITATIONS = "cohere.response.citations"
+    COHERE_RESPONSE_SEARCH_RESULTS = "cohere.response.search_results"
+
+    # ========== AWS Bedrock Specific Attributes ==========
+    BEDROCK_REQUEST_MODEL_ID = "bedrock.request.model_id"
+    BEDROCK_REQUEST_GUARDRAIL_ID = "bedrock.request.guardrail_id"
+    BEDROCK_REQUEST_GUARDRAIL_VERSION = "bedrock.request.guardrail_version"
+    BEDROCK_RESPONSE_STOP_REASON = "bedrock.response.stop_reason"
+    BEDROCK_RESPONSE_METRICS = "bedrock.response.metrics"
+
+    # ========== Azure OpenAI Specific Attributes ==========
+    AZURE_OPENAI_DEPLOYMENT_NAME = "azure_openai.deployment_name"
+    AZURE_OPENAI_API_VERSION = "azure_openai.api_version"
+    AZURE_OPENAI_RESOURCE_NAME = "azure_openai.resource_name"
+
     # ========== Session Tracking (No OTEL GenAI equivalent) ==========
     SESSION_ID = "session.id"
 
@@ -204,6 +231,12 @@ class LLMProvider:
     TOGETHER = "together"
     ANYSCALE = "anyscale"
     PERPLEXITY = "perplexity"
+    MISTRAL = "mistral"
+    GROQ = "groq"
+    FIREWORKS = "fireworks"
+    DEEPINFRA = "deepinfra"
+    OLLAMA = "ollama"
+    VLLM = "vllm"
     CUSTOM = "custom"
 
 
