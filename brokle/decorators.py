@@ -1,7 +1,8 @@
 """
 Decorators for automatic function tracing with OpenTelemetry.
 
-Provides @observe decorator for zero-config instrumentation of Python functions.
+Provides @observe decorator for zero-config instrumentation of Python functions,
+including support for sync/async functions and generators.
 """
 
 import functools
@@ -14,6 +15,98 @@ from opentelemetry.trace import Status, StatusCode
 from ._client import get_client
 from .types import Attrs, SpanType
 from .utils.serializer import EventSerializer, serialize_value
+
+
+def _build_observe_attrs(
+    as_type: str,
+    level: str,
+    user_id: Optional[str],
+    session_id: Optional[str],
+    tags: Optional[List[str]],
+    metadata: Optional[Dict[str, Any]],
+    version: Optional[str],
+    model: Optional[str],
+    model_parameters: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """
+    Build span attributes for @observe decorator.
+
+    This is extracted to ensure identical attribute handling for sync, async,
+    and generator wrappers.
+    """
+    attrs = {
+        Attrs.BROKLE_SPAN_TYPE: as_type,
+        Attrs.BROKLE_SPAN_LEVEL: level,
+    }
+
+    if user_id:
+        attrs[Attrs.GEN_AI_REQUEST_USER] = user_id
+        attrs[Attrs.USER_ID] = user_id
+    if session_id:
+        attrs[Attrs.SESSION_ID] = session_id
+    if tags:
+        attrs[Attrs.BROKLE_TRACE_TAGS] = json.dumps(tags)
+        attrs[Attrs.TAGS] = json.dumps(tags)
+    if metadata:
+        attrs[Attrs.BROKLE_TRACE_METADATA] = json.dumps(metadata)
+        attrs[Attrs.METADATA] = json.dumps(metadata)
+    if version:
+        attrs[Attrs.BROKLE_VERSION] = version
+
+    if as_type == SpanType.GENERATION:
+        if model:
+            attrs[Attrs.GEN_AI_REQUEST_MODEL] = model
+        if model_parameters:
+            if "temperature" in model_parameters:
+                attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = model_parameters[
+                    "temperature"
+                ]
+            if "max_tokens" in model_parameters:
+                attrs[Attrs.GEN_AI_REQUEST_MAX_TOKENS] = model_parameters["max_tokens"]
+
+    return attrs
+
+
+def _capture_input_attrs(
+    attrs: Dict[str, Any],
+    func: Callable,
+    args: tuple,
+    kwargs: dict,
+    as_type: str,
+) -> None:
+    """
+    Capture input attributes onto attrs dict (mutates in place).
+
+    Handles serialization errors gracefully.
+    """
+    try:
+        input_data = _serialize_function_input(func, args, kwargs)
+        input_str = json.dumps(input_data, cls=EventSerializer)
+        attrs[Attrs.INPUT_VALUE] = input_str
+        attrs[Attrs.INPUT_MIME_TYPE] = "application/json"
+        if as_type in (SpanType.TOOL, SpanType.AGENT, SpanType.CHAIN):
+            attrs[Attrs.GEN_AI_TOOL_NAME] = func.__name__
+    except Exception as e:
+        error_msg = f"<serialization failed: {str(e)}>"
+        attrs[Attrs.INPUT_VALUE] = error_msg
+        attrs[Attrs.INPUT_MIME_TYPE] = "text/plain"
+
+
+def _set_output_attr(span, result: Any) -> None:
+    """
+    Set output attribute on span.
+
+    Handles serialization errors gracefully.
+    """
+    try:
+        output_data = serialize_value(result)
+        output_str = json.dumps(output_data, cls=EventSerializer)
+        span.set_attribute(Attrs.OUTPUT_VALUE, output_str)
+        span.set_attribute(Attrs.OUTPUT_MIME_TYPE, "application/json")
+    except Exception as e:
+        error_msg = f"<serialization failed: {str(e)}>"
+        span.set_attribute(Attrs.OUTPUT_VALUE, error_msg)
+        span.set_attribute(Attrs.OUTPUT_MIME_TYPE, "text/plain")
 
 
 def observe(
@@ -38,7 +131,8 @@ def observe(
     Decorator for automatic function tracing.
 
     Automatically creates a span for the decorated function and captures
-    function arguments and return value.
+    function arguments and return value. Supports sync functions, async
+    functions, generators, and async generators.
 
     Args:
         name: Custom span name (default: function name)
@@ -64,6 +158,13 @@ def observe(
         ...
         >>> result = process("hello")  # Automatically traced
 
+        >>> @observe()
+        ... def stream_tokens():
+        ...     for token in ["Hello", " ", "World"]:
+        ...         yield token
+        ...
+        >>> list(stream_tokens())  # Generator also traced
+
     Note:
         For prompt linking, use link_prompt() or update_current_span(prompt=)
         inside the function body for dynamic prompt linking at runtime.
@@ -73,77 +174,32 @@ def observe(
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
             client = get_client()
-            # Pass-through if SDK disabled
             if not client.config.enabled:
                 return func(*args, **kwargs)
 
             span_name = name or func.__name__
-
-            attrs = {
-                Attrs.BROKLE_SPAN_TYPE: as_type,
-                Attrs.BROKLE_SPAN_LEVEL: level,
-            }
-
-            if user_id:
-                attrs[Attrs.GEN_AI_REQUEST_USER] = user_id
-                attrs[Attrs.USER_ID] = user_id
-            if session_id:
-                attrs[Attrs.SESSION_ID] = session_id
-            if tags:
-                attrs[Attrs.BROKLE_TRACE_TAGS] = json.dumps(tags)
-                attrs[Attrs.TAGS] = json.dumps(tags)
-            if metadata:
-                attrs[Attrs.BROKLE_TRACE_METADATA] = json.dumps(metadata)
-                attrs[Attrs.METADATA] = json.dumps(metadata)
-            if version:
-                attrs[Attrs.BROKLE_VERSION] = version
-
-            if as_type == SpanType.GENERATION:
-                if model:
-                    attrs[Attrs.GEN_AI_REQUEST_MODEL] = model
-                if model_parameters:
-                    if "temperature" in model_parameters:
-                        attrs[Attrs.GEN_AI_REQUEST_TEMPERATURE] = model_parameters[
-                            "temperature"
-                        ]
-                    if "max_tokens" in model_parameters:
-                        attrs[Attrs.GEN_AI_REQUEST_MAX_TOKENS] = model_parameters[
-                            "max_tokens"
-                        ]
+            attrs = _build_observe_attrs(
+                as_type,
+                level,
+                user_id,
+                session_id,
+                tags,
+                metadata,
+                version,
+                model,
+                model_parameters,
+            )
 
             if capture_input:
-                try:
-                    input_data = _serialize_function_input(func, args, kwargs)
-                    input_str = json.dumps(input_data, cls=EventSerializer)
-                    attrs[Attrs.INPUT_VALUE] = input_str
-                    attrs[Attrs.INPUT_MIME_TYPE] = "application/json"
-                    if as_type in (SpanType.TOOL, SpanType.AGENT, SpanType.CHAIN):
-                        attrs[Attrs.GEN_AI_TOOL_NAME] = func.__name__
-                except Exception as e:
-                    error_msg = f"<serialization failed: {str(e)}>"
-                    attrs[Attrs.INPUT_VALUE] = error_msg
-                    attrs[Attrs.INPUT_MIME_TYPE] = "text/plain"
+                _capture_input_attrs(attrs, func, args, kwargs, as_type)
 
             with client.start_as_current_span(span_name, attributes=attrs) as span:
                 try:
                     result = func(*args, **kwargs)
-
                     if capture_output:
-                        try:
-                            output_data = serialize_value(result)
-                            output_str = json.dumps(output_data, cls=EventSerializer)
-                            span.set_attribute(Attrs.OUTPUT_VALUE, output_str)
-                            span.set_attribute(
-                                Attrs.OUTPUT_MIME_TYPE, "application/json"
-                            )
-                        except Exception as e:
-                            error_msg = f"<serialization failed: {str(e)}>"
-                            span.set_attribute(Attrs.OUTPUT_VALUE, error_msg)
-                            span.set_attribute(Attrs.OUTPUT_MIME_TYPE, "text/plain")
-
+                        _set_output_attr(span, result)
                     span.set_status(Status(StatusCode.OK))
                     return result
-
                 except Exception as e:
                     span.set_status(Status(StatusCode.ERROR, str(e)))
                     span.record_exception(e)
@@ -152,72 +208,120 @@ def observe(
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
             client = get_client()
-            # Pass-through if SDK disabled
             if not client.config.enabled:
                 return await func(*args, **kwargs)
 
             span_name = name or func.__name__
-
-            attrs = {
-                Attrs.BROKLE_SPAN_TYPE: as_type,
-                Attrs.BROKLE_SPAN_LEVEL: level,
-            }
-
-            if user_id:
-                attrs[Attrs.GEN_AI_REQUEST_USER] = user_id
-                attrs[Attrs.USER_ID] = user_id
-            if session_id:
-                attrs[Attrs.SESSION_ID] = session_id
-            if tags:
-                attrs[Attrs.BROKLE_TRACE_TAGS] = json.dumps(tags)
-            if metadata:
-                attrs[Attrs.BROKLE_TRACE_METADATA] = json.dumps(metadata)
-            if version:
-                attrs[Attrs.BROKLE_VERSION] = version
-
-            if as_type == SpanType.GENERATION:
-                if model:
-                    attrs[Attrs.GEN_AI_REQUEST_MODEL] = model
+            attrs = _build_observe_attrs(
+                as_type,
+                level,
+                user_id,
+                session_id,
+                tags,
+                metadata,
+                version,
+                model,
+                model_parameters,
+            )
 
             if capture_input:
-                try:
-                    input_data = _serialize_function_input(func, args, kwargs)
-                    input_str = json.dumps(input_data, cls=EventSerializer)
-                    attrs[Attrs.INPUT_VALUE] = input_str
-                    attrs[Attrs.INPUT_MIME_TYPE] = "application/json"
-                    if as_type in (SpanType.TOOL, SpanType.AGENT, SpanType.CHAIN):
-                        attrs[Attrs.GEN_AI_TOOL_NAME] = func.__name__
-                except Exception as e:
-                    error_msg = f"<serialization failed: {str(e)}>"
-                    attrs[Attrs.INPUT_VALUE] = error_msg
-                    attrs[Attrs.INPUT_MIME_TYPE] = "text/plain"
+                _capture_input_attrs(attrs, func, args, kwargs, as_type)
 
             with client.start_as_current_span(span_name, attributes=attrs) as span:
                 try:
                     result = await func(*args, **kwargs)
-
                     if capture_output:
-                        try:
-                            output_data = serialize_value(result)
-                            output_str = json.dumps(output_data, cls=EventSerializer)
-                            span.set_attribute(Attrs.OUTPUT_VALUE, output_str)
-                            span.set_attribute(
-                                Attrs.OUTPUT_MIME_TYPE, "application/json"
-                            )
-                        except Exception as e:
-                            error_msg = f"<serialization failed: {str(e)}>"
-                            span.set_attribute(Attrs.OUTPUT_VALUE, error_msg)
-                            span.set_attribute(Attrs.OUTPUT_MIME_TYPE, "text/plain")
-
+                        _set_output_attr(span, result)
                     span.set_status(Status(StatusCode.OK))
                     return result
-
                 except Exception as e:
                     span.set_status(Status(StatusCode.ERROR, str(e)))
                     span.record_exception(e)
                     raise
 
-        if inspect.iscoroutinefunction(func):
+        @functools.wraps(func)
+        def generator_wrapper(*args, **kwargs):
+            client = get_client()
+            if not client.config.enabled:
+                yield from func(*args, **kwargs)
+                return
+
+            span_name = name or func.__name__
+            attrs = _build_observe_attrs(
+                as_type,
+                level,
+                user_id,
+                session_id,
+                tags,
+                metadata,
+                version,
+                model,
+                model_parameters,
+            )
+
+            if capture_input:
+                _capture_input_attrs(attrs, func, args, kwargs, as_type)
+
+            with client.start_as_current_span(span_name, attributes=attrs) as span:
+                try:
+                    output_parts = []
+                    for item in func(*args, **kwargs):
+                        if capture_output:
+                            output_parts.append(item)
+                        yield item
+                    if capture_output and output_parts:
+                        _set_output_attr(span, output_parts)
+                    span.set_status(Status(StatusCode.OK))
+                except Exception as e:
+                    span.set_status(Status(StatusCode.ERROR, str(e)))
+                    span.record_exception(e)
+                    raise
+
+        @functools.wraps(func)
+        async def async_generator_wrapper(*args, **kwargs):
+            client = get_client()
+            if not client.config.enabled:
+                async for item in func(*args, **kwargs):
+                    yield item
+                return
+
+            span_name = name or func.__name__
+            attrs = _build_observe_attrs(
+                as_type,
+                level,
+                user_id,
+                session_id,
+                tags,
+                metadata,
+                version,
+                model,
+                model_parameters,
+            )
+
+            if capture_input:
+                _capture_input_attrs(attrs, func, args, kwargs, as_type)
+
+            with client.start_as_current_span(span_name, attributes=attrs) as span:
+                try:
+                    output_parts = []
+                    async for item in func(*args, **kwargs):
+                        if capture_output:
+                            output_parts.append(item)
+                        yield item
+                    if capture_output and output_parts:
+                        _set_output_attr(span, output_parts)
+                    span.set_status(Status(StatusCode.OK))
+                except Exception as e:
+                    span.set_status(Status(StatusCode.ERROR, str(e)))
+                    span.record_exception(e)
+                    raise
+
+        # Select appropriate wrapper based on function type
+        if inspect.isasyncgenfunction(func):
+            return async_generator_wrapper
+        elif inspect.isgeneratorfunction(func):
+            return generator_wrapper
+        elif inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
             return sync_wrapper

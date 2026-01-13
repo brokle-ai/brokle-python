@@ -4,6 +4,7 @@ Framework integrations for automatic instrumentation.
 This module provides automatic tracing for popular LLM frameworks:
 - LangChain: Callback-based tracing
 - LlamaIndex: Global handler tracing
+- CrewAI: Agent/crew callback tracing
 
 Optional dependencies are handled gracefully - if a framework SDK
 is not installed, the integration will be unavailable but won't
@@ -17,6 +18,10 @@ Usage:
     # LlamaIndex
     from brokle.integrations import set_global_handler
     set_global_handler("brokle", user_id="user-123")
+
+    # CrewAI
+    from brokle.integrations import BrokleCrewAICallback
+    callback = BrokleCrewAICallback(user_id="user-123")
 """
 
 # LangChain integration (requires langchain package)
@@ -40,6 +45,18 @@ except ImportError as e:
     BrokleLlamaIndexHandler = None
     set_global_handler = None
     _llamaindex_import_error = str(e)
+
+
+# CrewAI integration (requires crewai package)
+try:
+    from .crewai import BrokleCrewAICallback, instrument_crewai
+
+    CREWAI_AVAILABLE = True
+except ImportError as e:
+    CREWAI_AVAILABLE = False
+    BrokleCrewAICallback = None
+    instrument_crewai = None
+    _crewai_import_error = str(e)
 
 
 def check_langchain_available():
@@ -80,6 +97,25 @@ def check_llamaindex_available():
     return True
 
 
+def check_crewai_available():
+    """
+    Check if CrewAI integration is available.
+
+    Returns:
+        bool: True if CrewAI is installed and integration is available
+
+    Raises:
+        ImportError: If CrewAI is not installed (with helpful message)
+    """
+    if not CREWAI_AVAILABLE:
+        raise ImportError(
+            "CrewAI integration requires the 'crewai' package. "
+            "Install with: pip install brokle-otel[crewai]"
+            f"\nOriginal error: {_crewai_import_error}"
+        )
+    return True
+
+
 __all__ = [
     # LangChain
     "BrokleLangChainCallback",
@@ -90,4 +126,9 @@ __all__ = [
     "set_global_handler",
     "LLAMAINDEX_AVAILABLE",
     "check_llamaindex_available",
+    # CrewAI
+    "BrokleCrewAICallback",
+    "instrument_crewai",
+    "CREWAI_AVAILABLE",
+    "check_crewai_available",
 ]

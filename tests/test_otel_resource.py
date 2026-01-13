@@ -293,7 +293,7 @@ class TestGetClientConfigForwarding:
         import brokle._client
 
         # Reset singleton
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
         with patch.dict(
             "os.environ",
@@ -318,7 +318,7 @@ class TestGetClientConfigForwarding:
                 assert config.transport == "grpc"
 
         # Cleanup
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
     def test_get_client_forwards_metrics_export_interval(self):
         """
@@ -329,7 +329,7 @@ class TestGetClientConfigForwarding:
         import brokle._client
 
         # Reset singleton
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
         with patch.dict(
             "os.environ",
@@ -348,7 +348,7 @@ class TestGetClientConfigForwarding:
                 assert config.metrics_export_interval == 30.0
 
         # Cleanup
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
     def test_get_client_forwards_version(self):
         """
@@ -359,7 +359,7 @@ class TestGetClientConfigForwarding:
         import brokle._client
 
         # Reset singleton
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
         with patch.dict(
             "os.environ",
@@ -378,7 +378,7 @@ class TestGetClientConfigForwarding:
                 assert config.version == "experiment-A"
 
         # Cleanup
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
     def test_get_client_forwards_grpc_endpoint(self):
         """
@@ -389,7 +389,7 @@ class TestGetClientConfigForwarding:
         import brokle._client
 
         # Reset singleton
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
         with patch.dict(
             "os.environ",
@@ -409,7 +409,7 @@ class TestGetClientConfigForwarding:
                 assert config.grpc_endpoint == "localhost:4317"
 
         # Cleanup
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
     def test_get_client_forwards_max_queue_size(self):
         """
@@ -420,7 +420,7 @@ class TestGetClientConfigForwarding:
         import brokle._client
 
         # Reset singleton
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
         with patch.dict(
             "os.environ",
@@ -439,7 +439,7 @@ class TestGetClientConfigForwarding:
                 assert config.max_queue_size == 4096
 
         # Cleanup
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
     def test_get_client_forwards_export_timeout(self):
         """
@@ -450,7 +450,7 @@ class TestGetClientConfigForwarding:
         import brokle._client
 
         # Reset singleton
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
         with patch.dict(
             "os.environ",
@@ -469,7 +469,7 @@ class TestGetClientConfigForwarding:
                 assert config.export_timeout == 60000
 
         # Cleanup
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
     def test_get_client_reads_transport_from_env(self):
         """
@@ -480,7 +480,7 @@ class TestGetClientConfigForwarding:
         import brokle._client
 
         # Reset singleton
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
         with patch.dict(
             "os.environ",
@@ -502,7 +502,7 @@ class TestGetClientConfigForwarding:
                 assert config.transport == "grpc"
 
         # Cleanup
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
     def test_get_client_reads_metrics_export_interval_from_env(self):
         """
@@ -513,7 +513,7 @@ class TestGetClientConfigForwarding:
         import brokle._client
 
         # Reset singleton
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
         with patch.dict(
             "os.environ",
@@ -535,7 +535,7 @@ class TestGetClientConfigForwarding:
                 assert config.metrics_export_interval == 15.0
 
         # Cleanup
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
     @patch("brokle._base_client.BrokleMeterProvider")
     @patch("brokle._base_client.TracerProvider")
@@ -560,7 +560,7 @@ class TestGetClientConfigForwarding:
         from brokle.types import Attrs
 
         # Reset singleton
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
         # Mock tracer provider to capture the resource
         mock_tracer_instance = MagicMock()
@@ -594,7 +594,7 @@ class TestGetClientConfigForwarding:
             assert resource.attributes[Attrs.BROKLE_VERSION] == "experiment-B"
 
         # Cleanup
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
     @patch("brokle._base_client.BrokleMeterProvider")
     @patch("brokle._base_client.TracerProvider")
@@ -615,7 +615,7 @@ class TestGetClientConfigForwarding:
         from brokle.types import Attrs
 
         # Reset singleton
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
         # Mock tracer provider to capture the resource
         mock_tracer_instance = MagicMock()
@@ -649,4 +649,4 @@ class TestGetClientConfigForwarding:
             assert resource.attributes[Attrs.BROKLE_VERSION] == "canary"
 
         # Cleanup
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)

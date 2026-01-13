@@ -189,9 +189,9 @@ def reset_client_state():
     """Reset client state before and after each test."""
     import brokle._client
 
-    brokle._client._global_client = None
+    brokle._client._client_context.set(None)
     yield
-    brokle._client._global_client = None
+    brokle._client._client_context.set(None)
 
 
 @pytest.fixture(autouse=True)

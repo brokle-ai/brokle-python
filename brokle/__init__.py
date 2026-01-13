@@ -27,7 +27,10 @@ from ._client import (
     get_client,
     reset_async_client,
     reset_client,
+    set_async_client,
+    set_client,
 )
+from ._utils.sync import run_sync, run_sync_safely
 from .config import BrokleConfig
 
 # New namespace modules (recommended)
@@ -178,7 +181,15 @@ from .utils.masking import MaskingHelper
 from .version import __version__, __version_info__
 
 # Wrappers are imported separately to avoid requiring provider SDKs
-# from .wrappers import wrap_openai, wrap_anthropic
+# Usage: from brokle.wrappers import wrap_openai, wrap_anthropic, wrap_google, etc.
+# Available wrappers:
+#   - wrap_openai, wrap_openai_async (OpenAI)
+#   - wrap_anthropic, wrap_anthropic_async (Anthropic)
+#   - wrap_azure_openai, wrap_azure_openai_async (Azure OpenAI)
+#   - wrap_google (Google GenAI)
+#   - wrap_mistral (Mistral AI)
+#   - wrap_cohere (Cohere)
+#   - wrap_bedrock (AWS Bedrock)
 
 __all__ = [
     # Version
@@ -189,9 +200,14 @@ __all__ = [
     "AsyncBrokle",
     "BrokleConfig",
     "get_client",
+    "set_client",
     "reset_client",
     "get_async_client",
+    "set_async_client",
     "reset_async_client",
+    # Sync Utilities
+    "run_sync",
+    "run_sync_safely",
     # Decorators
     "observe",
     # Types

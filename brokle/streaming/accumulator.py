@@ -425,3 +425,42 @@ class StreamingAccumulator:
     def is_finalized(self) -> bool:
         """Check if streaming has been finalized."""
         return self._finalized
+
+    def on_chunk_received(self) -> None:
+        """
+        Record that a chunk was received (timing only, no content extraction).
+
+        This is a convenience method for wrappers that do their own content
+        extraction but still want timing metrics tracked.
+        """
+        if self._finalized:
+            logger.warning("on_chunk_received called after finalize()")
+            return
+
+        now = time.perf_counter()
+
+        # Track first token time on first call
+        if self._first_token_time is None:
+            self._first_token_time = now
+
+        # Track inter-token latency
+        if self._last_chunk_time is not None:
+            latency_ms = (now - self._last_chunk_time) * 1000
+            self._inter_token_latencies.append(latency_ms)
+
+        self._last_chunk_time = now
+        self._chunk_count += 1
+
+    @property
+    def avg_itl_ms(self) -> Optional[float]:
+        """Get average inter-token latency in milliseconds (computed on-the-fly)."""
+        if not self._inter_token_latencies:
+            return None
+        return sum(self._inter_token_latencies) / len(self._inter_token_latencies)
+
+    @property
+    def duration_ms(self) -> Optional[float]:
+        """Get total duration in milliseconds from start to now."""
+        if self._start_time is None:
+            return None
+        return (time.perf_counter() - self._start_time) * 1000

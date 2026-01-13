@@ -32,6 +32,7 @@ Singleton Pattern:
     >>> client = get_client()  # Reads from BROKLE_* env vars
 """
 
+from contextvars import ContextVar
 from typing import Optional
 
 from ._base_client import BaseBrokleClient
@@ -548,21 +549,28 @@ class AsyncBrokle(BaseBrokleClient):
         await self.close()
 
 
-_global_client: Optional[Brokle] = None
+# ContextVar for async-safe multi-project support
+_client_context: ContextVar[Optional[Brokle]] = ContextVar(
+    "brokle_client", default=None
+)
+_async_client_context: ContextVar[Optional[AsyncBrokle]] = ContextVar(
+    "brokle_async_client", default=None
+)
 
 
 def get_client(**overrides) -> Brokle:
     """
-    Get or create global singleton Brokle client.
+    Get or create Brokle client from context.
 
-    Configuration is read from environment variables on first call.
-    Subsequent calls return the same instance.
+    Uses ContextVar for async-safe multi-project support. Configuration is read
+    from environment variables on first call. Subsequent calls in the same
+    context return the same instance.
 
     Args:
         **overrides: Override specific configuration values
 
     Returns:
-        Singleton Brokle instance
+        Brokle instance from current context
 
     Raises:
         ValueError: If BROKLE_API_KEY environment variable is missing
@@ -572,42 +580,66 @@ def get_client(**overrides) -> Brokle:
         >>> client = get_client()
         >>> prompt = client.prompts.get("greeting")
     """
-    global _global_client
+    client = _client_context.get()
 
-    if _global_client is None:
+    if client is None:
         config = BrokleConfig.from_env(**overrides)
-        _global_client = Brokle(config=config)
+        client = Brokle(config=config)
+        _client_context.set(client)
 
-    return _global_client
+    return client
 
 
-def reset_client():
+def set_client(client: Brokle) -> None:
     """
-    Reset global singleton client.
+    Set client in current context.
 
-    Useful for testing. Should not be used in production code.
+    Useful for multi-project scenarios where different requests need
+    different Brokle clients (e.g., multi-tenant applications).
+
+    Args:
+        client: Brokle client instance to set
+
+    Example:
+        >>> import contextvars
+        >>> from brokle import Brokle, set_client
+        >>>
+        >>> project_a_client = Brokle(api_key="bk_project_a_key")
+        >>> project_b_client = Brokle(api_key="bk_project_b_key")
+        >>>
+        >>> # Use different clients in different contexts
+        >>> ctx = contextvars.copy_context()
+        >>> ctx.run(set_client, project_a_client)
     """
-    global _global_client
-    if _global_client:
-        _global_client.close()
-    _global_client = None
+    _client_context.set(client)
 
 
-_global_async_client: Optional[AsyncBrokle] = None
+def reset_client() -> None:
+    """
+    Reset client in current context.
+
+    Closes the current client if it exists and removes it from context.
+    Useful for testing and cleanup.
+    """
+    client = _client_context.get()
+    if client:
+        client.close()
+    _client_context.set(None)
 
 
 async def get_async_client(**overrides) -> AsyncBrokle:
     """
-    Get or create global singleton AsyncBrokle client.
+    Get or create AsyncBrokle client from context.
 
-    Configuration is read from environment variables on first call.
-    Subsequent calls return the same instance.
+    Uses ContextVar for async-safe multi-project support. Configuration is read
+    from environment variables on first call. Subsequent calls in the same
+    context return the same instance.
 
     Args:
         **overrides: Override specific configuration values
 
     Returns:
-        Singleton AsyncBrokle instance
+        AsyncBrokle instance from current context
 
     Raises:
         ValueError: If BROKLE_API_KEY environment variable is missing
@@ -617,22 +649,37 @@ async def get_async_client(**overrides) -> AsyncBrokle:
         >>> client = await get_async_client()
         >>> prompt = await client.prompts.get("greeting")
     """
-    global _global_async_client
+    client = _async_client_context.get()
 
-    if _global_async_client is None:
+    if client is None:
         config = BrokleConfig.from_env(**overrides)
-        _global_async_client = AsyncBrokle(config=config)
+        client = AsyncBrokle(config=config)
+        _async_client_context.set(client)
 
-    return _global_async_client
+    return client
 
 
-async def reset_async_client():
+def set_async_client(client: AsyncBrokle) -> None:
     """
-    Reset global singleton async client.
+    Set async client in current context.
 
-    Useful for testing. Should not be used in production code.
+    Useful for multi-project scenarios where different requests need
+    different AsyncBrokle clients (e.g., multi-tenant applications).
+
+    Args:
+        client: AsyncBrokle client instance to set
     """
-    global _global_async_client
-    if _global_async_client:
-        await _global_async_client.close()
-    _global_async_client = None
+    _async_client_context.set(client)
+
+
+async def reset_async_client() -> None:
+    """
+    Reset async client in current context.
+
+    Closes the current client if it exists and removes it from context.
+    Useful for testing and cleanup.
+    """
+    client = _async_client_context.get()
+    if client:
+        await client.close()
+    _async_client_context.set(None)
