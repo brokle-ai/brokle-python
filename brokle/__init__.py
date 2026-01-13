@@ -56,6 +56,7 @@ from .experiments import (
     SummaryStats,
     TaskError,
 )
+from .evaluate import async_evaluate, evaluate
 from .experiments.types import (
     SpanExtractExpected,
     SpanExtractInput,
@@ -340,4 +341,7 @@ __all__ = [
     "SpanExtractInput",
     "SpanExtractOutput",
     "SpanExtractExpected",
+    # Top-level evaluate functions (competitor pattern)
+    "evaluate",
+    "async_evaluate",
 ]

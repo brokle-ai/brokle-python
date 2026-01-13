@@ -98,14 +98,22 @@ class Contains:
     """
     Substring matching scorer.
 
-    Checks if the expected value is contained within the output.
+    Checks if a substring is contained within the output.
+    The substring can be specified at initialization or passed via `expected`.
     Supports case-sensitive and case-insensitive comparison.
 
     Args:
         name: Score name (default: "contains")
         case_sensitive: Whether to perform case-sensitive comparison (default: True)
+        substring: Optional substring to match. If not provided, uses `expected` parameter.
 
     Example:
+        >>> # With substring at init
+        >>> contains = Contains(substring="Hello")
+        >>> result = contains(output="Hello world")
+        >>> result.value  # 1.0 (contains)
+
+        >>> # With expected parameter (legacy)
         >>> contains = Contains(name="has_keyword")
         >>> result = contains(output="The capital is Paris", expected="Paris")
         >>> result.value  # 1.0 (contains)
@@ -114,24 +122,40 @@ class Contains:
         >>> result.value  # 0.0 (not found)
     """
 
-    def __init__(self, name: str = "contains", case_sensitive: bool = True):
+    def __init__(
+        self,
+        name: str = "contains",
+        case_sensitive: bool = True,
+        substring: Optional[str] = None,
+    ):
         self.name = name
         self.case_sensitive = case_sensitive
+        self.substring = substring
 
-    def __call__(self, output: Any, expected: Any, **kwargs: Any) -> ScoreResult:
+    def __call__(self, output: Any, expected: Any = None, **kwargs: Any) -> ScoreResult:
         """
-        Check if expected is contained in output.
+        Check if substring is contained in output.
 
         Args:
             output: The actual output to evaluate
-            expected: The substring to find
+            expected: The substring to find (used if substring not set at init)
             **kwargs: Additional arguments (ignored)
 
         Returns:
             ScoreResult with value 1.0 (found) or 0.0 (not found)
         """
         out_str = str(output)
-        exp_str = str(expected)
+
+        # Use substring from init, or fall back to expected parameter
+        search_str = self.substring if self.substring is not None else expected
+        if search_str is None:
+            return ScoreResult(
+                name=self.name,
+                value=0.0,
+                type=ScoreType.BOOLEAN,
+            )
+
+        exp_str = str(search_str)
 
         if not self.case_sensitive:
             out_str = out_str.lower()
