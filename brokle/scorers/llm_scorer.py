@@ -4,7 +4,7 @@ LLM-as-Judge Scorer for Brokle Evaluations
 Provides LLMScorer for evaluating outputs using LLM models as judges.
 Uses project AI credentials via the Brokle backend.
 
-Features (following industry patterns from Braintrust, Langfuse, Optik):
+Features:
 - Mustache-style template variables: {{input}}, {{output}}, {{expected}}
 - Choice scores mapping for classification tasks
 - Chain-of-thought (CoT) reasoning option
@@ -32,7 +32,7 @@ Usage:
     ...     model="gpt-4o",
     ... )
     >>>
-    >>> # Classification with choice scores (Braintrust pattern)
+    >>> # Classification with choice scores
     >>> factuality = LLMScorer(
     ...     client=client,
     ...     name="factuality",
@@ -87,7 +87,7 @@ def _render_template(template: str, variables: Dict[str, Any]) -> str:
     """
     Render Mustache-style template with variables.
 
-    Supports {{variable}} syntax (industry standard from Braintrust/Langfuse).
+    Supports {{variable}} syntax for template variables.
 
     Args:
         template: Template string with {{variable}} placeholders
@@ -118,7 +118,7 @@ class LLMScorer:
     LLM-as-Judge scorer using project AI credentials.
 
     Calls the Brokle backend to execute LLM prompts for evaluation.
-    Follows industry patterns from Braintrust, Langfuse, and Optik SDKs.
+    Uses LLM models as judges for evaluation scoring.
 
     Args:
         client: Brokle client instance (sync or async)
