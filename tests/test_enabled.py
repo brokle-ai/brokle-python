@@ -118,7 +118,7 @@ class TestDecoratorEnabled:
 
         import brokle._client
 
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
         @observe()
         def my_func(x):
@@ -133,7 +133,7 @@ class TestDecoratorEnabled:
 
         import brokle._client
 
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
         @observe()
         def get_dict():
@@ -152,7 +152,7 @@ class TestWrapperEnabled:
 
         import brokle._client
 
-        brokle._client._global_client = None
+        brokle._client._client_context.set(None)
 
         mock_client = MagicMock()
         mock_client.chat = MagicMock()

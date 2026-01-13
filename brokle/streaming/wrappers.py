@@ -13,6 +13,7 @@ Example:
 """
 
 import asyncio
+import threading
 from typing import TYPE_CHECKING, Any, Optional, Type
 
 from opentelemetry.trace import Status, StatusCode
@@ -63,6 +64,7 @@ class BrokleStreamWrapper(ObjectProxy):
         self._self_accumulator = accumulator
         self._self_completed = False
         self._self_result: Optional[StreamingResult] = None
+        self._self_lock = threading.Lock()
 
     def __iter__(self) -> "BrokleStreamWrapper":
         """Return iterator (self)."""
@@ -113,10 +115,11 @@ class BrokleStreamWrapper(ObjectProxy):
                 pass
 
     def _complete_instrumentation(self) -> None:
-        """Finalize accumulator and record span attributes."""
-        if self._self_completed:
-            return
-        self._self_completed = True
+        """Finalize accumulator and record span attributes (thread-safe)."""
+        with self._self_lock:
+            if self._self_completed:
+                return
+            self._self_completed = True
 
         self._self_result = self._self_accumulator.finalize()
 
@@ -133,10 +136,11 @@ class BrokleStreamWrapper(ObjectProxy):
         self._self_span.end()
 
     def _complete_instrumentation_with_error(self, exception: BaseException) -> None:
-        """Finalize accumulator with error status for failed streams."""
-        if self._self_completed:
-            return
-        self._self_completed = True
+        """Finalize accumulator with error status for failed streams (thread-safe)."""
+        with self._self_lock:
+            if self._self_completed:
+                return
+            self._self_completed = True
 
         self._self_result = self._self_accumulator.finalize()
 
@@ -204,6 +208,7 @@ class BrokleAsyncStreamWrapper(ObjectProxy):
         self._self_accumulator = accumulator
         self._self_completed = False
         self._self_result: Optional[StreamingResult] = None
+        self._self_lock = threading.Lock()
 
     def __aiter__(self) -> "BrokleAsyncStreamWrapper":
         """Return async iterator (self)."""
@@ -254,10 +259,11 @@ class BrokleAsyncStreamWrapper(ObjectProxy):
                 pass
 
     def _complete_instrumentation(self) -> None:
-        """Finalize accumulator and record span attributes."""
-        if self._self_completed:
-            return
-        self._self_completed = True
+        """Finalize accumulator and record span attributes (thread-safe)."""
+        with self._self_lock:
+            if self._self_completed:
+                return
+            self._self_completed = True
 
         self._self_result = self._self_accumulator.finalize()
 
@@ -274,10 +280,11 @@ class BrokleAsyncStreamWrapper(ObjectProxy):
         self._self_span.end()
 
     def _complete_instrumentation_with_error(self, exception: BaseException) -> None:
-        """Finalize accumulator with error status for failed streams."""
-        if self._self_completed:
-            return
-        self._self_completed = True
+        """Finalize accumulator with error status for failed streams (thread-safe)."""
+        with self._self_lock:
+            if self._self_completed:
+                return
+            self._self_completed = True
 
         self._self_result = self._self_accumulator.finalize()
 

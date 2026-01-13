@@ -27,7 +27,10 @@ from ._client import (
     get_client,
     reset_async_client,
     reset_client,
+    set_async_client,
+    set_client,
 )
+from ._utils.sync import run_sync, run_sync_safely
 from .config import BrokleConfig
 
 # New namespace modules (recommended)
@@ -196,9 +199,14 @@ __all__ = [
     "AsyncBrokle",
     "BrokleConfig",
     "get_client",
+    "set_client",
     "reset_client",
     "get_async_client",
+    "set_async_client",
     "reset_async_client",
+    # Sync Utilities
+    "run_sync",
+    "run_sync_safely",
     # Decorators
     "observe",
     # Types
