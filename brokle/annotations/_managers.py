@@ -152,9 +152,10 @@ class AnnotationQueuesManager(_BaseAnnotationManagerMixin):
         # Normalize items
         normalized_items = []
         for item in items:
+            object_type = item.get("object_type", "trace")
             normalized = {
                 "object_id": item["object_id"],
-                "object_type": item.get("object_type", "trace"),
+                "object_type": object_type,
             }
             if "priority" in item:
                 normalized["priority"] = item["priority"]
@@ -356,9 +357,10 @@ class AsyncAnnotationQueuesManager(_BaseAnnotationManagerMixin):
         # Normalize items
         normalized_items = []
         for item in items:
+            object_type = item.get("object_type", "trace")
             normalized = {
                 "object_id": item["object_id"],
-                "object_type": item.get("object_type", "trace"),
+                "object_type": object_type,
             }
             if "priority" in item:
                 normalized["priority"] = item["priority"]
