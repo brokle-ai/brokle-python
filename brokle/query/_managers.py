@@ -52,13 +52,13 @@ class _BaseQueryManagerMixin:
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         limit: int = 1000,
-        offset: int = 0,
+        page: int = 1,
     ) -> Dict[str, Any]:
         """Build request body for query API."""
         body: Dict[str, Any] = {
             "filter": filter,
             "limit": limit,
-            "offset": offset,
+            "page": page,
         }
         if start_time:
             body["start_time"] = (
@@ -120,7 +120,7 @@ class QueryManager(_BaseQueryManagerMixin):
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         limit: int = 1000,
-        offset: int = 0,
+        page: int = 1,
     ) -> QueryResult:
         """
         Query spans using filter expression.
@@ -130,7 +130,7 @@ class QueryManager(_BaseQueryManagerMixin):
             start_time: Start of time range (optional)
             end_time: End of time range (optional)
             limit: Maximum number of spans to return (default: 1000)
-            offset: Number of spans to skip (default: 0)
+            page: Page number for pagination, 1-indexed (default: 1)
 
         Returns:
             QueryResult with spans and pagination metadata
@@ -146,9 +146,9 @@ class QueryManager(_BaseQueryManagerMixin):
             ... )
             >>> print(f"Found {result.total} spans")
         """
-        self._log(f"Querying spans: filter={filter}, limit={limit}, offset={offset}")
+        self._log(f"Querying spans: filter={filter}, limit={limit}, page={page}")
 
-        body = self._build_query_body(filter, start_time, end_time, limit, offset)
+        body = self._build_query_body(filter, start_time, end_time, limit, page)
 
         try:
             raw_response = self._http.post("/v1/spans/query", json=body)
@@ -206,14 +206,14 @@ class QueryManager(_BaseQueryManagerMixin):
             >>> for span in client.query.query_iter("gen_ai.system=openai"):
             ...     process_span(span)
         """
-        offset = 0
+        page = 1
         while True:
             result = self.query(
                 filter,
                 start_time=start_time,
                 end_time=end_time,
                 limit=batch_size,
-                offset=offset,
+                page=page,
             )
             for span in result.spans:
                 yield span
@@ -221,11 +221,7 @@ class QueryManager(_BaseQueryManagerMixin):
             if not result.has_more:
                 break
 
-            offset = (
-                result.next_offset
-                if result.next_offset is not None
-                else (offset + batch_size)
-            )
+            page = result.next_page if result.next_page is not None else (page + 1)
 
     def validate(self, filter: str) -> ValidationResult:
         """
@@ -330,7 +326,7 @@ class AsyncQueryManager(_BaseQueryManagerMixin):
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         limit: int = 1000,
-        offset: int = 0,
+        page: int = 1,
     ) -> QueryResult:
         """
         Query spans using filter expression (async).
@@ -340,7 +336,7 @@ class AsyncQueryManager(_BaseQueryManagerMixin):
             start_time: Start of time range (optional)
             end_time: End of time range (optional)
             limit: Maximum number of spans to return (default: 1000)
-            offset: Number of spans to skip (default: 0)
+            page: Page number for pagination, 1-indexed (default: 1)
 
         Returns:
             QueryResult with spans and pagination metadata
@@ -356,9 +352,9 @@ class AsyncQueryManager(_BaseQueryManagerMixin):
             ... )
             >>> print(f"Found {result.total} spans")
         """
-        self._log(f"Querying spans: filter={filter}, limit={limit}, offset={offset}")
+        self._log(f"Querying spans: filter={filter}, limit={limit}, page={page}")
 
-        body = self._build_query_body(filter, start_time, end_time, limit, offset)
+        body = self._build_query_body(filter, start_time, end_time, limit, page)
 
         try:
             raw_response = await self._http.post("/v1/spans/query", json=body)
@@ -416,14 +412,14 @@ class AsyncQueryManager(_BaseQueryManagerMixin):
             >>> async for span in client.query.query_iter("gen_ai.system=openai"):
             ...     await process_span(span)
         """
-        offset = 0
+        page = 1
         while True:
             result = await self.query(
                 filter,
                 start_time=start_time,
                 end_time=end_time,
                 limit=batch_size,
-                offset=offset,
+                page=page,
             )
             for span in result.spans:
                 yield span
@@ -431,11 +427,7 @@ class AsyncQueryManager(_BaseQueryManagerMixin):
             if not result.has_more:
                 break
 
-            offset = (
-                result.next_offset
-                if result.next_offset is not None
-                else (offset + batch_size)
-            )
+            page = result.next_page if result.next_page is not None else (page + 1)
 
     async def validate(self, filter: str) -> ValidationResult:
         """

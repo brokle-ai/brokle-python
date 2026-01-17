@@ -185,14 +185,14 @@ class DatasetsManager(_BaseDatasetsManagerMixin):
     def list(
         self,
         limit: int = 50,
-        offset: int = 0,
+        page: int = 1,
     ) -> List[Dataset]:
         """
         List all datasets.
 
         Args:
-            limit: Maximum number of datasets to return (default: 50)
-            offset: Number of datasets to skip (default: 0)
+            limit: Maximum number of datasets to return (default: 50, valid: 10, 25, 50, 100)
+            page: Page number to fetch (default: 1, 1-indexed)
 
         Returns:
             List of Dataset objects
@@ -205,15 +205,14 @@ class DatasetsManager(_BaseDatasetsManagerMixin):
             >>> for ds in datasets:
             ...     print(ds.name, ds.id)
         """
-        self._log(f"Listing datasets: limit={limit}, offset={offset}")
+        self._log(f"Listing datasets: limit={limit}, page={page}")
 
         try:
             raw_response = self._http.get(
                 "/v1/datasets",
-                params={"limit": limit, "offset": offset},
+                params={"limit": limit, "page": page},
             )
-            # unwrap_response returns the array directly from response["data"]
-            datasets_data = unwrap_response(raw_response, resource_type="Datasets")
+            data = unwrap_response(raw_response, resource_type="Datasets")
             return [
                 Dataset(
                     id=ds["id"],
@@ -225,7 +224,7 @@ class DatasetsManager(_BaseDatasetsManagerMixin):
                     _http_client=self._http,
                     _debug=self._config.debug,
                 )
-                for ds in datasets_data
+                for ds in data
             ]
         except ValueError as e:
             raise DatasetError(f"Failed to list datasets: {e}")
@@ -446,14 +445,14 @@ class AsyncDatasetsManager(_BaseDatasetsManagerMixin):
     async def list(
         self,
         limit: int = 50,
-        offset: int = 0,
+        page: int = 1,
     ) -> List[AsyncDataset]:
         """
         List all datasets (async).
 
         Args:
-            limit: Maximum number of datasets to return (default: 50)
-            offset: Number of datasets to skip (default: 0)
+            limit: Maximum number of datasets to return (default: 50, valid: 10, 25, 50, 100)
+            page: Page number to fetch (default: 1, 1-indexed)
 
         Returns:
             List of AsyncDataset objects
@@ -466,15 +465,14 @@ class AsyncDatasetsManager(_BaseDatasetsManagerMixin):
             >>> for ds in datasets:
             ...     print(ds.name, ds.id)
         """
-        self._log(f"Listing datasets: limit={limit}, offset={offset}")
+        self._log(f"Listing datasets: limit={limit}, page={page}")
 
         try:
             raw_response = await self._http.get(
                 "/v1/datasets",
-                params={"limit": limit, "offset": offset},
+                params={"limit": limit, "page": page},
             )
-            # unwrap_response returns the array directly from response["data"]
-            datasets_data = unwrap_response(raw_response, resource_type="Datasets")
+            data = unwrap_response(raw_response, resource_type="Datasets")
             return [
                 AsyncDataset(
                     id=ds["id"],
@@ -486,7 +484,7 @@ class AsyncDatasetsManager(_BaseDatasetsManagerMixin):
                     _http_client=self._http,
                     _debug=self._config.debug,
                 )
-                for ds in datasets_data
+                for ds in data
             ]
         except ValueError as e:
             raise DatasetError(f"Failed to list datasets: {e}")

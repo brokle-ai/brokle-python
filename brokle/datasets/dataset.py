@@ -35,7 +35,12 @@ Async Usage:
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, Dict, Iterator, List, Optional, Union
 
-from .._http import AsyncHTTPClient, SyncHTTPClient, unwrap_response
+from .._http import (
+    AsyncHTTPClient,
+    SyncHTTPClient,
+    extract_pagination_total,
+    unwrap_response,
+)
 from .exceptions import DatasetError
 
 
@@ -397,14 +402,14 @@ class Dataset:
     def get_items(
         self,
         limit: int = 50,
-        offset: int = 0,
+        page: int = 1,
     ) -> List[DatasetItem]:
         """
         Fetch items with pagination.
 
         Args:
-            limit: Maximum number of items to return (default: 50)
-            offset: Number of items to skip (default: 0)
+            limit: Maximum number of items to return (default: 50, valid: 10, 25, 50, 100)
+            page: Page number to fetch (default: 1, 1-indexed)
 
         Returns:
             List of DatasetItem objects
@@ -413,22 +418,21 @@ class Dataset:
             DatasetError: If the API request fails
 
         Example:
-            >>> items = dataset.get_items(limit=10, offset=0)
+            >>> items = dataset.get_items(limit=10, page=1)
             >>> for item in items:
             ...     print(item.input)
         """
         self._log(
-            f"Fetching items from dataset {self._id}: limit={limit}, offset={offset}"
+            f"Fetching items from dataset {self._id}: limit={limit}, page={page}"
         )
 
         try:
             raw_response = self._http.get(
                 f"/v1/datasets/{self._id}/items",
-                params={"limit": limit, "offset": offset},
+                params={"limit": limit, "page": page},
             )
             data = unwrap_response(raw_response, resource_type="DatasetItems")
-            items_data = data.get("items", [])
-            return [DatasetItem.from_dict(item) for item in items_data]
+            return [DatasetItem.from_dict(item) for item in data]
         except ValueError as e:
             raise DatasetError(f"Failed to fetch items: {e}")
         except Exception as e:
@@ -444,16 +448,16 @@ class Dataset:
             >>> for item in dataset:
             ...     print(item.input, item.expected)
         """
-        offset = 0
+        page = 1
         limit = 50
         while True:
-            items = self.get_items(limit=limit, offset=offset)
+            items = self.get_items(limit=limit, page=page)
             if not items:
                 break
             yield from items
             if len(items) < limit:
                 break
-            offset += limit
+            page += 1
 
     def __len__(self) -> int:
         """
@@ -468,10 +472,9 @@ class Dataset:
         try:
             raw_response = self._http.get(
                 f"/v1/datasets/{self._id}/items",
-                params={"limit": 1, "offset": 0},
+                params={"limit": 1, "page": 1},
             )
-            data = unwrap_response(raw_response, resource_type="DatasetItems")
-            return int(data.get("total", 0))
+            return extract_pagination_total(raw_response)
         except Exception:
             return 0
 
@@ -836,10 +839,7 @@ class Dataset:
                 f"/v1/datasets/{self._id}/items/export",
             )
             data = unwrap_response(raw_response, resource_type="DatasetItems")
-            # Handle both list and dict responses
-            if isinstance(data, list):
-                return data
-            return data.get("items", data) if isinstance(data, dict) else []
+            return data
         except Exception as e:
             raise DatasetError(f"Failed to export items: {e}")
 
@@ -1212,14 +1212,14 @@ class AsyncDataset:
     async def get_items(
         self,
         limit: int = 50,
-        offset: int = 0,
+        page: int = 1,
     ) -> List[DatasetItem]:
         """
         Fetch items with pagination (async).
 
         Args:
-            limit: Maximum number of items to return (default: 50)
-            offset: Number of items to skip (default: 0)
+            limit: Maximum number of items to return (default: 50, valid: 10, 25, 50, 100)
+            page: Page number to fetch (default: 1, 1-indexed)
 
         Returns:
             List of DatasetItem objects
@@ -1228,22 +1228,21 @@ class AsyncDataset:
             DatasetError: If the API request fails
 
         Example:
-            >>> items = await dataset.get_items(limit=10, offset=0)
+            >>> items = await dataset.get_items(limit=10, page=1)
             >>> for item in items:
             ...     print(item.input)
         """
         self._log(
-            f"Fetching items from dataset {self._id}: limit={limit}, offset={offset}"
+            f"Fetching items from dataset {self._id}: limit={limit}, page={page}"
         )
 
         try:
             raw_response = await self._http.get(
                 f"/v1/datasets/{self._id}/items",
-                params={"limit": limit, "offset": offset},
+                params={"limit": limit, "page": page},
             )
             data = unwrap_response(raw_response, resource_type="DatasetItems")
-            items_data = data.get("items", [])
-            return [DatasetItem.from_dict(item) for item in items_data]
+            return [DatasetItem.from_dict(item) for item in data]
         except ValueError as e:
             raise DatasetError(f"Failed to fetch items: {e}")
         except Exception as e:
@@ -1259,17 +1258,17 @@ class AsyncDataset:
             >>> async for item in dataset:
             ...     print(item.input, item.expected)
         """
-        offset = 0
+        page = 1
         limit = 50
         while True:
-            items = await self.get_items(limit=limit, offset=offset)
+            items = await self.get_items(limit=limit, page=page)
             if not items:
                 break
             for item in items:
                 yield item
             if len(items) < limit:
                 break
-            offset += limit
+            page += 1
 
     async def count(self) -> int:
         """
@@ -1282,10 +1281,9 @@ class AsyncDataset:
         try:
             raw_response = await self._http.get(
                 f"/v1/datasets/{self._id}/items",
-                params={"limit": 1, "offset": 0},
+                params={"limit": 1, "page": 1},
             )
-            data = unwrap_response(raw_response, resource_type="DatasetItems")
-            return int(data.get("total", 0))
+            return extract_pagination_total(raw_response)
         except Exception:
             return 0
 
@@ -1654,10 +1652,7 @@ class AsyncDataset:
                 f"/v1/datasets/{self._id}/items/export",
             )
             data = unwrap_response(raw_response, resource_type="DatasetItems")
-            # Handle both list and dict responses
-            if isinstance(data, list):
-                return data
-            return data.get("items", data) if isinstance(data, dict) else []
+            return data
         except Exception as e:
             raise DatasetError(f"Failed to export items: {e}")
 
