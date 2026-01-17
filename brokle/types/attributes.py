@@ -152,7 +152,7 @@ class BrokleOtelSpanAttributes:
     # ========== Brokle Quality Scores ==========
     BROKLE_SCORE_NAME = "brokle.score.name"
     BROKLE_SCORE_VALUE = "brokle.score.value"
-    BROKLE_SCORE_DATA_TYPE = "brokle.score.data_type"
+    BROKLE_SCORE_TYPE = "brokle.score.type"
     BROKLE_SCORE_COMMENT = "brokle.score.comment"
 
     # ========== Brokle Internal Flags ==========
@@ -254,7 +254,7 @@ class OperationType:
 
 
 class ScoreDataType:
-    """Score data type constants for brokle.score.data_type attribute."""
+    """Score data type constants for brokle.score.type span attribute."""
 
     NUMERIC = "numeric"
     BOOLEAN = "boolean"

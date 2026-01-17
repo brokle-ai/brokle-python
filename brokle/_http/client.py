@@ -46,6 +46,26 @@ def unwrap_response(
     return response["data"]
 
 
+def extract_pagination_total(response: Dict[str, Any]) -> int:
+    """
+    Extract total count from paginated API response.
+
+    The API returns pagination info in meta.pagination.total.
+
+    Args:
+        response: Raw API response (before unwrap)
+
+    Returns:
+        Total count from pagination, or 0 if not available
+    """
+    if not response.get("success"):
+        return 0
+
+    meta = response.get("meta", {})
+    pagination = meta.get("pagination", {})
+    return pagination.get("total", 0)
+
+
 class SyncHTTPClient:
     """
     Synchronous HTTP client for Brokle API.

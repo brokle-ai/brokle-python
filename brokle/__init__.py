@@ -216,6 +216,7 @@ __all__ = [
     "SpanLevel",
     "LLMProvider",
     "OperationType",
+    "ScoreType",
     "ScoreDataType",
     "SchemaURLs",
     # Metrics

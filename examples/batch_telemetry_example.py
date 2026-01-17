@@ -88,7 +88,7 @@ def example_2_structured_events():
             "span_id": span_event_id,
             "name": "response_quality",
             "value": 0.95,
-            "data_type": "numeric",
+            "type": "numeric",
         },
     )
 

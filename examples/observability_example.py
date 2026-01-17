@@ -174,7 +174,7 @@ async def direct_observability_example():
         span_id=span.id,
         score_name="relevance",
         score_value=0.95,
-        data_type="NUMERIC",
+        type="NUMERIC",
         source="AUTO",
         evaluator_name="example_evaluator",
         comment="High relevance score for geography question",

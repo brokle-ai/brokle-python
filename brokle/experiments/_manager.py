@@ -506,14 +506,14 @@ class ExperimentsManager(_BaseExperimentsManagerMixin):
     def list(
         self,
         limit: int = 50,
-        offset: int = 0,
+        page: int = 1,
     ) -> List[Experiment]:
         """
         List all experiments.
 
         Args:
-            limit: Maximum number of experiments to return (default: 50)
-            offset: Number of experiments to skip (default: 0)
+            limit: Maximum number of experiments to return (default: 50, valid: 10, 25, 50, 100)
+            page: Page number to fetch (default: 1, 1-indexed)
 
         Returns:
             List of Experiment objects
@@ -526,16 +526,15 @@ class ExperimentsManager(_BaseExperimentsManagerMixin):
             >>> for exp in experiments:
             ...     print(exp.name, exp.status)
         """
-        self._log(f"Listing experiments: limit={limit}, offset={offset}")
+        self._log(f"Listing experiments: limit={limit}, page={page}")
 
         try:
             raw_response = self._http.get(
                 "/v1/experiments",
-                params={"limit": limit, "offset": offset},
+                params={"limit": limit, "page": page},
             )
             data = unwrap_response(raw_response, resource_type="Experiments")
-            experiments_data = data.get("experiments", [])
-            return [Experiment.from_dict(exp) for exp in experiments_data]
+            return [Experiment.from_dict(exp) for exp in data]
         except ValueError as e:
             raise EvaluationError(f"Failed to list experiments: {e}")
         except Exception as e:
@@ -1022,14 +1021,14 @@ class AsyncExperimentsManager(_BaseExperimentsManagerMixin):
     async def list(
         self,
         limit: int = 50,
-        offset: int = 0,
+        page: int = 1,
     ) -> List[Experiment]:
         """
         List all experiments (async).
 
         Args:
-            limit: Maximum number of experiments to return (default: 50)
-            offset: Number of experiments to skip (default: 0)
+            limit: Maximum number of experiments to return (default: 50, valid: 10, 25, 50, 100)
+            page: Page number to fetch (default: 1, 1-indexed)
 
         Returns:
             List of Experiment objects
@@ -1037,16 +1036,15 @@ class AsyncExperimentsManager(_BaseExperimentsManagerMixin):
         Raises:
             EvaluationError: If the API request fails
         """
-        self._log(f"Listing experiments: limit={limit}, offset={offset}")
+        self._log(f"Listing experiments: limit={limit}, page={page}")
 
         try:
             raw_response = await self._http.get(
                 "/v1/experiments",
-                params={"limit": limit, "offset": offset},
+                params={"limit": limit, "page": page},
             )
             data = unwrap_response(raw_response, resource_type="Experiments")
-            experiments_data = data.get("experiments", [])
-            return [Experiment.from_dict(exp) for exp in experiments_data]
+            return [Experiment.from_dict(exp) for exp in data]
         except ValueError as e:
             raise EvaluationError(f"Failed to list experiments: {e}")
         except Exception as e:

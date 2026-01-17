@@ -190,13 +190,13 @@ class QueryResult:
         spans: List of queried spans
         total: Total number of matching spans
         has_more: Whether more results are available
-        next_offset: Offset for next page (if has_more is True)
+        next_page: Page number for next page (if has_more is True)
     """
 
     spans: List[QueriedSpan]
     total: int
     has_more: bool
-    next_offset: Optional[int] = None
+    next_page: Optional[int] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "QueryResult":
@@ -206,13 +206,14 @@ class QueryResult:
 
         total = data.get("total_count", len(spans))
         has_more = data.get("has_more", False)
-        next_offset = data.get("next_offset")
+        # Backend doesn't return next_page, SDK calculates it in query_iter
+        next_page = data.get("next_page")
 
         return cls(
             spans=spans,
             total=total,
             has_more=has_more,
-            next_offset=next_offset,
+            next_page=next_page,
         )
 
     def __len__(self) -> int:
