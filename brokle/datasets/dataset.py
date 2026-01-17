@@ -115,6 +115,31 @@ class KeysMapping:
 
 
 @dataclass
+class CSVColumnMapping:
+    """
+    Column mapping for CSV import operations.
+
+    Attributes:
+        input_column: Column name to use for input field (required)
+        expected_column: Column name to use for expected field (optional)
+        metadata_columns: Column names to include as metadata (optional)
+    """
+
+    input_column: str
+    expected_column: Optional[str] = None
+    metadata_columns: Optional[List[str]] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to API request format."""
+        result: Dict[str, Any] = {"input_column": self.input_column}
+        if self.expected_column:
+            result["expected_column"] = self.expected_column
+        if self.metadata_columns:
+            result["metadata_columns"] = self.metadata_columns
+        return result
+
+
+@dataclass
 class BulkImportResult:
     """
     Result of a bulk import operation.
@@ -140,6 +165,92 @@ class BulkImportResult:
 
 
 DatasetItemInput = Union[Dict[str, Any], DatasetItem]
+
+
+@dataclass
+class DatasetVersion:
+    """
+    A dataset version snapshot.
+
+    Attributes:
+        id: Unique identifier for the version
+        dataset_id: ID of the parent dataset
+        version: Version number (auto-incremented)
+        item_count: Number of items in this version snapshot
+        description: Optional description of the version
+        metadata: Additional metadata (optional)
+        created_by: User ID who created the version (optional)
+        created_at: ISO timestamp when created
+    """
+
+    id: str
+    dataset_id: str
+    version: int
+    item_count: int
+    description: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    created_by: Optional[str] = None
+    created_at: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "DatasetVersion":
+        """Create DatasetVersion from API response dict."""
+        return cls(
+            id=data["id"],
+            dataset_id=data["dataset_id"],
+            version=data["version"],
+            item_count=data["item_count"],
+            description=data.get("description"),
+            metadata=data.get("metadata"),
+            created_by=data.get("created_by"),
+            created_at=data.get("created_at"),
+        )
+
+
+@dataclass
+class DatasetWithVersionInfo:
+    """
+    A dataset with its version information.
+
+    Attributes:
+        id: Dataset ID
+        project_id: Project ID
+        name: Dataset name
+        description: Dataset description (optional)
+        metadata: Dataset metadata (optional)
+        current_version_id: Currently pinned version ID (optional)
+        current_version: Currently pinned version number (optional)
+        latest_version: Latest available version number (optional)
+        created_at: Creation timestamp
+        updated_at: Last update timestamp
+    """
+
+    id: str
+    project_id: str
+    name: str
+    created_at: str
+    updated_at: str
+    description: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    current_version_id: Optional[str] = None
+    current_version: Optional[int] = None
+    latest_version: Optional[int] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "DatasetWithVersionInfo":
+        """Create DatasetWithVersionInfo from API response dict."""
+        return cls(
+            id=data["id"],
+            project_id=data["project_id"],
+            name=data["name"],
+            description=data.get("description"),
+            metadata=data.get("metadata"),
+            current_version_id=data.get("current_version_id"),
+            current_version=data.get("current_version"),
+            latest_version=data.get("latest_version"),
+            created_at=data["created_at"],
+            updated_at=data["updated_at"],
+        )
 
 
 class Dataset:
@@ -242,7 +353,7 @@ class Dataset:
         else:
             raise TypeError(f"Item must be dict or DatasetItem, got {type(item)}")
 
-    def insert(self, items: List[DatasetItemInput]) -> int:
+    def insert(self, items: List[DatasetItemInput], deduplicate: bool = False) -> int:
         """
         Insert items into the dataset.
 
@@ -250,6 +361,8 @@ class Dataset:
             items: List of items to insert. Each item can be:
                 - A dict with 'input' (required), 'expected' (optional), 'metadata' (optional)
                 - A DatasetItem instance
+            deduplicate: If True, skip items with duplicate content (based on input+expected hash).
+                         Checks against existing items in the dataset and within the batch.
 
         Returns:
             Number of items created
@@ -263,6 +376,10 @@ class Dataset:
             ...     {"input": {"q": "2+2?"}, "expected": {"a": "4"}},
             ... ])
             1
+
+            >>> # With deduplication
+            >>> dataset.insert([item1, item1], deduplicate=True)
+            1  # Second item skipped as duplicate
         """
         if not items:
             return 0
@@ -273,7 +390,7 @@ class Dataset:
         try:
             raw_response = self._http.post(
                 f"/v1/datasets/{self._id}/items",
-                json={"items": normalized},
+                json={"items": normalized, "deduplicate": deduplicate},
             )
             data = unwrap_response(raw_response, resource_type="DatasetItems")
             return int(data.get("created", len(normalized)))
@@ -588,6 +705,73 @@ class Dataset:
         except Exception as e:
             raise DatasetError(f"Failed to import items: {e}")
 
+    def insert_from_csv(
+        self,
+        file_path: str,
+        column_mapping: CSVColumnMapping,
+        has_header: bool = True,
+        deduplicate: bool = True,
+    ) -> BulkImportResult:
+        """
+        Import dataset items from a CSV file.
+
+        Reads a CSV file from disk and imports items using the specified column mapping.
+        The CSV content is sent to the backend API for processing.
+
+        Args:
+            file_path: Path to the CSV file to import
+            column_mapping: CSVColumnMapping specifying which columns to use:
+                - input_column: Column name for input data (required)
+                - expected_column: Column name for expected output (optional)
+                - metadata_columns: List of column names for metadata (optional)
+            has_header: Whether the CSV has a header row (default: True)
+            deduplicate: Skip items with duplicate content (default: True)
+
+        Returns:
+            BulkImportResult with created/skipped counts and any errors
+
+        Raises:
+            DatasetError: If the file cannot be read or API request fails
+            FileNotFoundError: If the file doesn't exist
+
+        Example:
+            >>> from brokle.datasets import CSVColumnMapping
+            >>> result = dataset.insert_from_csv(
+            ...     "qa_pairs.csv",
+            ...     column_mapping=CSVColumnMapping(
+            ...         input_column="question",
+            ...         expected_column="answer",
+            ...         metadata_columns=["category", "difficulty"]
+            ...     ),
+            ...     has_header=True,
+            ...     deduplicate=True
+            ... )
+            >>> print(f"Created: {result.created}, Skipped: {result.skipped}")
+        """
+        self._log(f"Importing items from CSV file: {file_path}")
+
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            payload: Dict[str, Any] = {
+                "content": content,
+                "column_mapping": column_mapping.to_dict(),
+                "has_header": has_header,
+                "deduplicate": deduplicate,
+            }
+
+            raw_response = self._http.post(
+                f"/v1/datasets/{self._id}/items/import-csv",
+                json=payload,
+            )
+            data = unwrap_response(raw_response, resource_type="BulkImport")
+            return BulkImportResult.from_dict(data)
+        except FileNotFoundError:
+            raise
+        except Exception as e:
+            raise DatasetError(f"Failed to import from CSV: {e}")
+
     # =========================================================================
     # Export Methods
     # =========================================================================
@@ -658,6 +842,225 @@ class Dataset:
             return data
         except Exception as e:
             raise DatasetError(f"Failed to export items: {e}")
+
+    # =========================================================================
+    # Versioning Methods
+    # =========================================================================
+
+    def create_version(
+        self,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> DatasetVersion:
+        """
+        Create a new version snapshot of the current dataset items.
+
+        Versions allow you to pin a dataset to a specific point in time for
+        reproducible evaluations.
+
+        Args:
+            description: Optional description for this version
+            metadata: Optional metadata for this version
+
+        Returns:
+            DatasetVersion object representing the new version
+
+        Raises:
+            DatasetError: If the API request fails
+
+        Example:
+            >>> version = dataset.create_version(
+            ...     description="Baseline evaluation dataset v1"
+            ... )
+            >>> print(f"Created version {version.version} with {version.item_count} items")
+        """
+        self._log(f"Creating version for dataset {self._id}")
+
+        try:
+            payload: Dict[str, Any] = {}
+            if description is not None:
+                payload["description"] = description
+            if metadata is not None:
+                payload["metadata"] = metadata
+
+            raw_response = self._http.post(
+                f"/v1/datasets/{self._id}/versions",
+                json=payload,
+            )
+            data = unwrap_response(raw_response, resource_type="DatasetVersion")
+            return DatasetVersion.from_dict(data)
+        except Exception as e:
+            raise DatasetError(f"Failed to create version: {e}")
+
+    def list_versions(self) -> List[DatasetVersion]:
+        """
+        List all versions for this dataset.
+
+        Returns:
+            List of DatasetVersion objects
+
+        Raises:
+            DatasetError: If the API request fails
+
+        Example:
+            >>> versions = dataset.list_versions()
+            >>> for v in versions:
+            ...     print(f"v{v.version}: {v.item_count} items")
+        """
+        self._log(f"Listing versions for dataset {self._id}")
+
+        try:
+            raw_response = self._http.get(
+                f"/v1/datasets/{self._id}/versions",
+            )
+            data = unwrap_response(raw_response, resource_type="DatasetVersions")
+            if isinstance(data, list):
+                return [DatasetVersion.from_dict(v) for v in data]
+            return []
+        except Exception as e:
+            raise DatasetError(f"Failed to list versions: {e}")
+
+    def get_version(self, version_id: str) -> DatasetVersion:
+        """
+        Get a specific version by ID.
+
+        Args:
+            version_id: The version ID to retrieve
+
+        Returns:
+            DatasetVersion object
+
+        Raises:
+            DatasetError: If the API request fails or version not found
+
+        Example:
+            >>> version = dataset.get_version("01HXYZ...")
+            >>> print(f"Version {version.version} has {version.item_count} items")
+        """
+        self._log(f"Getting version {version_id} for dataset {self._id}")
+
+        try:
+            raw_response = self._http.get(
+                f"/v1/datasets/{self._id}/versions/{version_id}",
+            )
+            data = unwrap_response(raw_response, resource_type="DatasetVersion")
+            return DatasetVersion.from_dict(data)
+        except Exception as e:
+            raise DatasetError(f"Failed to get version: {e}")
+
+    def get_version_items(
+        self,
+        version_id: str,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[DatasetItem]:
+        """
+        Get items for a specific version with pagination.
+
+        Args:
+            version_id: The version ID to get items from
+            limit: Maximum number of items to return (default: 50)
+            offset: Number of items to skip (default: 0)
+
+        Returns:
+            List of DatasetItem objects for this version
+
+        Raises:
+            DatasetError: If the API request fails
+
+        Example:
+            >>> items = dataset.get_version_items("01HXYZ...", limit=10)
+            >>> for item in items:
+            ...     print(item.input)
+        """
+        self._log(
+            f"Getting items for version {version_id}: limit={limit}, offset={offset}"
+        )
+
+        try:
+            raw_response = self._http.get(
+                f"/v1/datasets/{self._id}/versions/{version_id}/items",
+                params={"limit": limit, "offset": offset},
+            )
+            data = unwrap_response(raw_response, resource_type="DatasetItems")
+            items_data = data.get("items", [])
+            return [DatasetItem.from_dict(item) for item in items_data]
+        except Exception as e:
+            raise DatasetError(f"Failed to get version items: {e}")
+
+    def pin_version(self, version_id: Optional[str] = None) -> "Dataset":
+        """
+        Pin this dataset to a specific version for reproducible evaluations.
+
+        When pinned, iterations and exports will use the pinned version's items
+        instead of the current items.
+
+        Args:
+            version_id: Version ID to pin to, or None to unpin (use latest)
+
+        Returns:
+            Updated Dataset object
+
+        Raises:
+            DatasetError: If the API request fails
+
+        Example:
+            >>> # Pin to a specific version
+            >>> dataset.pin_version("01HXYZ...")
+            >>> # Unpin to use latest items
+            >>> dataset.pin_version(None)
+        """
+        action = f"version {version_id}" if version_id else "latest"
+        self._log(f"Pinning dataset {self._id} to {action}")
+
+        try:
+            payload: Dict[str, Any] = {"version_id": version_id}
+            raw_response = self._http.post(
+                f"/v1/datasets/{self._id}/pin",
+                json=payload,
+            )
+            data = unwrap_response(raw_response, resource_type="Dataset")
+            # Return updated dataset
+            return Dataset(
+                id=data["id"],
+                name=data["name"],
+                description=data.get("description"),
+                metadata=data.get("metadata"),
+                created_at=data["created_at"],
+                updated_at=data["updated_at"],
+                _http_client=self._http,
+                _debug=self._debug,
+            )
+        except Exception as e:
+            raise DatasetError(f"Failed to pin version: {e}")
+
+    def get_info(self) -> DatasetWithVersionInfo:
+        """
+        Get dataset with version information.
+
+        Returns information about the current pinned version and latest version.
+
+        Returns:
+            DatasetWithVersionInfo object
+
+        Raises:
+            DatasetError: If the API request fails
+
+        Example:
+            >>> info = dataset.get_info()
+            >>> print(f"Current version: {info.current_version}")
+            >>> print(f"Latest version: {info.latest_version}")
+        """
+        self._log(f"Getting info for dataset {self._id}")
+
+        try:
+            raw_response = self._http.get(
+                f"/v1/datasets/{self._id}/info",
+            )
+            data = unwrap_response(raw_response, resource_type="DatasetWithVersionInfo")
+            return DatasetWithVersionInfo.from_dict(data)
+        except Exception as e:
+            raise DatasetError(f"Failed to get dataset info: {e}")
 
 
 class AsyncDataset:
@@ -760,7 +1163,7 @@ class AsyncDataset:
         else:
             raise TypeError(f"Item must be dict or DatasetItem, got {type(item)}")
 
-    async def insert(self, items: List[DatasetItemInput]) -> int:
+    async def insert(self, items: List[DatasetItemInput], deduplicate: bool = False) -> int:
         """
         Insert items into the dataset (async).
 
@@ -768,6 +1171,8 @@ class AsyncDataset:
             items: List of items to insert. Each item can be:
                 - A dict with 'input' (required), 'expected' (optional), 'metadata' (optional)
                 - A DatasetItem instance
+            deduplicate: If True, skip items with duplicate content (based on input+expected hash).
+                         Checks against existing items in the dataset and within the batch.
 
         Returns:
             Number of items created
@@ -781,6 +1186,10 @@ class AsyncDataset:
             ...     {"input": {"q": "2+2?"}, "expected": {"a": "4"}},
             ... ])
             1
+
+            >>> # With deduplication
+            >>> await dataset.insert([item1, item1], deduplicate=True)
+            1  # Second item skipped as duplicate
         """
         if not items:
             return 0
@@ -791,7 +1200,7 @@ class AsyncDataset:
         try:
             raw_response = await self._http.post(
                 f"/v1/datasets/{self._id}/items",
-                json={"items": normalized},
+                json={"items": normalized, "deduplicate": deduplicate},
             )
             data = unwrap_response(raw_response, resource_type="DatasetItems")
             return int(data.get("created", len(normalized)))
@@ -1109,6 +1518,73 @@ class AsyncDataset:
         except Exception as e:
             raise DatasetError(f"Failed to import items: {e}")
 
+    async def insert_from_csv(
+        self,
+        file_path: str,
+        column_mapping: CSVColumnMapping,
+        has_header: bool = True,
+        deduplicate: bool = True,
+    ) -> BulkImportResult:
+        """
+        Import dataset items from a CSV file (async).
+
+        Reads a CSV file from disk and imports items using the specified column mapping.
+        The CSV content is sent to the backend API for processing.
+
+        Args:
+            file_path: Path to the CSV file to import
+            column_mapping: CSVColumnMapping specifying which columns to use:
+                - input_column: Column name for input data (required)
+                - expected_column: Column name for expected output (optional)
+                - metadata_columns: List of column names for metadata (optional)
+            has_header: Whether the CSV has a header row (default: True)
+            deduplicate: Skip items with duplicate content (default: True)
+
+        Returns:
+            BulkImportResult with created/skipped counts and any errors
+
+        Raises:
+            DatasetError: If the file cannot be read or API request fails
+            FileNotFoundError: If the file doesn't exist
+
+        Example:
+            >>> from brokle.datasets import CSVColumnMapping
+            >>> result = await dataset.insert_from_csv(
+            ...     "qa_pairs.csv",
+            ...     column_mapping=CSVColumnMapping(
+            ...         input_column="question",
+            ...         expected_column="answer",
+            ...         metadata_columns=["category", "difficulty"]
+            ...     ),
+            ...     has_header=True,
+            ...     deduplicate=True
+            ... )
+            >>> print(f"Created: {result.created}, Skipped: {result.skipped}")
+        """
+        self._log(f"Importing items from CSV file: {file_path}")
+
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            payload: Dict[str, Any] = {
+                "content": content,
+                "column_mapping": column_mapping.to_dict(),
+                "has_header": has_header,
+                "deduplicate": deduplicate,
+            }
+
+            raw_response = await self._http.post(
+                f"/v1/datasets/{self._id}/items/import-csv",
+                json=payload,
+            )
+            data = unwrap_response(raw_response, resource_type="BulkImport")
+            return BulkImportResult.from_dict(data)
+        except FileNotFoundError:
+            raise
+        except Exception as e:
+            raise DatasetError(f"Failed to import from CSV: {e}")
+
     # =========================================================================
     # Export Methods (Async)
     # =========================================================================
@@ -1179,3 +1655,222 @@ class AsyncDataset:
             return data
         except Exception as e:
             raise DatasetError(f"Failed to export items: {e}")
+
+    # =========================================================================
+    # Versioning Methods (Async)
+    # =========================================================================
+
+    async def create_version(
+        self,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> DatasetVersion:
+        """
+        Create a new version snapshot of the current dataset items (async).
+
+        Versions allow you to pin a dataset to a specific point in time for
+        reproducible evaluations.
+
+        Args:
+            description: Optional description for this version
+            metadata: Optional metadata for this version
+
+        Returns:
+            DatasetVersion object representing the new version
+
+        Raises:
+            DatasetError: If the API request fails
+
+        Example:
+            >>> version = await dataset.create_version(
+            ...     description="Baseline evaluation dataset v1"
+            ... )
+            >>> print(f"Created version {version.version} with {version.item_count} items")
+        """
+        self._log(f"Creating version for dataset {self._id}")
+
+        try:
+            payload: Dict[str, Any] = {}
+            if description is not None:
+                payload["description"] = description
+            if metadata is not None:
+                payload["metadata"] = metadata
+
+            raw_response = await self._http.post(
+                f"/v1/datasets/{self._id}/versions",
+                json=payload,
+            )
+            data = unwrap_response(raw_response, resource_type="DatasetVersion")
+            return DatasetVersion.from_dict(data)
+        except Exception as e:
+            raise DatasetError(f"Failed to create version: {e}")
+
+    async def list_versions(self) -> List[DatasetVersion]:
+        """
+        List all versions for this dataset (async).
+
+        Returns:
+            List of DatasetVersion objects
+
+        Raises:
+            DatasetError: If the API request fails
+
+        Example:
+            >>> versions = await dataset.list_versions()
+            >>> for v in versions:
+            ...     print(f"v{v.version}: {v.item_count} items")
+        """
+        self._log(f"Listing versions for dataset {self._id}")
+
+        try:
+            raw_response = await self._http.get(
+                f"/v1/datasets/{self._id}/versions",
+            )
+            data = unwrap_response(raw_response, resource_type="DatasetVersions")
+            if isinstance(data, list):
+                return [DatasetVersion.from_dict(v) for v in data]
+            return []
+        except Exception as e:
+            raise DatasetError(f"Failed to list versions: {e}")
+
+    async def get_version(self, version_id: str) -> DatasetVersion:
+        """
+        Get a specific version by ID (async).
+
+        Args:
+            version_id: The version ID to retrieve
+
+        Returns:
+            DatasetVersion object
+
+        Raises:
+            DatasetError: If the API request fails or version not found
+
+        Example:
+            >>> version = await dataset.get_version("01HXYZ...")
+            >>> print(f"Version {version.version} has {version.item_count} items")
+        """
+        self._log(f"Getting version {version_id} for dataset {self._id}")
+
+        try:
+            raw_response = await self._http.get(
+                f"/v1/datasets/{self._id}/versions/{version_id}",
+            )
+            data = unwrap_response(raw_response, resource_type="DatasetVersion")
+            return DatasetVersion.from_dict(data)
+        except Exception as e:
+            raise DatasetError(f"Failed to get version: {e}")
+
+    async def get_version_items(
+        self,
+        version_id: str,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[DatasetItem]:
+        """
+        Get items for a specific version with pagination (async).
+
+        Args:
+            version_id: The version ID to get items from
+            limit: Maximum number of items to return (default: 50)
+            offset: Number of items to skip (default: 0)
+
+        Returns:
+            List of DatasetItem objects for this version
+
+        Raises:
+            DatasetError: If the API request fails
+
+        Example:
+            >>> items = await dataset.get_version_items("01HXYZ...", limit=10)
+            >>> for item in items:
+            ...     print(item.input)
+        """
+        self._log(
+            f"Getting items for version {version_id}: limit={limit}, offset={offset}"
+        )
+
+        try:
+            raw_response = await self._http.get(
+                f"/v1/datasets/{self._id}/versions/{version_id}/items",
+                params={"limit": limit, "offset": offset},
+            )
+            data = unwrap_response(raw_response, resource_type="DatasetItems")
+            items_data = data.get("items", [])
+            return [DatasetItem.from_dict(item) for item in items_data]
+        except Exception as e:
+            raise DatasetError(f"Failed to get version items: {e}")
+
+    async def pin_version(self, version_id: Optional[str] = None) -> "AsyncDataset":
+        """
+        Pin this dataset to a specific version for reproducible evaluations (async).
+
+        When pinned, iterations and exports will use the pinned version's items
+        instead of the current items.
+
+        Args:
+            version_id: Version ID to pin to, or None to unpin (use latest)
+
+        Returns:
+            Updated AsyncDataset object
+
+        Raises:
+            DatasetError: If the API request fails
+
+        Example:
+            >>> # Pin to a specific version
+            >>> await dataset.pin_version("01HXYZ...")
+            >>> # Unpin to use latest items
+            >>> await dataset.pin_version(None)
+        """
+        action = f"version {version_id}" if version_id else "latest"
+        self._log(f"Pinning dataset {self._id} to {action}")
+
+        try:
+            payload: Dict[str, Any] = {"version_id": version_id}
+            raw_response = await self._http.post(
+                f"/v1/datasets/{self._id}/pin",
+                json=payload,
+            )
+            data = unwrap_response(raw_response, resource_type="Dataset")
+            # Return updated dataset
+            return AsyncDataset(
+                id=data["id"],
+                name=data["name"],
+                description=data.get("description"),
+                metadata=data.get("metadata"),
+                created_at=data["created_at"],
+                updated_at=data["updated_at"],
+                _http_client=self._http,
+                _debug=self._debug,
+            )
+        except Exception as e:
+            raise DatasetError(f"Failed to pin version: {e}")
+
+    async def get_info(self) -> DatasetWithVersionInfo:
+        """
+        Get dataset with version information (async).
+
+        Returns information about the current pinned version and latest version.
+
+        Returns:
+            DatasetWithVersionInfo object
+
+        Raises:
+            DatasetError: If the API request fails
+
+        Example:
+            >>> info = await dataset.get_info()
+            >>> print(f"Current version: {info.current_version}")
+            >>> print(f"Latest version: {info.latest_version}")
+        """
+        self._log(f"Getting info for dataset {self._id}")
+
+        try:
+            raw_response = await self._http.get(
+                f"/v1/datasets/{self._id}/info",
+            )
+            data = unwrap_response(raw_response, resource_type="DatasetWithVersionInfo")
+            return DatasetWithVersionInfo.from_dict(data)
+        except Exception as e:
+            raise DatasetError(f"Failed to get dataset info: {e}")

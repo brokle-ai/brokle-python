@@ -37,10 +37,14 @@ from ._manager import AsyncExperimentsManager, ExperimentsManager
 from .exceptions import EvaluationError, ScorerExecutionError, TaskError
 from .types import (
     AsyncTaskFunction,
+    ComparisonResult,
     EvaluationItem,
     EvaluationResults,
     Experiment,
+    ExperimentSummary,
     ProgressCallback,
+    ScoreAggregation,
+    ScoreDiff,
     SummaryStats,
     TaskFunction,
 )
@@ -57,6 +61,11 @@ __all__ = [
     "TaskFunction",
     "AsyncTaskFunction",
     "ProgressCallback",
+    # Comparison types
+    "ComparisonResult",
+    "ScoreAggregation",
+    "ScoreDiff",
+    "ExperimentSummary",
     # Exceptions
     "EvaluationError",
     "TaskError",

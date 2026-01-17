@@ -39,19 +39,19 @@ class Experiment:
     Attributes:
         id: Unique experiment identifier
         name: Human-readable experiment name
-        dataset_id: ID of the dataset used
         status: Current status (running, completed, failed)
-        metadata: Additional experiment metadata
         created_at: ISO timestamp when created
         updated_at: ISO timestamp when last updated
+        dataset_id: ID of the dataset used (None for span-based experiments)
+        metadata: Additional experiment metadata
     """
 
     id: str
     name: str
-    dataset_id: str
     status: str  # "running", "completed", "failed"
     created_at: str
     updated_at: str
+    dataset_id: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
     @classmethod
@@ -60,10 +60,10 @@ class Experiment:
         return cls(
             id=data["id"],
             name=data["name"],
-            dataset_id=data["dataset_id"],
             status=data["status"],
             created_at=data["created_at"],
             updated_at=data["updated_at"],
+            dataset_id=data.get("dataset_id"),
             metadata=data.get("metadata"),
         )
 
@@ -126,7 +126,8 @@ class EvaluationItem:
         return result
 
 
-class SummaryStats(TypedDict):
+@dataclass
+class SummaryStats:
     """
     Per-scorer summary statistics.
 
@@ -166,6 +167,7 @@ class EvaluationResults:
         url: Dashboard URL to view the experiment (optional)
         dataset_id: ID of the dataset used (for dataset-based)
         source: Source type ('dataset' or 'spans')
+        experiment: Experiment object with full metadata (property)
     """
 
     experiment_id: str
@@ -175,6 +177,43 @@ class EvaluationResults:
     url: Optional[str] = None
     dataset_id: Optional[str] = None  # For dataset-based evaluation
     source: str = "dataset"  # 'dataset' or 'spans'
+    status: str = "completed"  # Experiment status
+    created_at: Optional[str] = None  # ISO timestamp
+    updated_at: Optional[str] = None  # ISO timestamp
+    metadata: Optional[Dict[str, Any]] = None  # Experiment metadata
+
+    @property
+    def experiment(self) -> Experiment:
+        """
+        Get the experiment as an Experiment object.
+
+        Provides convenient access to experiment metadata via results.experiment.id,
+        results.experiment.name, etc.
+
+        Returns:
+            Experiment object with full metadata
+        """
+        return Experiment(
+            id=self.experiment_id,
+            name=self.experiment_name,
+            status=self.status,
+            created_at=self.created_at or "",
+            updated_at=self.updated_at or "",
+            dataset_id=self.dataset_id,
+            metadata=self.metadata,
+        )
+
+    def get_summary(self, scorer_name: str) -> Optional[SummaryStats]:
+        """
+        Get summary statistics for a specific scorer.
+
+        Args:
+            scorer_name: Name of the scorer
+
+        Returns:
+            SummaryStats for the scorer, or None if not found
+        """
+        return self.summary.get(scorer_name)
 
     def __repr__(self) -> str:
         """String representation."""
@@ -183,6 +222,114 @@ class EvaluationResults:
     def __len__(self) -> int:
         """Return number of evaluation items."""
         return len(self.items)
+
+
+class ScoreAggregation(TypedDict):
+    """
+    Score aggregation statistics from experiment comparison.
+
+    Attributes:
+        mean: Average score value
+        std_dev: Standard deviation of scores
+        min: Minimum score value
+        max: Maximum score value
+        count: Total number of scores
+    """
+
+    mean: float
+    std_dev: float
+    min: float
+    max: float
+    count: int
+
+
+class ScoreDiff(TypedDict, total=False):
+    """
+    Score difference from baseline in experiment comparison.
+
+    Attributes:
+        type: Diff type (e.g., "percentage", "absolute")
+        difference: Numeric difference value
+        direction: Direction of change ("up", "down", "same")
+    """
+
+    type: str
+    difference: float
+    direction: str
+
+
+class ExperimentSummary(TypedDict):
+    """
+    Experiment summary in comparison results.
+
+    Attributes:
+        name: Experiment name
+        status: Experiment status
+    """
+
+    name: str
+    status: str
+
+
+@dataclass
+class ComparisonResult:
+    """
+    Result of comparing multiple experiments.
+
+    Provides score aggregations and diffs across experiments.
+
+    Attributes:
+        experiments: Map of experiment ID to summary info
+        scores: Map of scorer name -> experiment ID -> aggregation stats
+        diffs: Map of scorer name -> experiment ID -> diff from baseline (optional)
+    """
+
+    experiments: Dict[str, ExperimentSummary]
+    scores: Dict[str, Dict[str, ScoreAggregation]]
+    diffs: Optional[Dict[str, Dict[str, ScoreDiff]]] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ComparisonResult":
+        """Create ComparisonResult from API response dict."""
+        return cls(
+            experiments=data.get("experiments", {}),
+            scores=data.get("scores", {}),
+            diffs=data.get("diffs"),
+        )
+
+    def get_score_summary(
+        self, scorer_name: str, experiment_id: str
+    ) -> Optional[ScoreAggregation]:
+        """
+        Get score aggregation for a specific scorer and experiment.
+
+        Args:
+            scorer_name: Name of the scorer
+            experiment_id: ID of the experiment
+
+        Returns:
+            ScoreAggregation if found, None otherwise
+        """
+        if scorer_name in self.scores:
+            return self.scores[scorer_name].get(experiment_id)
+        return None
+
+    def get_diff(
+        self, scorer_name: str, experiment_id: str
+    ) -> Optional[ScoreDiff]:
+        """
+        Get score diff from baseline for a specific scorer and experiment.
+
+        Args:
+            scorer_name: Name of the scorer
+            experiment_id: ID of the experiment
+
+        Returns:
+            ScoreDiff if found, None otherwise
+        """
+        if self.diffs and scorer_name in self.diffs:
+            return self.diffs[scorer_name].get(experiment_id)
+        return None
 
 
 # Type aliases for task functions

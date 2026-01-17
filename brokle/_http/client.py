@@ -125,6 +125,36 @@ class SyncHTTPClient:
         response = self._get_client().post(path, json=json)
         return response.json()
 
+    def patch(self, path: str, json: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Send sync PATCH request.
+
+        Args:
+            path: API path
+            json: Request body
+
+        Returns:
+            Response JSON (always returns JSON, even for error responses)
+        """
+        response = self._get_client().patch(path, json=json)
+        return response.json()
+
+    def delete(self, path: str) -> Optional[Dict[str, Any]]:
+        """
+        Send sync DELETE request.
+
+        Args:
+            path: API path
+
+        Returns:
+            Response JSON, or None for 204 No Content responses
+        """
+        response = self._get_client().delete(path)
+        response.raise_for_status()
+        if response.status_code == 204:
+            return None
+        return response.json()
+
     def close(self):
         """Close sync HTTP client."""
         if self._client:
@@ -193,6 +223,38 @@ class AsyncHTTPClient:
             Response JSON (always returns JSON, even for error responses)
         """
         response = await self._get_client().post(path, json=json)
+        return response.json()
+
+    async def patch(
+        self, path: str, json: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Send async PATCH request.
+
+        Args:
+            path: API path
+            json: Request body
+
+        Returns:
+            Response JSON (always returns JSON, even for error responses)
+        """
+        response = await self._get_client().patch(path, json=json)
+        return response.json()
+
+    async def delete(self, path: str) -> Optional[Dict[str, Any]]:
+        """
+        Send async DELETE request.
+
+        Args:
+            path: API path
+
+        Returns:
+            Response JSON, or None for 204 No Content responses
+        """
+        response = await self._get_client().delete(path)
+        response.raise_for_status()
+        if response.status_code == 204:
+            return None
         return response.json()
 
     async def close(self):
