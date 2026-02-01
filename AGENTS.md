@@ -1,19 +1,38 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-Core SDK code lives in `brokle/`, with the public client in `client.py`, shared helpers in `_client/`, and feature modules under `ai_platform/`, `integrations/`, and `_utils/`. Reusable fixtures and test scaffolding sit in `brokle/testing/`. Pytest suites reside in `tests/`, while `test_integration.py` and `test_manual.py` cover backend and manual verification. Contributor docs are stored in `docs/`, runnable examples in `examples/`, and automation scripts in `scripts/`. Prefer extending the root `Makefile` when adding new workflows.
+- `brokle/` is the main SDK package. Core client/config lives in `brokle/_client.py`, `brokle/_base_client.py`, and `brokle/config.py`. Public patterns are in `brokle/wrappers/` (client wrappers), `brokle/decorators.py` (`@observe`), and `brokle/evaluate.py` (evaluation helpers).
+- `tests/` holds pytest suites plus documentation (`tests/README.md`).
+- `examples/` and `docs/` contain usage samples and guides.
+- Build artifacts land in `dist/` and metadata in `brokle.egg-info/`.
 
 ## Build, Test, and Development Commands
-Run `make install-dev` once to set up an editable environment with tooling. Use `make format`, `make lint`, and `make type-check` to apply Black/isort, Flake8, and mypy checks; `make dev-check` chains them with tests. Execute `make test` for the default pytest suite or `make test-specific TEST=tests/test_feature.py` to target a single module. Generate coverage with `make test-coverage`, integration checks with `make integration-test`, and build artifacts via `make build`.
+Use the Makefile for repeatable workflows:
+- `make install-dev` installs dev extras.
+- `make test` runs the full pytest suite.
+- `make test-coverage` runs tests with coverage reports.
+- `make format` formats with Black + isort.
+- `make lint` runs Flake8.
+- `make type-check` runs mypy.
+- `make dev-check` runs lint + type-check + coverage.
+- `make build` builds distributions after cleaning.
 
 ## Coding Style & Naming Conventions
-Target Python 3.8+ with 4-space indentation and Black's 88-character line length. Modules and functions follow `snake_case`, classes use `PascalCase`, and constants stay `UPPER_SNAKE`. Public APIs must be fully typed because `py.typed` ships downstream. Run `make format` before committing to keep imports ordered and formatting consistent.
+- Python with 4-space indentation; keep lines <= 88 characters (Black default).
+- Formatting: Black + isort (`profile = black`).
+- Linting: Flake8. Type checking: mypy with strict settings.
+- Tests follow `test_*.py` files, `Test*` classes, and `test_*` functions.
 
 ## Testing Guidelines
-Pytest is the canonical runner; name modules `test_<feature>.py`. Store reusable fixtures or factories under `brokle/testing/`. Exercise success and error paths, including both sync and async flows when present. For manual validation, invoke `python test_manual.py --interactive --api-key <key> --backend <url>` against a live backend.
+- Framework: pytest (see `pytest.ini`). Markers: `unit`, `integration`, `slow`, `asyncio`.
+- Naming: `test_<functionality>_<scenario>` where possible.
+- Run a single file: `python -m pytest tests/test_streaming_wrappers.py -v`.
 
 ## Commit & Pull Request Guidelines
-Commit messages follow `<type>: <description>` (example: `fix: guard environment validation error`). Keep each commit focused, reference tickets when useful, and ensure docs or examples reflect new behavior. Before opening a PR, run `make dev-check` and any relevant integration commands, then include verification steps, linked issues, and screenshots or logs when they aid reviewers.
+- Recent history uses conventional prefixes like `feat:`, `fix:`, `refactor(scope):`, `chore:`.
+- Preferred format (from `CONTRIBUTING.md`): `<type>: <description>` with optional body.
+- PRs should include a clear description, linked issues, testing notes, and highlight breaking changes. Add screenshots or examples when behavior changes.
 
-## Security & Configuration Tips
-Run `make security-check` (Bandit) whenever touching auth or transport logic. Keep credentials in local `.env` files or environment variables; never commit secrets. Document any accepted suppressions and note backend requirements when sharing manual or integration instructions.
+## Configuration & Security Notes
+- Local runs require `BROKLE_API_KEY`; optional `BROKLE_BASE_URL` defaults to `http://localhost:8080`.
+- Mask sensitive data using the masking utilities in `brokle/utils/` before sending telemetry.

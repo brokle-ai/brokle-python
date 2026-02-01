@@ -2,9 +2,38 @@
 
 **OpenTelemetry-native observability for AI applications.**
 
-The Brokle Python SDK provides comprehensive observability, tracing, and auto-instrumentation for LLM applications. Choose your integration level:
+The Brokle Python SDK provides comprehensive observability, tracing, and evaluation for LLM applications.
 
-## 🎯 Three Integration Patterns
+## ⚡ Quick Start: Evaluation
+
+Run evaluations with a single function call (similar to Braintrust/LangSmith):
+
+```python
+from brokle import evaluate, ExactMatch, Contains
+
+# Define your task
+def my_llm_task(item):
+    # Your LLM call here
+    return {"output": f"Response to: {item['input']}"}
+
+# Run evaluation
+results = evaluate(
+    task=my_llm_task,
+    data=[
+        {"input": "Hello", "expected": "Response to: Hello"},
+        {"input": "World", "expected": "Response to: World"},
+    ],
+    evaluators=[ExactMatch(), Contains(substring="Response")],
+    experiment_name="my-first-eval",
+)
+
+print(f"Experiment: {results.experiment_name}")
+print(f"View at: {results.url}")
+for name, stats in results.summary.items():
+    print(f"  {name}: mean={stats['mean']:.3f}")
+```
+
+## 🎯 Four Integration Patterns
 
 **Pattern 1: Wrapper Functions**
 Wrap existing SDK clients (OpenAI, Anthropic) for automatic observability and platform features.
@@ -265,6 +294,90 @@ For more examples, see [`examples/masking_basic.py`](examples/masking_basic.py) 
 Check the `examples/` directory:
 - [`pattern1_wrapper_functions.py`](examples/pattern1_wrapper_functions.py) - Wrapper functions
 - [`pattern2_decorator.py`](examples/pattern2_decorator.py) - Universal decorator
+
+## 🛡️ Graceful Degradation
+
+Tracer errors never break your application. If tracing fails, your function still executes normally:
+
+```python
+from brokle import observe
+
+@observe()
+def my_critical_function(x):
+    return x * 2
+
+# Works even if BROKLE_API_KEY is missing or server is down
+result = my_critical_function(5)  # Returns 10, logs warning
+```
+
+## 📦 Migration from Other SDKs
+
+### From Langfuse
+
+```python
+# Langfuse
+from langfuse.decorators import observe
+@observe()
+def my_function(): pass
+
+# Brokle (same pattern!)
+from brokle import observe
+@observe()
+def my_function(): pass
+```
+
+### From Braintrust
+
+```python
+# Braintrust
+from braintrust import Eval
+Eval("my-project", data=dataset, task=fn, scores=[score])
+
+# Brokle
+from brokle import evaluate
+evaluate(task=fn, data=dataset, evaluators=[scorer], experiment_name="my-project")
+```
+
+### From LangSmith
+
+```python
+# LangSmith
+from langsmith import traceable
+@traceable
+def my_function(): pass
+
+# Brokle
+from brokle import observe
+@observe()
+def my_function(): pass
+```
+
+## 🔧 Enhanced Error Messages
+
+Errors include actionable guidance:
+
+```python
+from brokle import AuthenticationError, ConnectionError, ValidationError
+
+# Errors include hints to help you fix issues
+try:
+    client = get_client()
+except AuthenticationError as e:
+    print(e.hint)  # Shows how to fix authentication issues
+except ConnectionError as e:
+    print(e.hint)  # Shows how to fix connection issues
+except ValidationError as e:
+    print(e.hint)  # Shows how to fix validation issues
+```
+
+Available error classes (following Langfuse naming pattern):
+- `BrokleError` - Base error class
+- `AuthenticationError` - API key invalid/missing
+- `ConnectionError` - Server unreachable
+- `ValidationError` - Invalid request data
+- `RateLimitError` - Too many requests
+- `NotFoundError` - Resource not found
+- `ServerError` - Server-side error
 
 ## Support
 

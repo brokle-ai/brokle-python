@@ -292,7 +292,7 @@ class ScoresManager(_BaseScoresManagerMixin):
             "trace_id": trace_id,
             "name": name,
             "value": value,
-            "data_type": type,
+            "type": type,
             "source": source,
         }
         if span_id:
@@ -520,7 +520,7 @@ class AsyncScoresManager(_BaseScoresManagerMixin):
             "trace_id": trace_id,
             "name": name,
             "value": value,
-            "data_type": type,
+            "type": type,
             "source": source,
         }
         if span_id:

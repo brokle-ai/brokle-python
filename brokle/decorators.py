@@ -3,11 +3,15 @@ Decorators for automatic function tracing with OpenTelemetry.
 
 Provides @observe decorator for zero-config instrumentation of Python functions,
 including support for sync/async functions and generators.
+
+Includes graceful degradation: tracer errors never break the application.
+Pattern inspired by HoneyHive's approach.
 """
 
 import functools
 import inspect
 import json
+import logging
 from typing import Any, Callable, Dict, List, Optional
 
 from opentelemetry.trace import Status, StatusCode
@@ -15,6 +19,12 @@ from opentelemetry.trace import Status, StatusCode
 from ._client import get_client
 from .types import Attrs, SpanType
 from .utils.serializer import EventSerializer, serialize_value
+
+# Logger for tracer warnings (graceful degradation)
+_logger = logging.getLogger("brokle.decorators")
+
+# Sentinel to distinguish "user code not executed" from "user code returned None"
+_NOT_EXECUTED = object()
 
 
 def _build_observe_attrs(
@@ -173,148 +183,356 @@ def observe(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
-            client = get_client()
-            if not client.config.enabled:
+            # Setup phase - graceful degradation for setup errors only
+            try:
+                client = get_client()
+                # Check master switch and tracing config - zero overhead if disabled
+                if not client.config.enabled or not client.config.tracing_enabled:
+                    return func(*args, **kwargs)
+
+                span_name = name or func.__name__
+                attrs = _build_observe_attrs(
+                    as_type,
+                    level,
+                    user_id,
+                    session_id,
+                    tags,
+                    metadata,
+                    version,
+                    model,
+                    model_parameters,
+                )
+
+                if capture_input:
+                    _capture_input_attrs(attrs, func, args, kwargs, as_type)
+            except Exception as setup_error:
+                _logger.warning(
+                    "Tracer setup error (continuing without tracing): %s",
+                    setup_error,
+                )
                 return func(*args, **kwargs)
 
-            span_name = name or func.__name__
-            attrs = _build_observe_attrs(
-                as_type,
-                level,
-                user_id,
-                session_id,
-                tags,
-                metadata,
-                version,
-                model,
-                model_parameters,
-            )
+            # Track execution state to handle tracer errors correctly
+            # Use sentinel to distinguish "not executed" from "returned None"
+            user_result = _NOT_EXECUTED
+            user_exception = None
+            user_traceback = None  # Store original traceback for clean re-raise
 
-            if capture_input:
-                _capture_input_attrs(attrs, func, args, kwargs, as_type)
+            try:
+                with client.start_as_current_span(span_name, attributes=attrs) as span:
+                    # Step 1: Execute user code in isolation
+                    try:
+                        user_result = func(*args, **kwargs)
+                    except Exception as exc:
+                        user_exception = exc
+                        user_traceback = exc.__traceback__  # Capture original traceback
 
-            with client.start_as_current_span(span_name, attributes=attrs) as span:
-                try:
-                    result = func(*args, **kwargs)
-                    if capture_output:
-                        _set_output_attr(span, result)
-                    span.set_status(Status(StatusCode.OK))
-                    return result
-                except Exception as e:
-                    span.set_status(Status(StatusCode.ERROR, str(e)))
-                    span.record_exception(e)
-                    raise
+                    # Step 2: Tracer operations (isolated - never propagate)
+                    try:
+                        if user_exception is not None:
+                            span.set_status(Status(StatusCode.ERROR, str(user_exception)))
+                            span.record_exception(user_exception)
+                        else:
+                            if capture_output:
+                                _set_output_attr(span, user_result)
+                            span.set_status(Status(StatusCode.OK))
+                    except Exception as tracer_op_error:
+                        _logger.warning(
+                            "Tracer operation error (graceful degradation): %s",
+                            tracer_op_error,
+                        )
+
+                    # Step 3: Return user outcome unchanged
+                    if user_exception is not None:
+                        raise user_exception.with_traceback(user_traceback)
+                    return user_result
+
+            except Exception as tracer_exc:
+                # Span context manager failures (__enter__/__exit__)
+                if user_exception is not None:
+                    raise user_exception.with_traceback(user_traceback)
+                # If user code executed, return captured result (even if None)
+                if user_result is not _NOT_EXECUTED:
+                    _logger.warning(
+                        "Tracer span error (returning captured result): %s",
+                        tracer_exc,
+                    )
+                    return user_result
+                # Tracer error before user execution - fall back to untraced
+                _logger.warning(
+                    "Tracer error (continuing without tracing): %s",
+                    tracer_exc,
+                )
+                return func(*args, **kwargs)
 
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
-            client = get_client()
-            if not client.config.enabled:
+            # Setup phase - graceful degradation for setup errors only
+            try:
+                client = get_client()
+                # Check master switch and tracing config - zero overhead if disabled
+                if not client.config.enabled or not client.config.tracing_enabled:
+                    return await func(*args, **kwargs)
+
+                span_name = name or func.__name__
+                attrs = _build_observe_attrs(
+                    as_type,
+                    level,
+                    user_id,
+                    session_id,
+                    tags,
+                    metadata,
+                    version,
+                    model,
+                    model_parameters,
+                )
+
+                if capture_input:
+                    _capture_input_attrs(attrs, func, args, kwargs, as_type)
+            except Exception as setup_error:
+                _logger.warning(
+                    "Tracer setup error (continuing without tracing): %s",
+                    setup_error,
+                )
                 return await func(*args, **kwargs)
 
-            span_name = name or func.__name__
-            attrs = _build_observe_attrs(
-                as_type,
-                level,
-                user_id,
-                session_id,
-                tags,
-                metadata,
-                version,
-                model,
-                model_parameters,
-            )
+            # Track execution state to handle tracer errors correctly
+            # Use sentinel to distinguish "not executed" from "returned None"
+            user_result = _NOT_EXECUTED
+            user_exception = None
+            user_traceback = None  # Store original traceback for clean re-raise
 
-            if capture_input:
-                _capture_input_attrs(attrs, func, args, kwargs, as_type)
+            try:
+                with client.start_as_current_span(span_name, attributes=attrs) as span:
+                    # Step 1: Execute user code in isolation
+                    try:
+                        user_result = await func(*args, **kwargs)
+                    except Exception as exc:
+                        user_exception = exc
+                        user_traceback = exc.__traceback__  # Capture original traceback
 
-            with client.start_as_current_span(span_name, attributes=attrs) as span:
-                try:
-                    result = await func(*args, **kwargs)
-                    if capture_output:
-                        _set_output_attr(span, result)
-                    span.set_status(Status(StatusCode.OK))
-                    return result
-                except Exception as e:
-                    span.set_status(Status(StatusCode.ERROR, str(e)))
-                    span.record_exception(e)
-                    raise
+                    # Step 2: Tracer operations (isolated - never propagate)
+                    try:
+                        if user_exception is not None:
+                            span.set_status(Status(StatusCode.ERROR, str(user_exception)))
+                            span.record_exception(user_exception)
+                        else:
+                            if capture_output:
+                                _set_output_attr(span, user_result)
+                            span.set_status(Status(StatusCode.OK))
+                    except Exception as tracer_op_error:
+                        _logger.warning(
+                            "Tracer operation error (graceful degradation): %s",
+                            tracer_op_error,
+                        )
+
+                    # Step 3: Return user outcome unchanged
+                    if user_exception is not None:
+                        raise user_exception.with_traceback(user_traceback)
+                    return user_result
+
+            except Exception as tracer_exc:
+                # Span context manager failures (__enter__/__exit__)
+                if user_exception is not None:
+                    raise user_exception.with_traceback(user_traceback)
+                # If user code executed, return captured result (even if None)
+                if user_result is not _NOT_EXECUTED:
+                    _logger.warning(
+                        "Tracer span error (returning captured result): %s",
+                        tracer_exc,
+                    )
+                    return user_result
+                # Tracer error before user execution - fall back to untraced
+                _logger.warning(
+                    "Tracer error (continuing without tracing): %s",
+                    tracer_exc,
+                )
+                return await func(*args, **kwargs)
 
         @functools.wraps(func)
         def generator_wrapper(*args, **kwargs):
-            client = get_client()
-            if not client.config.enabled:
+            # Setup phase - graceful degradation for setup errors only
+            try:
+                client = get_client()
+                # Check master switch and tracing config - zero overhead if disabled
+                if not client.config.enabled or not client.config.tracing_enabled:
+                    yield from func(*args, **kwargs)
+                    return
+
+                span_name = name or func.__name__
+                attrs = _build_observe_attrs(
+                    as_type,
+                    level,
+                    user_id,
+                    session_id,
+                    tags,
+                    metadata,
+                    version,
+                    model,
+                    model_parameters,
+                )
+
+                if capture_input:
+                    _capture_input_attrs(attrs, func, args, kwargs, as_type)
+            except Exception as setup_error:
+                _logger.warning(
+                    "Tracer setup error (continuing without tracing): %s",
+                    setup_error,
+                )
                 yield from func(*args, **kwargs)
                 return
 
-            span_name = name or func.__name__
-            attrs = _build_observe_attrs(
-                as_type,
-                level,
-                user_id,
-                session_id,
-                tags,
-                metadata,
-                version,
-                model,
-                model_parameters,
-            )
+            # Track execution state to handle tracer errors correctly
+            iteration_started = False
+            generator_exhausted = False  # Track normal completion (even with 0 items)
+            user_exception = None
+            user_traceback = None  # Store original traceback for clean re-raise
+            output_parts = []
 
-            if capture_input:
-                _capture_input_attrs(attrs, func, args, kwargs, as_type)
+            try:
+                with client.start_as_current_span(span_name, attributes=attrs) as span:
+                    # Step 1: Execute user code (iteration) in isolation
+                    try:
+                        for item in func(*args, **kwargs):
+                            iteration_started = True
+                            if capture_output:
+                                output_parts.append(item)
+                            yield item
+                        generator_exhausted = True  # Loop completed normally
+                    except Exception as exc:
+                        user_exception = exc
+                        user_traceback = exc.__traceback__  # Capture original traceback
 
-            with client.start_as_current_span(span_name, attributes=attrs) as span:
-                try:
-                    output_parts = []
-                    for item in func(*args, **kwargs):
-                        if capture_output:
-                            output_parts.append(item)
-                        yield item
-                    if capture_output and output_parts:
-                        _set_output_attr(span, output_parts)
-                    span.set_status(Status(StatusCode.OK))
-                except Exception as e:
-                    span.set_status(Status(StatusCode.ERROR, str(e)))
-                    span.record_exception(e)
-                    raise
+                    # Step 2: Tracer operations (isolated - never propagate)
+                    try:
+                        if user_exception is not None:
+                            span.set_status(Status(StatusCode.ERROR, str(user_exception)))
+                            span.record_exception(user_exception)
+                        else:
+                            if capture_output and output_parts:
+                                _set_output_attr(span, output_parts)
+                            span.set_status(Status(StatusCode.OK))
+                    except Exception as tracer_op_error:
+                        _logger.warning(
+                            "Tracer operation error (graceful degradation): %s",
+                            tracer_op_error,
+                        )
+
+                    # Step 3: Re-raise user exception if any
+                    if user_exception is not None:
+                        raise user_exception.with_traceback(user_traceback)
+
+            except Exception as tracer_exc:
+                # Span context manager failures (__enter__/__exit__)
+                if user_exception is not None:
+                    raise user_exception.with_traceback(user_traceback)
+                # If iteration started or completed, don't re-iterate (would duplicate side effects)
+                if iteration_started or generator_exhausted:
+                    _logger.warning(
+                        "Tracer span error (generator already ran): %s",
+                        tracer_exc,
+                    )
+                    return
+                # Tracer error before iteration - fall back to untraced
+                _logger.warning(
+                    "Tracer error (continuing without tracing): %s",
+                    tracer_exc,
+                )
+                yield from func(*args, **kwargs)
 
         @functools.wraps(func)
         async def async_generator_wrapper(*args, **kwargs):
-            client = get_client()
-            if not client.config.enabled:
+            # Setup phase - graceful degradation for setup errors only
+            try:
+                client = get_client()
+                # Check master switch and tracing config - zero overhead if disabled
+                if not client.config.enabled or not client.config.tracing_enabled:
+                    async for item in func(*args, **kwargs):
+                        yield item
+                    return
+
+                span_name = name or func.__name__
+                attrs = _build_observe_attrs(
+                    as_type,
+                    level,
+                    user_id,
+                    session_id,
+                    tags,
+                    metadata,
+                    version,
+                    model,
+                    model_parameters,
+                )
+
+                if capture_input:
+                    _capture_input_attrs(attrs, func, args, kwargs, as_type)
+            except Exception as setup_error:
+                _logger.warning(
+                    "Tracer setup error (continuing without tracing): %s",
+                    setup_error,
+                )
                 async for item in func(*args, **kwargs):
                     yield item
                 return
 
-            span_name = name or func.__name__
-            attrs = _build_observe_attrs(
-                as_type,
-                level,
-                user_id,
-                session_id,
-                tags,
-                metadata,
-                version,
-                model,
-                model_parameters,
-            )
+            # Track execution state to handle tracer errors correctly
+            iteration_started = False
+            generator_exhausted = False  # Track normal completion (even with 0 items)
+            user_exception = None
+            user_traceback = None  # Store original traceback for clean re-raise
+            output_parts = []
 
-            if capture_input:
-                _capture_input_attrs(attrs, func, args, kwargs, as_type)
+            try:
+                with client.start_as_current_span(span_name, attributes=attrs) as span:
+                    # Step 1: Execute user code (iteration) in isolation
+                    try:
+                        async for item in func(*args, **kwargs):
+                            iteration_started = True
+                            if capture_output:
+                                output_parts.append(item)
+                            yield item
+                        generator_exhausted = True  # Loop completed normally
+                    except Exception as exc:
+                        user_exception = exc
+                        user_traceback = exc.__traceback__  # Capture original traceback
 
-            with client.start_as_current_span(span_name, attributes=attrs) as span:
-                try:
-                    output_parts = []
-                    async for item in func(*args, **kwargs):
-                        if capture_output:
-                            output_parts.append(item)
-                        yield item
-                    if capture_output and output_parts:
-                        _set_output_attr(span, output_parts)
-                    span.set_status(Status(StatusCode.OK))
-                except Exception as e:
-                    span.set_status(Status(StatusCode.ERROR, str(e)))
-                    span.record_exception(e)
-                    raise
+                    # Step 2: Tracer operations (isolated - never propagate)
+                    try:
+                        if user_exception is not None:
+                            span.set_status(Status(StatusCode.ERROR, str(user_exception)))
+                            span.record_exception(user_exception)
+                        else:
+                            if capture_output and output_parts:
+                                _set_output_attr(span, output_parts)
+                            span.set_status(Status(StatusCode.OK))
+                    except Exception as tracer_op_error:
+                        _logger.warning(
+                            "Tracer operation error (graceful degradation): %s",
+                            tracer_op_error,
+                        )
+
+                    # Step 3: Re-raise user exception if any
+                    if user_exception is not None:
+                        raise user_exception.with_traceback(user_traceback)
+
+            except Exception as tracer_exc:
+                # Span context manager failures (__enter__/__exit__)
+                if user_exception is not None:
+                    raise user_exception.with_traceback(user_traceback)
+                # If iteration started or completed, don't re-iterate (would duplicate side effects)
+                if iteration_started or generator_exhausted:
+                    _logger.warning(
+                        "Tracer span error (generator already ran): %s",
+                        tracer_exc,
+                    )
+                    return
+                # Tracer error before iteration - fall back to untraced
+                _logger.warning(
+                    "Tracer error (continuing without tracing): %s",
+                    tracer_exc,
+                )
+                async for item in func(*args, **kwargs):
+                    yield item
 
         # Select appropriate wrapper based on function type
         if inspect.isasyncgenfunction(func):

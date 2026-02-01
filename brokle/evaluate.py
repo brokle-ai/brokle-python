@@ -251,7 +251,7 @@ def evaluate(
         directly.
     """
     # Import here to avoid circular imports
-    from .client import get_client
+    from ._client import get_client
 
     # Get or create client
     client = get_client(api_key=api_key, base_url=base_url)
@@ -329,7 +329,7 @@ async def async_evaluate(
         ... )
     """
     # Import here to avoid circular imports
-    from .client import get_async_client
+    from ._client import get_async_client
 
     # Get or create async client
     client = await get_async_client(api_key=api_key, base_url=base_url)
