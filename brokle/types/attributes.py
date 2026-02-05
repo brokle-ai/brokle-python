@@ -101,6 +101,7 @@ class BrokleOtelSpanAttributes:
     COHERE_REQUEST_SEARCH_QUERIES_ONLY = "cohere.request.search_queries_only"
     COHERE_REQUEST_DOCUMENTS = "cohere.request.documents"
     COHERE_REQUEST_CITATION_QUALITY = "cohere.request.citation_quality"
+    COHERE_REQUEST_CHAT_HISTORY = "cohere.request.chat_history"
     COHERE_RESPONSE_CITATIONS = "cohere.response.citations"
     COHERE_RESPONSE_SEARCH_RESULTS = "cohere.response.search_results"
 
@@ -108,6 +109,7 @@ class BrokleOtelSpanAttributes:
     BEDROCK_REQUEST_MODEL_ID = "bedrock.request.model_id"
     BEDROCK_REQUEST_GUARDRAIL_ID = "bedrock.request.guardrail_id"
     BEDROCK_REQUEST_GUARDRAIL_VERSION = "bedrock.request.guardrail_version"
+    BEDROCK_REQUEST_GUARDRAIL_CONFIG = "bedrock.request.guardrail_config"
     BEDROCK_RESPONSE_STOP_REASON = "bedrock.response.stop_reason"
     BEDROCK_RESPONSE_METRICS = "bedrock.response.metrics"
 
@@ -217,21 +219,25 @@ class SpanLevel:
 
 
 class LLMProvider:
-    """LLM provider constants for gen_ai.provider.name attribute."""
+    """LLM provider constants for gen_ai.provider.name attribute.
+
+    Values follow the OTEL GenAI semantic conventions well-known values:
+    https://opentelemetry.io/docs/specs/semconv/registry/attributes/gen-ai/
+    """
 
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
-    GOOGLE = "google"
+    GOOGLE = "gcp.gemini"
     COHERE = "cohere"
     HUGGINGFACE = "huggingface"
-    AZURE_OPENAI = "azure_openai"
-    BEDROCK = "bedrock"
-    VERTEX_AI = "vertex_ai"
+    AZURE_OPENAI = "azure.ai.openai"
+    BEDROCK = "aws.bedrock"
+    VERTEX_AI = "gcp.vertex_ai"
     REPLICATE = "replicate"
     TOGETHER = "together"
     ANYSCALE = "anyscale"
     PERPLEXITY = "perplexity"
-    MISTRAL = "mistral"
+    MISTRAL = "mistral_ai"
     GROQ = "groq"
     FIREWORKS = "fireworks"
     DEEPINFRA = "deepinfra"

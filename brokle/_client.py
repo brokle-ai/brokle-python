@@ -200,7 +200,7 @@ class Brokle(BaseBrokleClient):
             >>>
             >>> # Query production spans
             >>> result = client.query.query(
-            ...     filter="service.name=chatbot AND gen_ai.system=openai",
+            ...     filter="service.name=chatbot AND gen_ai.provider.name=openai",
             ...     start_time=datetime.now() - timedelta(days=7),
             ... )
             >>>
@@ -456,7 +456,7 @@ class AsyncBrokle(BaseBrokleClient):
             >>>
             >>> # Query production spans
             >>> result = await client.query.query(
-            ...     filter="service.name=chatbot AND gen_ai.system=openai",
+            ...     filter="service.name=chatbot AND gen_ai.provider.name=openai",
             ...     start_time=datetime.now() - timedelta(days=7),
             ... )
             >>>

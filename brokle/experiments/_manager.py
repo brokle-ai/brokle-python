@@ -328,7 +328,7 @@ class ExperimentsManager(_BaseExperimentsManagerMixin):
             ... )
 
         Example (span-based - THE WEDGE):
-            >>> spans = client.query.query(filter="gen_ai.system=openai").spans
+            >>> spans = client.query.query(filter="gen_ai.provider.name=openai").spans
             >>> results = client.experiments.run(
             ...     name="retrospective-analysis",
             ...     spans=spans,
@@ -946,7 +946,7 @@ class AsyncExperimentsManager(_BaseExperimentsManagerMixin):
             ... )
 
         Example (span-based - THE WEDGE):
-            >>> result = await client.query.query(filter="gen_ai.system=openai")
+            >>> result = await client.query.query(filter="gen_ai.provider.name=openai")
             >>> results = await client.experiments.run(
             ...     name="retrospective-analysis",
             ...     spans=result.spans,

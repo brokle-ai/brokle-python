@@ -11,7 +11,7 @@ Sync Usage:
     >>> client = Brokle(api_key="bk_...")
     >>>
     >>> result = client.query.query(
-    ...     filter="service.name=chatbot AND gen_ai.system=openai",
+    ...     filter="service.name=chatbot AND gen_ai.provider.name=openai",
     ...     start_time=datetime.now() - timedelta(days=7),
     ... )
     >>> for span in result.spans:
@@ -20,7 +20,7 @@ Sync Usage:
 Async Usage:
     >>> async with AsyncBrokle(api_key="bk_...") as client:
     ...     async for span in client.query.query_iter(
-    ...         filter="gen_ai.system=openai",
+    ...         filter="gen_ai.provider.name=openai",
     ...     ):
     ...         print(span.input, span.output)
 """
@@ -89,7 +89,7 @@ class QueryManager(_BaseQueryManagerMixin):
         >>>
         >>> # Query spans from the last 7 days
         >>> result = client.query.query(
-        ...     filter="service.name=chatbot AND gen_ai.system=openai",
+        ...     filter="service.name=chatbot AND gen_ai.provider.name=openai",
         ...     start_time=datetime.now() - timedelta(days=7),
         ... )
         >>>
@@ -126,7 +126,7 @@ class QueryManager(_BaseQueryManagerMixin):
         Query spans using filter expression.
 
         Args:
-            filter: Filter expression (e.g., "service.name=chatbot AND gen_ai.system=openai")
+            filter: Filter expression (e.g., "service.name=chatbot AND gen_ai.provider.name=openai")
             start_time: Start of time range (optional)
             end_time: End of time range (optional)
             limit: Maximum number of spans to return (default: 1000)
@@ -203,7 +203,7 @@ class QueryManager(_BaseQueryManagerMixin):
             QueryAPIError: If API request fails
 
         Example:
-            >>> for span in client.query.query_iter("gen_ai.system=openai"):
+            >>> for span in client.query.query_iter("gen_ai.provider.name=openai"):
             ...     process_span(span)
         """
         page = 1
@@ -332,7 +332,7 @@ class AsyncQueryManager(_BaseQueryManagerMixin):
         Query spans using filter expression (async).
 
         Args:
-            filter: Filter expression (e.g., "service.name=chatbot AND gen_ai.system=openai")
+            filter: Filter expression (e.g., "service.name=chatbot AND gen_ai.provider.name=openai")
             start_time: Start of time range (optional)
             end_time: End of time range (optional)
             limit: Maximum number of spans to return (default: 1000)
@@ -409,7 +409,7 @@ class AsyncQueryManager(_BaseQueryManagerMixin):
             QueryAPIError: If API request fails
 
         Example:
-            >>> async for span in client.query.query_iter("gen_ai.system=openai"):
+            >>> async for span in client.query.query_iter("gen_ai.provider.name=openai"):
             ...     await process_span(span)
         """
         page = 1

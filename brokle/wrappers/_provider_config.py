@@ -535,13 +535,13 @@ BEDROCK_CONFIG = ProviderConfig(
 # =============================================================================
 
 PROVIDER_CONFIGS: Dict[str, ProviderConfig] = {
-    "openai": OPENAI_CONFIG,
-    "azure_openai": AZURE_OPENAI_CONFIG,
-    "anthropic": ANTHROPIC_CONFIG,
-    "mistral": MISTRAL_CONFIG,
-    "cohere": COHERE_CONFIG,
-    "google": GOOGLE_CONFIG,
-    "bedrock": BEDROCK_CONFIG,
+    LLMProvider.OPENAI: OPENAI_CONFIG,
+    LLMProvider.AZURE_OPENAI: AZURE_OPENAI_CONFIG,
+    LLMProvider.ANTHROPIC: ANTHROPIC_CONFIG,
+    LLMProvider.MISTRAL: MISTRAL_CONFIG,
+    LLMProvider.COHERE: COHERE_CONFIG,
+    LLMProvider.GOOGLE: GOOGLE_CONFIG,
+    LLMProvider.BEDROCK: BEDROCK_CONFIG,
 }
 
 
