@@ -9,7 +9,6 @@ Uses the unified factory pattern for consistent sync/async behavior.
 
 from typing import TYPE_CHECKING, TypeVar, Union
 
-from .._client import get_client
 from ._extractors import extract_anthropic_response
 from ._factory import create_wrapper
 from ._provider_config import build_anthropic_attrs, anthropic_span_name
@@ -59,11 +58,6 @@ def wrap_anthropic(
         ... )
         >>> brokle.flush()
     """
-    # Return unwrapped if SDK disabled
-    brokle_client = get_client()
-    if not brokle_client.config.enabled:
-        return client
-
     original_messages_create = client.messages.create
 
     # Create wrapper using unified factory

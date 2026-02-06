@@ -190,8 +190,10 @@ def reset_client_state():
     import brokle._client
 
     brokle._client._client_context.set(None)
+    brokle._client._async_client_context.set(None)
     yield
     brokle._client._client_context.set(None)
+    brokle._client._async_client_context.set(None)
 
 
 @pytest.fixture(autouse=True)

@@ -61,11 +61,6 @@ def wrap_google(client: "genai.Client") -> "genai.Client":
         ... )
         >>> brokle.flush()
     """
-    # Return unwrapped if SDK disabled
-    brokle_client = get_client()
-    if not brokle_client.config.enabled:
-        return client
-
     # Validate client structure
     if not hasattr(client, "models"):
         raise ValueError(

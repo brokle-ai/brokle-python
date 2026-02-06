@@ -16,7 +16,6 @@ from opentelemetry.trace import Status, StatusCode
 from ..streaming import StreamingAccumulator
 from ..types import Attrs
 from ..utils.attributes import calculate_total_tokens
-from .._client import get_client
 from ._extractors import extract_mistral_response
 from ._factory import create_wrapper
 from ._provider_config import build_mistral_attrs, mistral_span_name
@@ -247,11 +246,6 @@ def wrap_mistral(client: "Mistral") -> "Mistral":
         ... )
         >>> brokle.flush()
     """
-    # Return unwrapped if SDK disabled
-    brokle_client = get_client()
-    if not brokle_client.config.enabled:
-        return client
-
     original_chat_complete = client.chat.complete
 
     # Create wrapper using unified factory with Mistral-specific stream wrappers

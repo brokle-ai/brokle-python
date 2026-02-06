@@ -10,7 +10,6 @@ Uses the unified factory pattern for consistent sync/async behavior.
 from functools import partial
 from typing import TYPE_CHECKING, TypeVar, Union
 
-from .._client import get_client
 from ._extractors import extract_openai_response
 from ._factory import create_wrapper
 from ._provider_config import build_azure_openai_attrs, azure_openai_span_name
@@ -61,11 +60,6 @@ def wrap_azure_openai(
         ... )
         >>> brokle.flush()
     """
-    # Return unwrapped if SDK disabled
-    brokle_client = get_client()
-    if not brokle_client.config.enabled:
-        return client
-
     # Extract Azure-specific metadata from client
     azure_endpoint = getattr(client, "_azure_endpoint", None)
     api_version = getattr(client, "_api_version", None)

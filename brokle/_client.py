@@ -32,6 +32,7 @@ Singleton Pattern:
     >>> client = get_client()  # Reads from BROKLE_* env vars
 """
 
+from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
 from typing import Optional
 
@@ -75,6 +76,9 @@ class Brokle(BaseBrokleClient):
         """Initialize sync Brokle client with SyncHTTPClient."""
         super().__init__(*args, **kwargs)
         self._http_client: Optional[SyncHTTPClient] = None
+        # Auto-register as global client (first-write-wins)
+        if _client_context.get() is None:
+            _client_context.set(self)
 
     @property
     def _http(self) -> SyncHTTPClient:
@@ -292,6 +296,9 @@ class Brokle(BaseBrokleClient):
     def close(self):
         """Close the client (alias for shutdown)."""
         self.shutdown()
+        # Clear global registration if this is the registered client
+        if _client_context.get() is self:
+            _client_context.set(None)
 
     def __enter__(self) -> "Brokle":
         """Context manager entry."""
@@ -331,6 +338,9 @@ class AsyncBrokle(BaseBrokleClient):
         """Initialize async Brokle client with AsyncHTTPClient."""
         super().__init__(*args, **kwargs)
         self._http_client: Optional[AsyncHTTPClient] = None
+        # Auto-register as global client (first-write-wins)
+        if _async_client_context.get() is None:
+            _async_client_context.set(self)
 
     @property
     def _http(self) -> AsyncHTTPClient:
@@ -539,6 +549,9 @@ class AsyncBrokle(BaseBrokleClient):
     async def close(self):
         """Close the client (alias for shutdown)."""
         await self.shutdown()
+        # Clear global registration if this is the registered client
+        if _async_client_context.get() is self:
+            _async_client_context.set(None)
 
     async def __aenter__(self) -> "AsyncBrokle":
         """Async context manager entry."""
@@ -683,3 +696,49 @@ async def reset_async_client() -> None:
     if client:
         await client.close()
     _async_client_context.set(None)
+
+
+@contextmanager
+def brokle_context(client: Brokle):
+    """
+    Temporarily override the global Brokle client for a block.
+
+    Useful for multi-tenant or per-request client overrides.
+    Restores the previous client when the block exits (even on exception).
+
+    Args:
+        client: Brokle client to use within the block
+
+    Yields:
+        The provided client
+
+    Example:
+        >>> tenant_client = Brokle(api_key="bk_tenant_key")
+        >>> with brokle_context(tenant_client) as c:
+        ...     # All get_client() calls within this block return tenant_client
+        ...     wrapped = wrap_openai(openai.OpenAI())
+        ...     response = wrapped.chat.completions.create(...)
+    """
+    token = _client_context.set(client)
+    try:
+        yield client
+    finally:
+        _client_context.reset(token)
+
+
+@asynccontextmanager
+async def async_brokle_context(client: AsyncBrokle):
+    """
+    Temporarily override the global AsyncBrokle client for a block.
+
+    Args:
+        client: AsyncBrokle client to use within the block
+
+    Yields:
+        The provided client
+    """
+    token = _async_client_context.set(client)
+    try:
+        yield client
+    finally:
+        _async_client_context.reset(token)

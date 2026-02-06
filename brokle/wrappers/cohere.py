@@ -15,7 +15,6 @@ from opentelemetry.trace import Status, StatusCode
 
 from ..streaming import StreamingAccumulator
 from ..types import Attrs
-from .._client import get_client
 from ._extractors import extract_cohere_response, serialize_cohere_connectors, serialize_cohere_documents
 from ._factory import create_wrapper
 from ._provider_config import build_cohere_attrs, cohere_span_name
@@ -302,11 +301,6 @@ def wrap_cohere(
         ... )
         >>> brokle.flush()
     """
-    # Return unwrapped if SDK disabled
-    brokle_client = get_client()
-    if not brokle_client.config.enabled:
-        return client
-
     original_chat = client.chat
 
     # Create wrapper using unified factory with Cohere-specific stream wrappers

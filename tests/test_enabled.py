@@ -146,8 +146,8 @@ class TestDecoratorEnabled:
 class TestWrapperEnabled:
     """Tests for wrappers with disabled SDK."""
 
-    def test_wrap_openai_returns_unwrapped_when_disabled(self, monkeypatch):
-        """wrap_openai should return unwrapped client when disabled."""
+    def test_wrap_openai_passthrough_when_disabled(self, monkeypatch):
+        """wrap_openai should still wrap but calls pass through when disabled."""
         monkeypatch.setenv("BROKLE_ENABLED", "false")
 
         import brokle._client
@@ -157,10 +157,11 @@ class TestWrapperEnabled:
         mock_client = MagicMock()
         mock_client.chat = MagicMock()
         mock_client.chat.completions = MagicMock()
-        mock_client.chat.completions.create = MagicMock()
-
-        original_create = mock_client.chat.completions.create
+        expected_response = MagicMock()
+        mock_client.chat.completions.create = MagicMock(return_value=expected_response)
 
         wrapped = wrap_openai(mock_client)
 
-        assert wrapped.chat.completions.create is original_create
+        # Call-time disabled check: wrapping succeeds, but calls pass through
+        result = wrapped.chat.completions.create(model="gpt-4", messages=[])
+        assert result is expected_response

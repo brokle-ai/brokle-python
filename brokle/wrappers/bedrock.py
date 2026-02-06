@@ -156,11 +156,6 @@ def wrap_bedrock(client: "BedrockRuntimeClient") -> "BedrockRuntimeClient":
         ... )
         >>> brokle.flush()
     """
-    # Return unwrapped if SDK disabled
-    brokle_client = get_client()
-    if not brokle_client.config.enabled:
-        return client
-
     original_converse = client.converse
 
     # Create wrapper using unified factory

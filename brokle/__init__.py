@@ -38,6 +38,8 @@ _LAZY_MODULES: dict[str, tuple[str, str]] = {
     "reset_client": ("._client", "reset_client"),
     "set_async_client": ("._client", "set_async_client"),
     "set_client": ("._client", "set_client"),
+    "brokle_context": ("._client", "brokle_context"),
+    "async_brokle_context": ("._client", "async_brokle_context"),
     # Sync utilities
     "run_sync": ("._utils.sync", "run_sync"),
     "run_sync_safely": ("._utils.sync", "run_sync_safely"),
@@ -238,6 +240,8 @@ __all__ = [
     "get_async_client",
     "set_async_client",
     "reset_async_client",
+    "brokle_context",
+    "async_brokle_context",
     # Sync Utilities
     "run_sync",
     "run_sync_safely",
@@ -393,6 +397,8 @@ if TYPE_CHECKING:
     from ._client import (
         AsyncBrokle,
         Brokle,
+        async_brokle_context,
+        brokle_context,
         get_async_client,
         get_client,
         reset_async_client,
