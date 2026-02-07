@@ -56,12 +56,10 @@ def _build_observe_attrs(
         attrs[Attrs.SESSION_ID] = session_id
     if tags:
         attrs[Attrs.BROKLE_TRACE_TAGS] = json.dumps(tags)
-        attrs[Attrs.TAGS] = json.dumps(tags)
     if metadata:
         attrs[Attrs.BROKLE_TRACE_METADATA] = json.dumps(metadata)
-        attrs[Attrs.METADATA] = json.dumps(metadata)
     if version:
-        attrs[Attrs.BROKLE_VERSION] = version
+        attrs[Attrs.BROKLE_SPAN_VERSION] = version
 
     if as_type == SpanType.GENERATION:
         if model:

@@ -12,76 +12,79 @@ The Brokle Python SDK provides three integration patterns for adding AI observab
 
 # Pattern 1: Wrapper Functions API
 
-## `wrap_openai(client, **config) -> OpenAIType`
+## `wrap_openai(client) -> OpenAIType`
 
-Wrap an existing OpenAI client with Brokle observability and platform features.
+Wrap an existing OpenAI client with Brokle observability.
 
 **Parameters:**
 - `client` (OpenAI | AsyncOpenAI): The OpenAI client instance to wrap
-- `capture_content` (bool, default=True): Whether to capture request/response content
-- `capture_metadata` (bool, default=True): Whether to capture metadata like model, tokens
-- `tags` (List[str], optional): List of tags to add to all traces from this client
-- `session_id` (str, optional): Session identifier for grouping related calls
-- `user_id` (str, optional): User identifier for user-scoped analytics
-- `**config`: Additional Brokle configuration options
 
 **Returns:**
-- Enhanced client with identical interface but comprehensive observability
+- The same client instance with instrumented methods (identical interface)
 
 **Raises:**
 - `ProviderError`: If OpenAI SDK not installed or client is invalid
-- `ValidationError`: If configuration is invalid
+
+**How it works:**
+The wrapper instruments the client's `chat.completions.create` method to automatically create OTEL spans with GenAI semantic attributes. It resolves the Brokle client at call time via `get_client()`, so you must initialize Brokle (via `Brokle(api_key=...)` or `BROKLE_API_KEY` env var) before making wrapped calls.
 
 **Example:**
 ```python
 from openai import OpenAI
-from brokle import wrap_openai
+from brokle import Brokle, wrap_openai
 
-# Basic usage
+# 1. Initialize Brokle client
+brokle = Brokle(api_key="bk_...")
+
+# 2. Wrap OpenAI client (single argument)
 client = wrap_openai(OpenAI(api_key="sk-..."))
 
-# With configuration
-client = wrap_openai(
-    OpenAI(),
-    capture_content=True,
-    tags=["production", "chatbot"],
-    session_id="session_123",
-    user_id="user_456"
-)
-
-# Use exactly like normal OpenAI client
+# 3. Use exactly like normal OpenAI client
 response = client.chat.completions.create(
     model="gpt-4",
     messages=[{"role": "user", "content": "Hello"}]
 )
 ```
 
-## `wrap_anthropic(client, **config) -> AnthropicType`
+**Setting trace attributes (tags, session_id, user_id):**
 
-Wrap an existing Anthropic client with Brokle observability and platform features.
+These are trace-level concerns — set them via `@observe` or `start_as_current_span`, not on the wrapper:
+
+```python
+# Option 1: @observe decorator
+@observe(session_id="session_123", user_id="user_456", tags=["production"])
+def chat(message: str):
+    return client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": message}],
+    )
+
+# Option 2: Context manager
+with brokle.start_as_current_span("chat_session") as span:
+    span.update_trace(session_id="session_123", tags=["production"])
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": "Hello"}],
+    )
+```
+
+## `wrap_anthropic(client) -> AnthropicType`
+
+Wrap an existing Anthropic client with Brokle observability.
 
 **Parameters:**
 - `client` (Anthropic | AsyncAnthropic): The Anthropic client instance to wrap
-- `capture_content` (bool, default=True): Whether to capture request/response content
-- `capture_metadata` (bool, default=True): Whether to capture metadata like model, tokens
-- `tags` (List[str], optional): List of tags to add to all traces
-- `session_id` (str, optional): Session identifier
-- `user_id` (str, optional): User identifier
-- `**config`: Additional configuration options
 
 **Returns:**
-- Enhanced Anthropic client with observability
+- The same client instance with instrumented methods (identical interface)
 
 **Example:**
 ```python
 from anthropic import Anthropic
-from brokle import wrap_anthropic
+from brokle import Brokle, wrap_anthropic
 
-client = wrap_anthropic(
-    Anthropic(api_key="sk-ant-..."),
-    tags=["claude", "analysis"],
-    capture_content=True
-)
+brokle = Brokle(api_key="bk_...")
+client = wrap_anthropic(Anthropic(api_key="sk-ant-..."))
 
 message = client.messages.create(
     model="claude-3-opus-20240229",

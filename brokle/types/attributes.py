@@ -140,8 +140,6 @@ class BrokleOtelSpanAttributes:
     BROKLE_SPAN_NAME = "brokle.span_name"
     BROKLE_PARENT_SPAN_ID = "brokle.parent_span_id"
     BROKLE_SPAN_LEVEL = "brokle.span.level"
-    BROKLE_SPAN_VERSION = "brokle.span.version"
-
     # ========== Brokle Extended Usage Metrics ==========
     BROKLE_USAGE_TOTAL_TOKENS = "brokle.usage.total_tokens"
     BROKLE_USAGE_LATENCY_MS = "brokle.usage.latency_ms"
@@ -161,16 +159,12 @@ class BrokleOtelSpanAttributes:
     BROKLE_STREAMING = "brokle.streaming"
     BROKLE_PROJECT_ID = "brokle.project_id"
     BROKLE_ENVIRONMENT = "brokle.environment"
-    BROKLE_VERSION = "brokle.version"
+    BROKLE_SPAN_VERSION = "brokle.span.version"
     BROKLE_RELEASE = "brokle.release"
+    BROKLE_STATUS_MESSAGE = "brokle.status_message"
 
     # ========== Filterable Metadata (Root Level for Querying) ==========
     USER_ID = "user.id"
-    TRACE_NAME = "trace_name"
-    TAGS = "tags"
-    METADATA = "metadata"
-    VERSION = "version"
-    ENVIRONMENT = "environment"
 
     # ========== Framework Component Attributes (GenAI Extension) ==========
     GEN_AI_FRAMEWORK_NAME = "gen_ai.framework.name"
@@ -324,7 +318,8 @@ MASKABLE_ATTRIBUTES = [
     Attrs.OUTPUT_VALUE,
     Attrs.GEN_AI_INPUT_MESSAGES,
     Attrs.GEN_AI_OUTPUT_MESSAGES,
-    Attrs.METADATA,
+    Attrs.BROKLE_TRACE_METADATA,
+    Attrs.BROKLE_STATUS_MESSAGE,  # Can contain error context with PII
 ]
 
 

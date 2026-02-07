@@ -67,18 +67,9 @@ from openai import OpenAI
 from anthropic import Anthropic
 from brokle import wrap_openai, wrap_anthropic
 
-# OpenAI wrapper
-openai_client = wrap_openai(
-    OpenAI(api_key="sk-..."),
-    tags=["production"],
-    session_id="user_session_123"
-)
-
-# Anthropic wrapper
-anthropic_client = wrap_anthropic(
-    Anthropic(api_key="sk-ant-..."),
-    tags=["claude", "analysis"]
-)
+# Wrap existing clients (single argument)
+openai_client = wrap_openai(OpenAI(api_key="sk-..."))
+anthropic_client = wrap_anthropic(Anthropic(api_key="sk-ant-..."))
 
 response = openai_client.chat.completions.create(
     model="gpt-4",

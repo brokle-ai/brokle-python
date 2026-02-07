@@ -38,9 +38,6 @@ class BrokleConfig:
     release: Optional[str] = None
     """Release identifier for deployment tracking (e.g., 'v2.1.24', git commit hash)"""
 
-    version: Optional[str] = None
-    """Trace-level version for A/B testing experiments (e.g., 'experiment-A', 'control')"""
-
     # ========== Master Switch ==========
     enabled: bool = True
     """Master switch: if False, SDK is completely disabled (no resources, no-op everything)"""
@@ -208,7 +205,6 @@ class BrokleConfig:
             BROKLE_BASE_URL - Base URL (default: http://localhost:8080)
             BROKLE_ENVIRONMENT - Environment tag (default: "default")
             BROKLE_RELEASE - Release identifier for deployment tracking
-            BROKLE_VERSION - Trace-level version for A/B testing experiments
             BROKLE_TRACING_ENABLED - Enable tracing (default: true)
             BROKLE_METRICS_ENABLED - Enable metrics collection (default: true)
             BROKLE_METRICS_EXPORT_INTERVAL - Metrics export interval in seconds (default: 60.0)
@@ -260,7 +256,6 @@ class BrokleConfig:
             "BROKLE_ENVIRONMENT", "default"
         )
         release = overrides.get("release") or os.getenv("BROKLE_RELEASE")
-        version = overrides.get("version") or os.getenv("BROKLE_VERSION")
 
         # Tracing control
         tracing_enabled = cls._parse_bool(
@@ -329,7 +324,6 @@ class BrokleConfig:
             timeout=timeout,
             environment=environment,
             release=release,
-            version=version,
             tracing_enabled=tracing_enabled,
             metrics_enabled=metrics_enabled,
             metrics_export_interval=metrics_export_interval,

@@ -50,7 +50,6 @@ class BaseBrokleClient:
         tracing_enabled: bool = True,
         metrics_enabled: bool = True,
         release: Optional[str] = None,
-        version: Optional[str] = None,
         sample_rate: float = 1.0,
         mask: Optional[callable] = None,
         flush_at: int = 100,
@@ -71,7 +70,6 @@ class BaseBrokleClient:
             tracing_enabled: Enable/disable tracing (if False, all calls are no-ops)
             metrics_enabled: Enable/disable metrics collection (if False, no metrics recorded)
             release: Release identifier for deployment tracking (e.g., 'v2.1.24', 'abc123')
-            version: Trace-level version for A/B testing experiments (e.g., 'experiment-A', 'control')
             sample_rate: Sampling rate for traces (0.0 to 1.0)
             mask: Optional function to mask sensitive data
             flush_at: Maximum batch size before flush (1-1000)
@@ -95,7 +93,6 @@ class BaseBrokleClient:
                 tracing_enabled=tracing_enabled,
                 metrics_enabled=metrics_enabled,
                 release=release,
-                version=version,
                 sample_rate=sample_rate,
                 mask=mask,
                 flush_at=flush_at,
@@ -132,8 +129,6 @@ class BaseBrokleClient:
         resource_attrs = {}
         if self.config.release:
             resource_attrs[Attrs.BROKLE_RELEASE] = self.config.release
-        if self.config.version:
-            resource_attrs[Attrs.BROKLE_VERSION] = self.config.version
 
         if resource_attrs:
             resource = resource.merge(Resource.create(resource_attrs))
@@ -282,7 +277,7 @@ class BaseBrokleClient:
         attrs = attributes.copy() if attributes else {}
 
         if version:
-            attrs[Attrs.BROKLE_VERSION] = version
+            attrs[Attrs.BROKLE_SPAN_VERSION] = version
 
         if as_type:
             attrs[Attrs.BROKLE_SPAN_TYPE] = as_type
@@ -393,7 +388,7 @@ class BaseBrokleClient:
                     attrs[Attrs.GEN_AI_REQUEST_PRESENCE_PENALTY] = value
 
         if version:
-            attrs[Attrs.BROKLE_VERSION] = version
+            attrs[Attrs.BROKLE_SPAN_VERSION] = version
 
         # Link prompt if provided and NOT a fallback
         if prompt and not prompt.is_fallback:
@@ -440,7 +435,7 @@ class BaseBrokleClient:
         attrs[Attrs.BROKLE_SPAN_TYPE] = SpanType.EVENT
 
         if version:
-            attrs[Attrs.BROKLE_VERSION] = version
+            attrs[Attrs.BROKLE_SPAN_VERSION] = version
 
         with self._tracer.start_as_current_span(
             name=name,
@@ -572,21 +567,35 @@ class BaseBrokleClient:
     def update_current_span(
         self,
         prompt: Optional["Prompt"] = None,
+        input: Optional[Any] = None,
         output: Optional[Any] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        usage: Optional[Dict[str, int]] = None,
+        model: Optional[str] = None,
+        level: Optional[str] = None,
+        version: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        status_message: Optional[str] = None,
         **kwargs,
     ) -> bool:
         """
         Update the current active span with additional attributes.
 
         This method allows updating the current span with prompt linking,
-        output data, or custom metadata. Useful for dynamic updates inside
-        decorated functions.
+        input/output data, token usage, or custom metadata. Useful for
+        dynamic updates inside decorated functions.
 
         Args:
             prompt: Prompt to link (fallback prompts are not linked)
+            input: Input data to record
             output: Output data to record
             metadata: Additional metadata
+            usage: Token usage dict with keys: input_tokens, output_tokens, total_tokens
+            model: Model name (when resolved after span creation)
+            level: Span severity level (DEBUG, DEFAULT, WARNING, ERROR)
+            version: Span version for A/B testing
+            tags: Tags for filtering
+            status_message: Status message (error context, warnings)
             **kwargs: Additional span attributes
 
         Returns:
@@ -598,7 +607,10 @@ class BaseBrokleClient:
             ...     prompt = brokle.prompts.get_sync("movie-critic")
             ...     brokle.update_current_span(prompt=prompt)
             ...     # ... do LLM call ...
-            ...     brokle.update_current_span(output="LLM response")
+            ...     brokle.update_current_span(
+            ...         output="LLM response",
+            ...         usage={"input_tokens": 100, "output_tokens": 50},
+            ...     )
         """
         span = trace.get_current_span()
         if not span or not span.is_recording():
@@ -610,6 +622,14 @@ class BaseBrokleClient:
             if prompt.id and prompt.id != "fallback":
                 span.set_attribute(Attrs.BROKLE_PROMPT_ID, prompt.id)
 
+        if input is not None:
+            if _is_llm_messages_format(input):
+                span.set_attribute(Attrs.GEN_AI_INPUT_MESSAGES, json.dumps(input))
+            else:
+                input_str, mime_type = _serialize_with_mime(input)
+                span.set_attribute(Attrs.INPUT_VALUE, input_str)
+                span.set_attribute(Attrs.INPUT_MIME_TYPE, mime_type)
+
         if output is not None:
             if _is_llm_messages_format(output):
                 span.set_attribute(Attrs.GEN_AI_OUTPUT_MESSAGES, json.dumps(output))
@@ -619,7 +639,33 @@ class BaseBrokleClient:
                 span.set_attribute(Attrs.OUTPUT_MIME_TYPE, mime_type)
 
         if metadata:
-            span.set_attribute(Attrs.METADATA, json.dumps(metadata))
+            span.set_attribute(Attrs.BROKLE_TRACE_METADATA, json.dumps(metadata))
+
+        if usage:
+            input_tokens = usage.get("input_tokens", 0)
+            output_tokens = usage.get("output_tokens", 0)
+            total_tokens = usage.get("total_tokens", input_tokens + output_tokens)
+            if input_tokens > 0:
+                span.set_attribute(Attrs.GEN_AI_USAGE_INPUT_TOKENS, input_tokens)
+            if output_tokens > 0:
+                span.set_attribute(Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, output_tokens)
+            if total_tokens > 0:
+                span.set_attribute(Attrs.BROKLE_USAGE_TOTAL_TOKENS, total_tokens)
+
+        if model:
+            span.set_attribute(Attrs.GEN_AI_REQUEST_MODEL, model)
+
+        if level:
+            span.set_attribute(Attrs.BROKLE_SPAN_LEVEL, level)
+
+        if version:
+            span.set_attribute(Attrs.BROKLE_SPAN_VERSION, version)
+
+        if tags:
+            span.set_attribute(Attrs.BROKLE_TRACE_TAGS, json.dumps(tags))
+
+        if status_message:
+            span.set_attribute(Attrs.BROKLE_STATUS_MESSAGE, status_message)
 
         for key, value in kwargs.items():
             span.set_attribute(key, value)

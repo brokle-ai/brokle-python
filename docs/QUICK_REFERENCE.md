@@ -10,9 +10,9 @@ from openai import OpenAI
 from anthropic import Anthropic
 from brokle import wrap_openai, wrap_anthropic
 
-# Wrap existing clients
-openai_client = wrap_openai(OpenAI(api_key="sk-..."), tags=["production"])
-anthropic_client = wrap_anthropic(Anthropic(api_key="sk-ant-..."), tags=["claude"])
+# Wrap existing clients (single argument — no kwargs)
+openai_client = wrap_openai(OpenAI(api_key="sk-..."))
+anthropic_client = wrap_anthropic(Anthropic(api_key="sk-ant-..."))
 
 # Use exactly like normal clients
 response = openai_client.chat.completions.create(
@@ -132,18 +132,15 @@ client = Brokle(
 # Environment-based singleton (uses BROKLE_* env vars)
 client = get_client()
 
-# Wrapper configuration
-from brokle import wrap_openai
+# Wrapper usage (single argument — configure Brokle separately)
+from brokle import Brokle, wrap_openai
 from openai import OpenAI
 
-wrapped_client = wrap_openai(
-    OpenAI(api_key="sk-..."),
-    capture_content=True,
-    capture_metadata=True,
-    tags=["production", "ai"],
-    session_id="session_123",
-    user_id="user_456"
-)
+# Initialize Brokle first (or set BROKLE_API_KEY env var)
+brokle = Brokle(api_key="bk_...")
+
+# Wrap the OpenAI client
+wrapped_client = wrap_openai(OpenAI(api_key="sk-..."))
 ```
 
 ---

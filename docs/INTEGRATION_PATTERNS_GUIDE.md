@@ -64,26 +64,36 @@ print(response.choices[0].message.content)
 
 ```python
 from openai import OpenAI, AsyncOpenAI
-from brokle import wrap_openai
+from brokle import Brokle, wrap_openai, observe
 
-# Sync client with full configuration
-openai_client = wrap_openai(
-    OpenAI(api_key="sk-..."),
-    capture_content=True,              # Capture request/response content
-    capture_metadata=True,             # Capture model, tokens, etc.
-    tags=["production", "chatbot"],    # Tags for analytics
-    session_id="user_session_123",     # Group related calls
-    user_id="user_456"                 # User-scoped analytics
-)
+# Initialize Brokle (or set BROKLE_API_KEY env var)
+brokle = Brokle(api_key="bk_...")
 
-# Async client support
-async_client = wrap_openai(
-    AsyncOpenAI(api_key="sk-..."),
-    tags=["async", "streaming"],
-    capture_content=True
-)
+# Wrap clients (single argument — no kwargs)
+openai_client = wrap_openai(OpenAI(api_key="sk-..."))
+async_client = wrap_openai(AsyncOpenAI(api_key="sk-..."))
 
-# Use async client
+# Set trace attributes via @observe or context managers, not on the wrapper
+@observe(session_id="user_session_123", user_id="user_456", tags=["production", "chatbot"])
+def chat(message: str):
+    return openai_client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": message}]
+    )
+
+# Or use a context manager for trace attributes
+with brokle.start_as_current_span("chat_session") as span:
+    span.update_trace(
+        session_id="user_session_123",
+        user_id="user_456",
+        tags=["production", "chatbot"],
+    )
+    response = openai_client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": "Hello!"}]
+    )
+
+# Async client works the same way
 async def chat_async():
     response = await async_client.chat.completions.create(
         model="gpt-4",
@@ -95,20 +105,24 @@ async def chat_async():
 ### Privacy Controls
 
 ```python
-# Sensitive data handling
-sensitive_client = wrap_openai(
-    OpenAI(),
-    capture_content=False,    # Don't capture request/response content
-    capture_metadata=True,    # Still capture tokens, model, timing
-    tags=["sensitive", "pii"]
+from brokle import Brokle, wrap_openai
+from brokle.utils.masking import MaskingHelper
+
+# Privacy is controlled at the Brokle client level via masking, not on the wrapper
+brokle = Brokle(
+    api_key="bk_...",
+    mask=MaskingHelper.mask_pii,  # Masks emails, phones, SSN, etc.
 )
 
-# Use for sensitive operations
-response = sensitive_client.chat.completions.create(
+# Wrap client normally
+openai_client = wrap_openai(OpenAI())
+
+# Content is automatically masked before transmission
+response = openai_client.chat.completions.create(
     model="gpt-4",
     messages=[{"role": "user", "content": "Process this PII data: ..."}]
 )
-# ✅ Metadata captured, content privacy preserved
+# ✅ PII masked via Brokle client masking function
 ```
 
 ## Anthropic Wrapper
@@ -117,13 +131,12 @@ response = sensitive_client.chat.completions.create(
 
 ```python
 from anthropic import Anthropic
-from brokle import wrap_anthropic
+from brokle import Brokle, wrap_anthropic
 
-# Wrap Anthropic client
-anthropic_client = wrap_anthropic(
-    Anthropic(api_key="sk-ant-..."),
-    tags=["claude", "analysis"]
-)
+brokle = Brokle(api_key="bk_...")
+
+# Wrap Anthropic client (single argument)
+anthropic_client = wrap_anthropic(Anthropic(api_key="sk-ant-..."))
 
 # Use exactly like normal Anthropic client
 message = anthropic_client.messages.create(
@@ -140,23 +153,13 @@ print(message.content[0].text)
 
 ```python
 from anthropic import Anthropic, AsyncAnthropic
-from brokle import wrap_anthropic
+from brokle import Brokle, wrap_anthropic, observe
 
-# Production configuration
-claude_client = wrap_anthropic(
-    Anthropic(),
-    capture_content=True,
-    tags=["production", "document-analysis"],
-    session_id="analysis_session_789",
-    user_id="analyst_123"
-)
+brokle = Brokle(api_key="bk_...")
 
-# Async Anthropic client
-async_claude = wrap_anthropic(
-    AsyncAnthropic(),
-    tags=["async", "streaming", "claude"],
-    capture_metadata=True
-)
+# Wrap clients (single argument)
+claude_client = wrap_anthropic(Anthropic())
+async_claude = wrap_anthropic(AsyncAnthropic())
 
 # Document analysis workflow
 def analyze_documents(documents: list[str]) -> list[str]:
@@ -184,20 +187,13 @@ results = analyze_documents(["doc1...", "doc2...", "doc3..."])
 ```python
 from openai import OpenAI
 from anthropic import Anthropic
-from brokle import wrap_openai, wrap_anthropic
+from brokle import Brokle, wrap_openai, wrap_anthropic
 
-# Wrap multiple providers with consistent configuration
-openai_client = wrap_openai(
-    OpenAI(),
-    tags=["multi-provider", "openai"],
-    session_id="comparison_session"
-)
+brokle = Brokle(api_key="bk_...")
 
-anthropic_client = wrap_anthropic(
-    Anthropic(),
-    tags=["multi-provider", "anthropic"],
-    session_id="comparison_session"  # Same session for comparison
-)
+# Wrap multiple providers (single argument each)
+openai_client = wrap_openai(OpenAI())
+anthropic_client = wrap_anthropic(Anthropic())
 
 def compare_providers(prompt: str) -> dict:
     """Compare responses from multiple AI providers."""
@@ -220,8 +216,10 @@ def compare_providers(prompt: str) -> dict:
         "anthropic": anthropic_response.content[0].text
     }
 
-# Both providers tracked in same session for easy comparison
-results = compare_providers("Explain quantum computing in simple terms")
+# Use a context manager to group both calls in the same session
+with brokle.start_as_current_span("provider_comparison") as span:
+    span.update_trace(session_id="comparison_session", tags=["multi-provider"])
+    results = compare_providers("Explain quantum computing in simple terms")
 # ✅ Complete observability across providers with session correlation
 ```
 
@@ -1141,14 +1139,15 @@ finally:
 
 ### Observability Tagging Strategy
 ```python
-# Consistent tagging for analytics
+# Consistent tagging for analytics via @observe or context managers
 base_tags = ["production", "brokle-app"]
 
-# Feature-specific tags
-content_tags = base_tags + ["content", "generation"]
-analysis_tags = base_tags + ["analysis", "document"]
-
-client = wrap_openai(OpenAI(), tags=content_tags)
+@observe(tags=base_tags + ["content", "generation"])
+def generate_content(prompt: str):
+    return openai_client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}],
+    )
 ```
 
 ## Performance Optimization

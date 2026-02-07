@@ -3,6 +3,9 @@ OpenAI Wrapper Functions Example
 
 This example shows how to use Brokle's wrapper functions for OpenAI.
 Explicit wrapping approach with comprehensive observability for all OpenAI usage.
+
+Note: wrap_openai() takes a single argument (the client instance).
+Use @observe() or context managers to set trace attributes like tags, session_id, user_id.
 """
 
 import asyncio
@@ -11,7 +14,7 @@ import os
 # ✨ Wrapper Functions - explicit wrapping approach!
 from openai import AsyncOpenAI, OpenAI
 
-from brokle import wrap_openai
+from brokle import Brokle, get_client, observe, wrap_openai
 
 # Set up environment variables
 os.environ["BROKLE_API_KEY"] = "bk_test"
@@ -19,32 +22,33 @@ os.environ["BROKLE_HOST"] = "http://localhost:8080"
 
 os.environ["OPENAI_API_KEY"] = "sk-proj-testkeyforlocaldebuggingonly"
 
+# Initialize Brokle client (reads from env vars)
+brokle = get_client()
+
 
 def sync_chat_example():
     """Example of synchronous chat completion with wrapper function."""
     print("💬 Sync Chat Completion with Wrapper")
     print("-" * 40)
 
-    # Create OpenAI client and wrap it with Brokle
+    # Create OpenAI client and wrap it with Brokle (single argument)
     openai_client = OpenAI()
-    wrapped_client = wrap_openai(
-        openai_client,
-        capture_content=True,
-        capture_metadata=True,
-        tags=["example", "sync", "chat"],
-        session_id="demo_session_001",
-    )
+    wrapped_client = wrap_openai(openai_client)
 
-    # Use wrapped client exactly like normal OpenAI
-    response = wrapped_client.chat.completions.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "What is the capital of France?"},
-        ],
-        temperature=0.7,
-        max_tokens=150,
-    )
+    # Use @observe to attach trace attributes
+    @observe(tags=["example", "sync", "chat"], session_id="demo_session_001")
+    def do_chat():
+        return wrapped_client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "What is the capital of France?"},
+            ],
+            temperature=0.7,
+            max_tokens=150,
+        )
+
+    response = do_chat()
 
     print("Response:", response.choices[0].message.content)
     print("Model used:", response.model)
@@ -58,19 +62,18 @@ def sync_completion_example():
     print("📝 Sync Text Completion with Wrapper")
     print("-" * 40)
 
-    wrapped_client = wrap_openai(
-        OpenAI(),
-        capture_content=True,
-        tags=["completion", "creative"],
-        user_id="demo_user_123",
-    )
+    wrapped_client = wrap_openai(OpenAI())
 
-    response = wrapped_client.completions.create(
-        model="gpt-3.5-turbo-instruct",
-        prompt="Once upon a time in a galaxy far, far away",
-        max_tokens=50,
-        temperature=0.7,
-    )
+    # Use a context manager to set trace attributes
+    with brokle.start_as_current_span("text_completion") as span:
+        span.update_trace(user_id="demo_user_123", tags=["completion", "creative"])
+
+        response = wrapped_client.completions.create(
+            model="gpt-3.5-turbo-instruct",
+            prompt="Once upon a time in a galaxy far, far away",
+            max_tokens=50,
+            temperature=0.7,
+        )
 
     print("Completion:", response.choices[0].text)
     print("Finish reason:", response.choices[0].finish_reason)
@@ -83,12 +86,7 @@ def sync_embedding_example():
     print("🔢 Sync Embeddings with Wrapper")
     print("-" * 40)
 
-    wrapped_client = wrap_openai(
-        OpenAI(),
-        capture_content=False,  # Don't capture embeddings content
-        capture_metadata=True,
-        tags=["embeddings", "similarity"],
-    )
+    wrapped_client = wrap_openai(OpenAI())
 
     response = wrapped_client.embeddings.create(
         model="text-embedding-ada-002",
@@ -107,13 +105,7 @@ async def async_chat_example():
     print("-" * 40)
 
     async_openai_client = AsyncOpenAI()
-    wrapped_client = wrap_openai(
-        async_openai_client,
-        capture_content=True,
-        capture_metadata=True,
-        tags=["async", "creative", "story"],
-        session_id="async_session_002",
-    )
+    wrapped_client = wrap_openai(async_openai_client)
 
     async with wrapped_client:
         response = await wrapped_client.chat.completions.create(
@@ -140,12 +132,7 @@ async def async_streaming_example():
     print("🌊 Async Streaming with Wrapper")
     print("-" * 40)
 
-    wrapped_client = wrap_openai(
-        AsyncOpenAI(),
-        capture_content=False,  # Don't capture streaming content
-        capture_metadata=True,
-        tags=["streaming", "realtime", "counting"],
-    )
+    wrapped_client = wrap_openai(AsyncOpenAI())
 
     async with wrapped_client:
         stream = await wrapped_client.chat.completions.create(
@@ -168,13 +155,7 @@ def batch_processing_example():
     print("📊 Batch Processing with Wrapper")
     print("-" * 40)
 
-    wrapped_client = wrap_openai(
-        OpenAI(),
-        capture_content=True,
-        capture_metadata=True,
-        tags=["batch", "education", "tech-explanations"],
-        session_id="batch_session_003",
-    )
+    wrapped_client = wrap_openai(OpenAI())
 
     prompts = [
         "What is machine learning?",
@@ -183,16 +164,21 @@ def batch_processing_example():
         "What is artificial intelligence?",
     ]
 
-    responses = []
-    for i, prompt in enumerate(prompts):
-        response = wrapped_client.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=100,
-            # Add batch-specific metadata
-            metadata={"batch_index": i, "batch_total": len(prompts)},
+    # Group batch calls under a single trace with session context
+    with brokle.start_as_current_span("batch_processing") as span:
+        span.update_trace(
+            session_id="batch_session_003",
+            tags=["batch", "education", "tech-explanations"],
         )
-        responses.append(response)
+
+        responses = []
+        for i, prompt in enumerate(prompts):
+            response = wrapped_client.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=100,
+            )
+            responses.append(response)
 
     for i, response in enumerate(responses):
         print(f"Q{i+1}: {prompts[i]}")
@@ -208,12 +194,7 @@ def function_calling_example():
     print("🔧 Function Calling with Wrapper")
     print("-" * 40)
 
-    wrapped_client = wrap_openai(
-        OpenAI(),
-        capture_content=True,
-        capture_metadata=True,
-        tags=["function-calling", "tools", "weather"],
-    )
+    wrapped_client = wrap_openai(OpenAI())
 
     # Define a function for the model to call
     functions = [
@@ -257,12 +238,7 @@ def error_handling_example():
     print("🚨 Error Handling with Wrapper")
     print("-" * 40)
 
-    wrapped_client = wrap_openai(
-        OpenAI(),
-        capture_content=True,
-        capture_metadata=True,
-        tags=["error-testing", "debugging"],
-    )
+    wrapped_client = wrap_openai(OpenAI())
 
     try:
         # This will fail due to invalid model
@@ -283,24 +259,22 @@ def cost_tracking_example():
     print("💰 Cost Tracking with Wrapper")
     print("-" * 40)
 
-    wrapped_client = wrap_openai(
-        OpenAI(),
-        capture_content=True,
-        capture_metadata=True,
-        tags=["cost-tracking", "budget-monitoring"],
-    )
+    wrapped_client = wrap_openai(OpenAI())
 
     # Multiple calls to demonstrate cost tracking
     total_requests = 3
-    for i in range(total_requests):
-        response = wrapped_client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "user", "content": f"Tell me a fact about number {i+1}"}
-            ],
-            max_tokens=50,
-        )
-        print(f"Call {i+1}: {response.choices[0].message.content.strip()}")
+    with brokle.start_as_current_span("cost_tracking") as span:
+        span.update_trace(tags=["cost-tracking", "budget-monitoring"])
+
+        for i in range(total_requests):
+            response = wrapped_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "user", "content": f"Tell me a fact about number {i+1}"}
+                ],
+                max_tokens=50,
+            )
+            print(f"Call {i+1}: {response.choices[0].message.content.strip()}")
 
     print(f"✅ All {total_requests} requests tracked with cost analysis!")
     print("📊 View detailed cost breakdowns in Brokle dashboard")

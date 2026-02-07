@@ -242,7 +242,7 @@ class TestMaskedReadableSpan:
 
         span = create_mock_span(
             {
-                Attrs.METADATA: {
+                Attrs.BROKLE_TRACE_METADATA: {
                     "user": {"password": "secret123", "name": "John"},
                     "data": ["secret info", "public info"],
                 }
@@ -252,10 +252,10 @@ class TestMaskedReadableSpan:
         masked = MaskedReadableSpan(
             span=span,
             mask_fn=recursive_mask,
-            maskable_keys=[Attrs.METADATA],
+            maskable_keys=[Attrs.BROKLE_TRACE_METADATA],
         )
 
-        result = masked.attributes[Attrs.METADATA]
+        result = masked.attributes[Attrs.BROKLE_TRACE_METADATA]
         assert result["user"]["password"] == "[REDACTED]123"
         assert result["user"]["name"] == "John"
         assert result["data"][0] == "[REDACTED] info"
@@ -407,7 +407,8 @@ class TestIntegrationWithMaskableAttributes:
                 Attrs.OUTPUT_VALUE: "model output",
                 Attrs.GEN_AI_INPUT_MESSAGES: '[{"role": "user", "content": "secret"}]',
                 Attrs.GEN_AI_OUTPUT_MESSAGES: '[{"role": "assistant", "content": "response"}]',
-                Attrs.METADATA: {"key": "value"},
+                Attrs.BROKLE_TRACE_METADATA: {"key": "value"},
+                Attrs.BROKLE_STATUS_MESSAGE: "Error: user john@example.com not found",
                 # Non-maskable attributes
                 Attrs.GEN_AI_REQUEST_MODEL: "gpt-4",
                 Attrs.GEN_AI_USAGE_INPUT_TOKENS: 100,
@@ -424,7 +425,8 @@ class TestIntegrationWithMaskableAttributes:
         assert masked_span.attributes[Attrs.OUTPUT_VALUE] == "[REDACTED]"
         assert masked_span.attributes[Attrs.GEN_AI_INPUT_MESSAGES] == "[REDACTED]"
         assert masked_span.attributes[Attrs.GEN_AI_OUTPUT_MESSAGES] == "[REDACTED]"
-        assert masked_span.attributes[Attrs.METADATA] == "[REDACTED]"
+        assert masked_span.attributes[Attrs.BROKLE_TRACE_METADATA] == "[REDACTED]"
+        assert masked_span.attributes[Attrs.BROKLE_STATUS_MESSAGE] == "[REDACTED]"
 
         # Non-maskable attributes should be unchanged
         assert masked_span.attributes[Attrs.GEN_AI_REQUEST_MODEL] == "gpt-4"

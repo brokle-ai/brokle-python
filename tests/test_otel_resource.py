@@ -1,10 +1,10 @@
 """
-Tests for OpenTelemetry Resource creation with release/version attributes.
+Tests for OpenTelemetry Resource creation with release attributes.
 
-Verifies that release and version attributes are correctly set on the Resource
+Verifies that release attributes are correctly set on the Resource
 for both tracing-only, metrics-only, and combined deployments.
 
-Regression test for: Metrics resource drops release/version when tracing is off
+Regression test for: Metrics resource drops release when tracing is off
 """
 
 from unittest.mock import MagicMock, patch
@@ -17,7 +17,7 @@ class TestOtelResourceAttributes:
     @patch("brokle._base_client.TracerProvider")
     @patch("brokle._base_client.BrokleSpanProcessor")
     @patch("brokle._base_client.create_exporter_for_config")
-    def test_metrics_only_deployment_has_release_version(
+    def test_metrics_only_deployment_has_release(
         self,
         mock_create_exporter,
         mock_processor,
@@ -25,10 +25,10 @@ class TestOtelResourceAttributes:
         mock_meter_provider,
     ):
         """
-        Ensure release/version in resource when tracing disabled but metrics enabled.
+        Ensure release in resource when tracing disabled but metrics enabled.
 
         This is the key regression test: previously, when tracing_enabled=False,
-        the resource was created without release/version attributes.
+        the resource was created without release attributes.
         """
         from brokle import Brokle
         from brokle.types import Attrs
@@ -44,7 +44,6 @@ class TestOtelResourceAttributes:
             tracing_enabled=False,
             metrics_enabled=True,
             release="v1.2.3",
-            version="experiment-A",
         )
 
         # Tracer provider should NOT be created (tracing disabled)
@@ -57,17 +56,15 @@ class TestOtelResourceAttributes:
         call_kwargs = mock_meter_provider.call_args.kwargs
         resource = call_kwargs["resource"]
 
-        # CRITICAL: Verify release and version are in the resource
+        # CRITICAL: Verify release is in the resource
         assert Attrs.BROKLE_RELEASE in resource.attributes
-        assert Attrs.BROKLE_VERSION in resource.attributes
         assert resource.attributes[Attrs.BROKLE_RELEASE] == "v1.2.3"
-        assert resource.attributes[Attrs.BROKLE_VERSION] == "experiment-A"
 
     @patch("brokle._base_client.BrokleMeterProvider")
     @patch("brokle._base_client.TracerProvider")
     @patch("brokle._base_client.BrokleSpanProcessor")
     @patch("brokle._base_client.create_exporter_for_config")
-    def test_tracing_only_deployment_has_release_version(
+    def test_tracing_only_deployment_has_release(
         self,
         mock_create_exporter,
         mock_processor,
@@ -75,7 +72,7 @@ class TestOtelResourceAttributes:
         mock_meter_provider,
     ):
         """
-        Ensure release/version in resource when metrics disabled but tracing enabled.
+        Ensure release in resource when metrics disabled but tracing enabled.
         """
         from brokle import Brokle
         from brokle.types import Attrs
@@ -91,7 +88,6 @@ class TestOtelResourceAttributes:
             tracing_enabled=True,
             metrics_enabled=False,
             release="v2.0.0",
-            version="control",
         )
 
         # Tracer provider SHOULD be created
@@ -104,11 +100,9 @@ class TestOtelResourceAttributes:
         call_kwargs = mock_tracer_provider.call_args.kwargs
         resource = call_kwargs["resource"]
 
-        # Verify release and version are in the resource
+        # Verify release is in the resource
         assert Attrs.BROKLE_RELEASE in resource.attributes
-        assert Attrs.BROKLE_VERSION in resource.attributes
         assert resource.attributes[Attrs.BROKLE_RELEASE] == "v2.0.0"
-        assert resource.attributes[Attrs.BROKLE_VERSION] == "control"
 
     @patch("brokle._base_client.BrokleMeterProvider")
     @patch("brokle._base_client.TracerProvider")
@@ -122,7 +116,7 @@ class TestOtelResourceAttributes:
         mock_meter_provider,
     ):
         """
-        Verify tracer and meter providers use identical resource with release/version.
+        Verify tracer and meter providers use identical resource with release.
         """
         from brokle import Brokle
         from brokle.types import Attrs
@@ -142,7 +136,6 @@ class TestOtelResourceAttributes:
             tracing_enabled=True,
             metrics_enabled=True,
             release="v3.0.0",
-            version="both-enabled",
         )
 
         # Both providers should be created
@@ -156,15 +149,14 @@ class TestOtelResourceAttributes:
         # Resources should be the same instance (shared resource)
         assert tracer_resource is meter_resource
 
-        # Both should have release and version
+        # Both should have release
         assert tracer_resource.attributes[Attrs.BROKLE_RELEASE] == "v3.0.0"
-        assert tracer_resource.attributes[Attrs.BROKLE_VERSION] == "both-enabled"
 
     @patch("brokle._base_client.BrokleMeterProvider")
     @patch("brokle._base_client.TracerProvider")
     @patch("brokle._base_client.BrokleSpanProcessor")
     @patch("brokle._base_client.create_exporter_for_config")
-    def test_resource_without_release_version(
+    def test_resource_without_release(
         self,
         mock_create_exporter,
         mock_processor,
@@ -172,7 +164,7 @@ class TestOtelResourceAttributes:
         mock_meter_provider,
     ):
         """
-        Verify resource is created correctly when release/version are not provided.
+        Verify resource is created correctly when release is not provided.
         """
         from brokle import Brokle
         from brokle.types import Attrs
@@ -182,12 +174,12 @@ class TestOtelResourceAttributes:
         mock_meter_instance.get_meter.return_value = MagicMock()
         mock_meter_provider.return_value = mock_meter_instance
 
-        # Create client without release/version
+        # Create client without release
         Brokle(
             api_key="bk_test_key_1234567890",
             tracing_enabled=False,
             metrics_enabled=True,
-            # No release or version
+            # No release
         )
 
         # Meter provider should be created
@@ -196,9 +188,8 @@ class TestOtelResourceAttributes:
         # Get the resource
         resource = mock_meter_provider.call_args.kwargs["resource"]
 
-        # Resource should NOT have release or version attributes
+        # Resource should NOT have release attribute
         assert Attrs.BROKLE_RELEASE not in resource.attributes
-        assert Attrs.BROKLE_VERSION not in resource.attributes
 
     @patch("brokle._base_client.BrokleMeterProvider")
     @patch("brokle._base_client.TracerProvider")
@@ -222,61 +213,20 @@ class TestOtelResourceAttributes:
         mock_meter_instance.get_meter.return_value = MagicMock()
         mock_meter_provider.return_value = mock_meter_instance
 
-        # Create client with only release (no version)
+        # Create client with only release
         Brokle(
             api_key="bk_test_key_1234567890",
             tracing_enabled=False,
             metrics_enabled=True,
             release="v1.0.0",
-            # No version
         )
 
         # Get the resource
         resource = mock_meter_provider.call_args.kwargs["resource"]
 
-        # Resource should have release but NOT version
+        # Resource should have release
         assert Attrs.BROKLE_RELEASE in resource.attributes
         assert resource.attributes[Attrs.BROKLE_RELEASE] == "v1.0.0"
-        assert Attrs.BROKLE_VERSION not in resource.attributes
-
-    @patch("brokle._base_client.BrokleMeterProvider")
-    @patch("brokle._base_client.TracerProvider")
-    @patch("brokle._base_client.BrokleSpanProcessor")
-    @patch("brokle._base_client.create_exporter_for_config")
-    def test_resource_with_only_version(
-        self,
-        mock_create_exporter,
-        mock_processor,
-        mock_tracer_provider,
-        mock_meter_provider,
-    ):
-        """
-        Verify resource works correctly when only version is provided.
-        """
-        from brokle import Brokle
-        from brokle.types import Attrs
-
-        # Mock meter provider
-        mock_meter_instance = MagicMock()
-        mock_meter_instance.get_meter.return_value = MagicMock()
-        mock_meter_provider.return_value = mock_meter_instance
-
-        # Create client with only version (no release)
-        Brokle(
-            api_key="bk_test_key_1234567890",
-            tracing_enabled=False,
-            metrics_enabled=True,
-            version="experiment-B",
-            # No release
-        )
-
-        # Get the resource
-        resource = mock_meter_provider.call_args.kwargs["resource"]
-
-        # Resource should have version but NOT release
-        assert Attrs.BROKLE_VERSION in resource.attributes
-        assert resource.attributes[Attrs.BROKLE_VERSION] == "experiment-B"
-        assert Attrs.BROKLE_RELEASE not in resource.attributes
 
 
 class TestGetClientConfigForwarding:
@@ -346,36 +296,6 @@ class TestGetClientConfigForwarding:
                 mock_brokle.assert_called_once()
                 config = mock_brokle.call_args.kwargs["config"]
                 assert config.metrics_export_interval == 30.0
-
-        # Cleanup
-        brokle._client._client_context.set(None)
-
-    def test_get_client_forwards_version(self):
-        """
-        Verify get_client() forwards version setting for A/B testing.
-        """
-        from unittest.mock import patch
-
-        import brokle._client
-
-        # Reset singleton
-        brokle._client._client_context.set(None)
-
-        with patch.dict(
-            "os.environ",
-            {"BROKLE_API_KEY": "bk_test_key_1234567890"},
-            clear=False,
-        ):
-            with patch("brokle._client.Brokle") as mock_brokle:
-                mock_brokle.return_value = MagicMock()
-
-                from brokle import get_client
-
-                get_client(version="experiment-A")
-
-                mock_brokle.assert_called_once()
-                config = mock_brokle.call_args.kwargs["config"]
-                assert config.version == "experiment-A"
 
         # Cleanup
         brokle._client._client_context.set(None)
@@ -541,7 +461,7 @@ class TestGetClientConfigForwarding:
     @patch("brokle._base_client.TracerProvider")
     @patch("brokle._base_client.BrokleSpanProcessor")
     @patch("brokle._base_client.create_exporter_for_config")
-    def test_get_client_includes_release_version_in_resource(
+    def test_get_client_includes_release_in_resource(
         self,
         mock_create_exporter,
         mock_processor,
@@ -549,9 +469,9 @@ class TestGetClientConfigForwarding:
         mock_meter_provider,
     ):
         """
-        Verify release/version from config appear in OTEL resource when using get_client().
+        Verify release from config appears in OTEL resource when using get_client().
 
-        Regression test for: Release/version dropped when Brokle is built from config
+        Regression test for: Release dropped when Brokle is built from config
         When using config= parameter path (used by get_client), the resource attributes
         must be sourced from self.config, not local parameters.
         """
@@ -572,10 +492,9 @@ class TestGetClientConfigForwarding:
             {"BROKLE_API_KEY": "bk_test_key_for_resource_test"},
             clear=False,
         ):
-            # Call get_client with release and version
+            # Call get_client with release
             get_client(
                 release="v2.0.0",
-                version="experiment-B",
                 tracing_enabled=True,
                 metrics_enabled=False,
             )
@@ -587,11 +506,9 @@ class TestGetClientConfigForwarding:
             call_kwargs = mock_tracer_provider.call_args.kwargs
             resource = call_kwargs["resource"]
 
-            # CRITICAL: Verify release and version from config are in the resource
+            # CRITICAL: Verify release from config is in the resource
             assert Attrs.BROKLE_RELEASE in resource.attributes
-            assert Attrs.BROKLE_VERSION in resource.attributes
             assert resource.attributes[Attrs.BROKLE_RELEASE] == "v2.0.0"
-            assert resource.attributes[Attrs.BROKLE_VERSION] == "experiment-B"
 
         # Cleanup
         brokle._client._client_context.set(None)
@@ -600,7 +517,7 @@ class TestGetClientConfigForwarding:
     @patch("brokle._base_client.TracerProvider")
     @patch("brokle._base_client.BrokleSpanProcessor")
     @patch("brokle._base_client.create_exporter_for_config")
-    def test_get_client_reads_release_version_from_env(
+    def test_get_client_reads_release_from_env(
         self,
         mock_create_exporter,
         mock_processor,
@@ -608,7 +525,7 @@ class TestGetClientConfigForwarding:
         mock_meter_provider,
     ):
         """
-        Verify BROKLE_RELEASE and BROKLE_VERSION env vars appear in resource via get_client().
+        Verify BROKLE_RELEASE env var appears in resource via get_client().
         """
         import brokle._client
         from brokle import get_client
@@ -627,11 +544,10 @@ class TestGetClientConfigForwarding:
             {
                 "BROKLE_API_KEY": "bk_test_key_for_env_resource",
                 "BROKLE_RELEASE": "v3.1.4",
-                "BROKLE_VERSION": "canary",
             },
             clear=False,
         ):
-            # Call get_client - should read release/version from env
+            # Call get_client - should read release from env
             get_client(
                 tracing_enabled=True,
                 metrics_enabled=False,
@@ -644,9 +560,8 @@ class TestGetClientConfigForwarding:
             call_kwargs = mock_tracer_provider.call_args.kwargs
             resource = call_kwargs["resource"]
 
-            # Verify release and version from env are in the resource
+            # Verify release from env is in the resource
             assert resource.attributes[Attrs.BROKLE_RELEASE] == "v3.1.4"
-            assert resource.attributes[Attrs.BROKLE_VERSION] == "canary"
 
         # Cleanup
         brokle._client._client_context.set(None)

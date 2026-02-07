@@ -41,12 +41,13 @@ class TestMaskableAttributesConstant:
 
     def test_maskable_attributes_defined(self):
         """Verify MASKABLE_ATTRIBUTES is properly defined."""
-        assert len(MASKABLE_ATTRIBUTES) == 5
+        assert len(MASKABLE_ATTRIBUTES) == 6
         assert Attrs.INPUT_VALUE in MASKABLE_ATTRIBUTES
         assert Attrs.OUTPUT_VALUE in MASKABLE_ATTRIBUTES
         assert Attrs.GEN_AI_INPUT_MESSAGES in MASKABLE_ATTRIBUTES
         assert Attrs.GEN_AI_OUTPUT_MESSAGES in MASKABLE_ATTRIBUTES
-        assert Attrs.METADATA in MASKABLE_ATTRIBUTES
+        assert Attrs.BROKLE_TRACE_METADATA in MASKABLE_ATTRIBUTES
+        assert Attrs.BROKLE_STATUS_MESSAGE in MASKABLE_ATTRIBUTES
 
     def test_non_maskable_attributes_excluded(self):
         """Verify structural attributes are not in MASKABLE_ATTRIBUTES."""

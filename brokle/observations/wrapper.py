@@ -118,8 +118,12 @@ class BrokleObservation:
         input: Optional[Any] = None,
         output: Optional[Any] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        usage: Optional[Dict[str, int]] = None,
+        model: Optional[str] = None,
         level: Optional[str] = None,
         version: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        status_message: Optional[str] = None,
         **extra_attributes,
     ) -> "BrokleObservation":
         """
@@ -130,8 +134,12 @@ class BrokleObservation:
             input: Set input value
             output: Set output value
             metadata: Update metadata (merged with existing)
+            usage: Token usage dict with keys: input_tokens, output_tokens, total_tokens
+            model: Model name (when resolved after span creation)
             level: Set span level (DEBUG, DEFAULT, WARNING, ERROR)
             version: Set version
+            tags: Tags for filtering
+            status_message: Status message (error context, warnings)
             **extra_attributes: Additional span attributes
 
         Returns:
@@ -158,11 +166,35 @@ class BrokleObservation:
         if metadata:
             self._span.set_attribute(Attrs.BROKLE_TRACE_METADATA, json.dumps(metadata))
 
+        if usage:
+            input_tokens = usage.get("input_tokens", 0)
+            output_tokens = usage.get("output_tokens", 0)
+            total_tokens = usage.get("total_tokens", input_tokens + output_tokens)
+            if input_tokens > 0:
+                self._span.set_attribute(Attrs.GEN_AI_USAGE_INPUT_TOKENS, input_tokens)
+            if output_tokens > 0:
+                self._span.set_attribute(
+                    Attrs.GEN_AI_USAGE_OUTPUT_TOKENS, output_tokens
+                )
+            if total_tokens > 0:
+                self._span.set_attribute(
+                    Attrs.BROKLE_USAGE_TOTAL_TOKENS, total_tokens
+                )
+
+        if model:
+            self._span.set_attribute(Attrs.GEN_AI_REQUEST_MODEL, model)
+
         if level:
             self._span.set_attribute(Attrs.BROKLE_SPAN_LEVEL, level)
 
         if version:
-            self._span.set_attribute(Attrs.BROKLE_VERSION, version)
+            self._span.set_attribute(Attrs.BROKLE_SPAN_VERSION, version)
+
+        if tags:
+            self._span.set_attribute(Attrs.BROKLE_TRACE_TAGS, json.dumps(tags))
+
+        if status_message:
+            self._span.set_attribute(Attrs.BROKLE_STATUS_MESSAGE, status_message)
 
         for key, value in extra_attributes.items():
             self._span.set_attribute(key, value)

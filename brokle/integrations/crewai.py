@@ -114,10 +114,10 @@ class BrokleCrewAICallback(BaseEventListener if BaseEventListener else object):
             attrs[Attrs.SESSION_ID] = self.session_id
 
         if self.tags:
-            attrs[Attrs.TAGS] = json.dumps(self.tags)
+            attrs[Attrs.BROKLE_TRACE_TAGS] = json.dumps(self.tags)
 
         if self.metadata:
-            attrs[Attrs.METADATA] = json.dumps(self.metadata)
+            attrs[Attrs.BROKLE_TRACE_METADATA] = json.dumps(self.metadata)
 
         return attrs
 
