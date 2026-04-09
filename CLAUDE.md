@@ -183,7 +183,7 @@ BROKLE_ENABLED=true                            # Master switch (default: true). 
 BROKLE_API_KEY="bk_your_secret"
 
 # Optional Configuration
-BROKLE_BASE_URL="https://api.brokle.com"      # Default: http://localhost:8080
+BROKLE_BASE_URL="https://api.brokle.com"      # Default: https://api.brokle.com
 BROKLE_ENVIRONMENT="production"                # Default: "default" (lowercase, max 40 chars)
 
 # Tracing Control
@@ -224,7 +224,7 @@ client = Brokle(api_key="bk_your_secret")
 # Full configuration with parameters
 client = Brokle(
     api_key="bk_your_secret",
-    base_url="http://localhost:8080",
+    base_url="https://api.brokle.com",
     environment="production",
     debug=True,                                # Enable debug logging
     tracing_enabled=True,                      # Enable tracing (False to disable)
@@ -826,9 +826,13 @@ span.set_attribute(BrokleOtelSpanAttributes.BROKLE_SESSION_ID, "session-123")
 ## Backend Integration
 
 This SDK is designed to work with the Brokle platform backend:
-- Default backend: `http://localhost:8080`
+- Default backend: `https://api.brokle.com`
 - Authentication via `/v1/auth/validate-key`
 - Environment tags in request headers
 - Project-scoped API key validation
 
 The SDK validates environment tags using rules and sends appropriate headers to the backend for proper request routing and scoping.
+
+
+## Compatibility Notes
+- Backward compatibility is not required yet; there is no production data because the product has not been released.

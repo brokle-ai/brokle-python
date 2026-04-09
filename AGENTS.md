@@ -28,6 +28,9 @@ Use the Makefile for repeatable workflows:
 - Naming: `test_<functionality>_<scenario>` where possible.
 - Run a single file: `python -m pytest tests/test_streaming_wrappers.py -v`.
 
+## Compatibility Notes
+- Backward compatibility is not required yet; there is no production data because the product has not been released.
+
 ## Commit & Pull Request Guidelines
 - Recent history uses conventional prefixes like `feat:`, `fix:`, `refactor(scope):`, `chore:`.
 - Preferred format (from `CONTRIBUTING.md`): `<type>: <description>` with optional body.

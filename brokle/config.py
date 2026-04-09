@@ -25,7 +25,7 @@ class BrokleConfig:
     """Brokle API key (required, must start with 'bk_')"""
 
     # ========== Connection Configuration ==========
-    base_url: str = "http://localhost:8080"
+    base_url: str = "https://api.brokle.com"
     """Brokle API base URL"""
 
     timeout: int = 30
@@ -202,7 +202,7 @@ class BrokleConfig:
         Environment variables:
             BROKLE_ENABLED - Master switch (default: true). Set to false to disable SDK completely.
             BROKLE_API_KEY - API key (required when enabled)
-            BROKLE_BASE_URL - Base URL (default: http://localhost:8080)
+            BROKLE_BASE_URL - Base URL (default: https://api.brokle.com)
             BROKLE_ENVIRONMENT - Environment tag (default: "default")
             BROKLE_RELEASE - Release identifier for deployment tracking
             BROKLE_TRACING_ENABLED - Enable tracing (default: true)
@@ -247,7 +247,7 @@ class BrokleConfig:
 
         # Connection
         base_url = overrides.get("base_url") or os.getenv(
-            "BROKLE_BASE_URL", "http://localhost:8080"
+            "BROKLE_BASE_URL", "https://api.brokle.com"
         )
         timeout = int(overrides.get("timeout") or os.getenv("BROKLE_TIMEOUT", "30"))
 
