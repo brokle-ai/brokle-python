@@ -372,7 +372,7 @@ Available error classes (following Langfuse naming pattern):
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/brokle-ai/brokle-python/issues)
+- **Issues**: [GitHub Issues](https://github.com/steloit/steloit-python/issues)
 - **Docs**: [docs.brokle.com](https://docs.brokle.com/sdk/python)
 - **Email**: support@brokle.com
 

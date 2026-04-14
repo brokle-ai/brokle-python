@@ -27,8 +27,8 @@ By participating in this project, you agree to abide by our Code of Conduct. Ple
 
 1. **Fork and clone the repository**:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/brokle-python.git
-   cd brokle-python
+   git clone https://github.com/YOUR_USERNAME/steloit-python.git
+   cd steloit-python
    ```
 
 2. **Create a virtual environment**:
@@ -285,7 +285,7 @@ To release a new version of the Python SDK:
    - Push commit and tag to GitHub
 
 3. **Create GitHub Release manually**:
-   - Go to: https://github.com/brokle-ai/brokle-python/releases/new
+   - Go to: https://github.com/steloit/steloit-python/releases/new
    - Select the tag that was just created
    - Click "Generate release notes"
    - Review and edit release notes as needed

@@ -36,7 +36,7 @@ Use this template when preparing a new release. Copy the appropriate section to 
 - Example: Updated dependencies to address CVE-XXXX-XXXX
 - Example: Added input sanitization for user-provided metadata
 
-[X.Y.Z]: https://github.com/brokle-ai/brokle-python/releases/tag/vX.Y.Z
+[X.Y.Z]: https://github.com/steloit/steloit-python/releases/tag/vX.Y.Z
 ```
 
 ---
@@ -109,7 +109,7 @@ For alpha/beta/rc releases, mark them clearly:
 
 **Migration Guide**: See [MIGRATION_v0.3.md](docs/MIGRATION_v0.3.md)
 
-[0.3.0-beta.1]: https://github.com/brokle-ai/brokle-python/releases/tag/v0.3.0-beta.1
+[0.3.0-beta.1]: https://github.com/steloit/steloit-python/releases/tag/v0.3.0-beta.1
 ```
 
 ---

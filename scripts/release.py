@@ -210,7 +210,7 @@ def main():
         print("")
         print("📋 NEXT STEPS:")
         print("")
-        print("1. Go to: https://github.com/brokle-ai/brokle-python/releases/new")
+        print("1. Go to: https://github.com/steloit/steloit-python/releases/new")
         print(f"2. Select tag: v{new_version}")
         print("3. Click 'Generate release notes'")
         print("4. Review and edit release notes")

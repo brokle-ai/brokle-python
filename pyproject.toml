@@ -111,11 +111,11 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/brokle-ai/brokle-python"
+Homepage = "https://github.com/steloit/steloit-python"
 Documentation = "https://docs.brokle.com/sdk/python"
-Repository = "https://github.com/brokle-ai/brokle-python"
-"Bug Tracker" = "https://github.com/brokle-ai/brokle-python/issues"
-Changelog = "https://github.com/brokle-ai/brokle-python/blob/main/CHANGELOG.md"
+Repository = "https://github.com/steloit/steloit-python"
+"Bug Tracker" = "https://github.com/steloit/steloit-python/issues"
+Changelog = "https://github.com/steloit/steloit-python/blob/main/CHANGELOG.md"
 
 [tool.setuptools.dynamic]
 version = {attr = "brokle.version.__version__"}
